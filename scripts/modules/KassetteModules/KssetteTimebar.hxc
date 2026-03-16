@@ -30,18 +30,22 @@ class KssetteTimeBar extends Module {
             state.remove(timeBarBG); 
             timeBarBG = null; 
         }
-        timeBarBG = new FlxSprite(0, 0).makeGraphic(FlxG.width, Std.int(barSize + 4), 0xFF000000);
+
+        var isMini:Bool = (timeBarPos == "Bottom Left" || timeBarPos == "Bottom Right" || timeBarPos == "Top Left" || timeBarPos == "Top Right");
+        var barWidth:Int = isMini ? 360 : FlxG.width;
+
+        timeBarBG = new FlxSprite(0, 0).makeGraphic(barWidth, Std.int(barSize + 4), 0xFF000000);
         timeBarBG.origin.set(0, 0); 
         timeBarBG.scrollFactor.set(0, 0); 
         timeBarBG.zIndex = 998;
-        if (state.camHUD != null) timeBarBG.cameras = [state.camHUD]; 
+        if (state.camHUD != null) timeBarBG.cameras = [state.camHUD];
         state.add(timeBarBG);
         
-        timeBar = new FlxSprite(0, 2).makeGraphic(FlxG.width, Std.int(barSize), 0xFFFFFFFF);
+        timeBar = new FlxSprite(0, 2).makeGraphic(barWidth, Std.int(barSize), 0xFFFFFFFF);
         timeBar.origin.set(0, 0); 
         timeBar.scrollFactor.set(0, 0); 
         timeBar.zIndex = 999;
-        if (state.camHUD != null) timeBar.cameras = [state.camHUD]; 
+        if (state.camHUD != null) timeBar.cameras = [state.camHUD];
         state.add(timeBar);
     }
 
@@ -62,17 +66,31 @@ class KssetteTimeBar extends Module {
         if (!cachedActive || state == null || timeBar == null || timeBarBG == null || timeBar.exists == false || apiModule == null) return;
         if (timeBar.scale == null || timeBarBG.scale == null) return;
         
-        timeBar.scale.x = apiModule.getSongProgress();
-        var hud = state.camHUD;
-        if (hud != null) {
-            timeBar.scale.y = timeBarBG.scale.y = 1 / hud.zoom;
-            
-            var center:Float = 0;
-            if (timeBarPos == "Top") center = 0;
-            else center = FlxG.height - (timeBarBG.height * timeBarBG.scale.y);
-            
-            timeBarBG.y = center; 
-            timeBar.y = center + (2 * timeBar.scale.y);
+        var paddingX:Float = 0; 
+        var paddingY:Float = 20;
+        var targetX:Float = 0;
+        var targetY:Float = 0;
+
+        if (timeBarPos == "Top") {
+            targetY = 0;
+        } else if (timeBarPos == "Top Left") {
+            targetX = paddingX; targetY = paddingY;
+        } else if (timeBarPos == "Top Right") {
+            targetX = FlxG.width - timeBarBG.width - paddingX; targetY = paddingY;
+        } else if (timeBarPos == "Bottom Left") {
+            targetX = paddingX; targetY = FlxG.height - timeBarBG.height - paddingY;
+        } else if (timeBarPos == "Bottom Right") {
+            targetX = FlxG.width - timeBarBG.width - paddingX; targetY = FlxG.height - timeBarBG.height - paddingY;
+        } else {
+            targetY = FlxG.height - timeBarBG.height;
         }
+
+        timeBarBG.x = targetX;
+        timeBarBG.y = targetY; 
+        timeBar.x = targetX;
+        timeBar.y = targetY + 2;
+        
+        timeBarBG.scale.set(1, 1);
+        timeBar.scale.set(apiModule.getSongProgress(), 1);
     }
 }

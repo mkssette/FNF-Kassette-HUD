@@ -16,7 +16,6 @@ import Reflect;
 import funkin.modding.events.ScriptEvent;
 
 class KssetteResumeCount extends Module {
-    // this module adds a countdown when resuming the game from the pause menu
     var cachedActive:Bool = false;
     var isCounting:Bool = false;
     var isResuming:Bool = false;
@@ -24,6 +23,7 @@ class KssetteResumeCount extends Module {
     var resumeTimer:FlxTimer;
     var storedVolume:Float = 1.0;
     var storedVocalsVolume:Float = 1.0;
+    var storedScore:Int = 0;
     var apiModule:Dynamic = null;
     var countdownSprite:FlxSprite = null;
     var countdownTween:FlxTween = null;
@@ -60,6 +60,28 @@ class KssetteResumeCount extends Module {
                     countdownSprite = null;
                 }
             }
+            else
+            {
+                state.songScore = storedScore;
+            }
+        }
+    }
+
+    override public function onNoteHit(event) {
+        if (isCounting || isResuming) {
+            event.cancel();
+        }
+    }
+
+    override public function onNoteMiss(event) {
+        if (isCounting || isResuming) {
+            event.cancel();
+        }
+    }
+
+    override public function onNoteGhostMiss(event) {
+        if (isCounting || isResuming) {
+            event.cancel();
         }
     }
     
@@ -77,6 +99,7 @@ class KssetteResumeCount extends Module {
         if (state.startingSong || state.isPlayerDying || state.conductorInUse.songPosition <= 0) return;
 
         isResuming = true;
+        storedScore = state.songScore;
 
         if (FlxG.sound.music != null) {
             storedVolume = FlxG.sound.music.volume;
@@ -89,7 +112,7 @@ class KssetteResumeCount extends Module {
 
         var originalState = state;
 
-        resumeTimer = new FlxTimer().start(0.05, function(tmr:FlxTimer) {
+        resumeTimer = new FlxTimer().start(0.001, function(tmr:FlxTimer) {
             var checkState = PlayState.instance;
             var restoreAudio = function() {
                 if (FlxG.sound.music != null) FlxG.sound.music.volume = storedVolume;
