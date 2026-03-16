@@ -3,6 +3,7 @@ import flixel.FlxSprite;
 import flixel.text.FlxText;
 import flixel.text.FlxTextBorderStyle;
 import flixel.util.FlxTimer;
+import funkin.Preferences;
 import funkin.save.Save;
 import funkin.ui.options.PreferencesMenu;
 import funkin.modding.module.Module;
@@ -19,22 +20,25 @@ import Std;
 import Math;
 import Reflect;
 import funkin.mobile.input.ControlsHandler;
+import StringTools;
+import funkin.util.FileUtil;
+import funkin.modding.PolymodHandler;
 
-class KssetteApi extends Module {
     // core system that manages settings score calculations and integrity verification
+
+    class KssetteApi extends Module {
     final optionsID:String = "kassette-hud";
-    public var hudVersion:String = "0.1.3";
+    public var hudVersion:String = "0.1.4";
     public var missesCount:Int = 0;
     public var isMobileMode:Bool = false;
     public var isCompromised:Bool = false;
-    private var expectedResponse:String = ""; 
-    private var heartbeatTimer:Float = 4.0; 
-    private var gracePeriod:Float = 3.0;    
+    private var expectedResponse:String = "";
+    private var heartbeatTimer:Float = 4.0;
+    private var gracePeriod:Float = 3.0;
 
-    public var playerNoteTimes:Array<Float> = [];
+    public var playerNoteTimes:Array<Dynamic> = [];
     public var currentNoteIndex:Int = 0;
 
-    // Cache variables
     var lastRankScore:Int = -1;
     var lastRankMisses:Int = -1;
     var cachedRank:String = "?";
@@ -44,9 +48,30 @@ class KssetteApi extends Module {
     var lastTierShits:Int = -1;
     var cachedTier:String = "N/A";
 
+    var _accModule:Dynamic = null;
+    var _integrityTimer:Float = 0.0;
+    var _cachedSongName:String = null;
+    var _cachedSongId:String = null;
+    var _qtModule:Dynamic = null;
+    var _cachedBotplay:Bool = false;
+    var _cachedModeMsg:String = null;
+
+    public var cachedFontMap:Map<String, String> = null;
+    public var cachedCustomFontPath:String = "";
+    public var lastFontKey:String = "";
+
+    var previewGroup:Array<Dynamic> = [];
+    var pScore:FlxText;
+    var pInfo:FlxText;
+    var pTimeBarBG:FlxSprite;
+    var pTimeBar:FlxSprite;
+    var pJudges:Array<FlxText> = [];
+    var _isInPlayState:Bool = false;
+
     public function new() {
         super('KssetteApi', 1000);
         isMobileMode = (FlxG.onMobile); 
+        _isInPlayState = false;
         initSettings();
         isCompromised = false;
     }
@@ -60,7 +85,7 @@ class KssetteApi extends Module {
             "kssette_show_song_title", "kssette_show_song_diff",  
             "kssette_show_song_time", "kssette_judge_pos", "kssette_mobile_keyboard",
             "kssette_timebar_pos", "kssette_show_breakbar", "kssette_resume_countdown",
-            "kssette_smooth_display", "kssette_hide_splashes"
+            "kssette_smooth_display", "kssette_hide_splashes", "kssette_custom_font"
         ];
 
         for (opt in options) {
@@ -76,6 +101,7 @@ class KssetteApi extends Module {
                 if (opt == "kssette_mobile_keyboard") defaultVal = "Off";
                 if (opt == "kssette_timebar_pos") defaultVal = "Bottom";
                 if (opt == "kssette_hide_splashes") defaultVal = "Off";
+                if (opt == "kssette_custom_font") defaultVal = "vcr.ttf";
                 
                 if (opt == "kssette_ghost_tapping") {
                     defaultVal = isMobileMode ? "Off" : "On";
@@ -98,12 +124,20 @@ class KssetteApi extends Module {
         
         lastRankScore = -1;
         lastRankMisses = -1;
-        cachedRank = "?";
+        cachedRank = "?"; 
         lastTierMisses = -1;
         lastTierGoods = -1;
         lastTierBads = -1;
         lastTierShits = -1;
         cachedTier = "N/A";
+        
+        _cachedSongName = null;
+        _cachedSongId = null;
+        _accModule = null;
+        _qtModule = null;
+        _integrityTimer = 0.0;
+        _cachedModeMsg = null;
+        _cachedBotplay = false;
         
         if (getKssValue("kssette_show_breakbar") != true) return;
 
@@ -125,12 +159,18 @@ class KssetteApi extends Module {
                 if (isPlayer) {
                     var t:Dynamic = Reflect.getProperty(note, "time");
                     if (t == null) t = Reflect.getProperty(note, "t");
-                    if (t != null) noteTime = Std.parseFloat(Std.string(t));
+                    
+                    var l:Dynamic = Reflect.getProperty(note, "length");
+                    if (l == null) l = Reflect.getProperty(note, "l");
+                    if (l == null) l = Reflect.getProperty(note, "sustainLength");
 
-                    if (noteTime != -1) playerNoteTimes.push(noteTime);
+                    if (t != null) noteTime = Std.parseFloat(Std.string(t));
+                    var noteLen:Float = (l != null) ? Std.parseFloat(Std.string(l)) : 0;
+
+                    if (noteTime != -1) playerNoteTimes.push({start: noteTime, end: noteTime + noteLen});
                 }
             }
-            playerNoteTimes.sort(function(a, b) return Math.round(a - b));
+            playerNoteTimes.sort(function(a, b) return Math.round(a.start - b.start));
         }
     }
 
@@ -147,15 +187,15 @@ class KssetteApi extends Module {
 
         var currentTime = state.conductorInUse.songPosition;
 
-        while (currentNoteIndex < playerNoteTimes.length && playerNoteTimes[currentNoteIndex] <= currentTime) {
+        while (currentNoteIndex < playerNoteTimes.length && playerNoteTimes[currentNoteIndex].start <= currentTime) {
             currentNoteIndex++;
         }
 
         if (currentNoteIndex >= playerNoteTimes.length) return {active: false, progress: 0, timeLeft: 0};
 
-        var nextTime = playerNoteTimes[currentNoteIndex];
+        var nextTime = playerNoteTimes[currentNoteIndex].start;
         var prevTime:Float = 0;
-        if (currentNoteIndex > 0) prevTime = playerNoteTimes[currentNoteIndex - 1];
+        if (currentNoteIndex > 0) prevTime = playerNoteTimes[currentNoteIndex - 1].end;
         
         var gap = nextTime - prevTime;
         
@@ -355,22 +395,29 @@ class KssetteApi extends Module {
         var botplay:Bool = state.isBotPlayMode || (Save.instance.modOptions.get("BotMode") == true);
         
         if (!botplay) {
-            var songId:String = (state.currentSong != null && state.currentSong.id != null) ? state.currentSong.id : ((state.currentChart != null && state.currentChart.songName != null) ? state.currentChart.songName : "");
+            if (_cachedSongId == null) {
+                _cachedSongId = (state.currentSong != null && state.currentSong.id != null) ? state.currentSong.id : ((state.currentChart != null && state.currentChart.songName != null) ? state.currentChart.songName : "");
+            }
             
-            if (songId.toLowerCase() == "termination") {
-                var qtModule = ModuleHandler.getModule("QTdodgeModule");
-                if (qtModule != null && qtModule.scriptGet("qtBotplay") == true) botplay = true;
+            if (_cachedSongId.toLowerCase() == "termination") {
+                if (_qtModule == null) _qtModule = ModuleHandler.getModule("QTdodgeModule");
+                if (_qtModule != null && _qtModule.scriptGet("qtBotplay") == true) botplay = true;
             }
         }
         
-        var practice:Bool = (Reflect.field(state, "practiceMode") == true);
-        var songName:String = getSongTitle();
+        if (_cachedModeMsg != null && botplay == _cachedBotplay) {
+            return _cachedModeMsg;
+        }
+        
+        _cachedBotplay = botplay;
 
-        if (botplay && practice) return 'Watching "' + songName + '" with Botplay & Practice';
-        if (botplay) return 'Watching "' + songName + '" with Botplay';
-        if (practice) return 'Watching "' + songName + '" with Practice';
+        if (_cachedSongName == null) _cachedSongName = getSongTitle();
+        var songName:String = _cachedSongName;
 
-        return ""; 
+        if (botplay) _cachedModeMsg = 'Watching "' + songName + '" with Botplay';
+        else _cachedModeMsg = "";
+        
+        return _cachedModeMsg; 
     }
 
     public function getKssValue(key:String):Dynamic { 
@@ -388,31 +435,106 @@ class KssetteApi extends Module {
         return val;
     }
 
+    public function getCustomFont():String {
+        var fontKey:String = Std.string(getKssValue("kssette_custom_font"));
+        
+        if (fontKey == "vcr.ttf" || fontKey == "VCR OSD Mono" || fontKey == "null" || fontKey == "") {
+            return "VCR OSD Mono";
+        }
+
+        if (fontKey == lastFontKey && cachedCustomFontPath != "") {
+            return cachedCustomFontPath;
+        }
+        
+        var foundPath:String = ""; 
+        
+        try {
+            var files = Assets.list();
+            if (files != null) {
+                for (file in files) {
+                    var f = file.toLowerCase();
+                    var normalizedFile = StringTools.replace(f, "\\", "/");
+                    if (normalizedFile.indexOf("fonts/") != -1 && StringTools.endsWith(normalizedFile, fontKey.toLowerCase())) {
+                        foundPath = file;
+                        break;
+                    }
+                }
+            }
+        } catch(e:Dynamic) {}
+
+        if (foundPath == "") {
+        var folders:Array<String> = [];
+        try {
+            var loadedMods = PolymodHandler.loadedModIds;
+            if (loadedMods != null && loadedMods.length > 0) {
+                for (mod in loadedMods) folders.push(mod);
+            }
+        } catch(e:Dynamic) {}
+
+        if (folders.length == 0) {
+            try {
+                var readMods = FileUtil.readDir("mods");
+                if (readMods != null) {
+                    for (mod in readMods) folders.push(mod);
+                }
+            } catch(e:Dynamic) {}
+        }
+
+        for (folder in folders) {
+            if (foundPath != "") break; 
+            
+            var path = "mods/" + folder + "/fonts";
+            try {
+                var archivos = FileUtil.readDir(path);
+                if (archivos != null) {
+                    for (archivo in archivos) {
+                            if (archivo.toLowerCase() == fontKey.toLowerCase()) {
+                            foundPath = "mods/" + folder + "/fonts/" + archivo;
+                            break;
+                        }
+                    }
+                }
+            } catch(e:Dynamic) {}
+        }
+        }
+        
+        if (foundPath != "") {
+            lastFontKey = fontKey;
+            cachedCustomFontPath = foundPath;
+            return foundPath;
+        }
+        
+        return "VCR OSD Mono"; 
+    }
+
     override public function onUpdate(event:UpdateScriptEvent) {
         super.onUpdate(event);
         if (Highscore.tallies != null) missesCount = Highscore.tallies.missed;
         
-        var state = FlxG.state;
-        if (Std.isOfType(state, PlayState)) {
+        if (_isInPlayState) {
             if (PlayState.instance == null || PlayState.instance.startingSong) return;
 
             if (!isCompromised) {
                 if (gracePeriod > 0) gracePeriod -= event.elapsed;
 
                 heartbeatTimer -= event.elapsed;
-                
+                _integrityTimer += event.elapsed;
+
                 if (heartbeatTimer <= 0 && gracePeriod <= 0) {
                     isCompromised = true;
-                } else if (gracePeriod <= 0) {
-                    var accMod = ModuleHandler.getModule("KssetteAccuracy");
-                    if (accMod == null) {
+                } else if (gracePeriod <= 0 && _integrityTimer >= 0.5) {
+                    _integrityTimer = 0.0;
+                    
+                    if (_accModule == null) _accModule = ModuleHandler.getModule("KssetteAccuracy");
+                    
+                    if (_accModule == null) {
                         isCompromised = true;
                     } else {
                         var msg = getModeMessage();
                         var isBotting:Bool = (msg != null && msg.indexOf('Botplay') != -1);
                         
                         if (isBotting) {
-                            var modeTxt = Reflect.getProperty(accMod, "modeText");
+                            var modeTxt = Reflect.getProperty(_accModule, "modeText");
                             if (modeTxt == null) {
                                 isCompromised = true;
                             } else {
@@ -428,13 +550,19 @@ class KssetteApi extends Module {
             heartbeatTimer = 4.0;
             gracePeriod = 3.0;
             isCompromised = false;
+            _integrityTimer = 0.0;
+            _accModule = null;
         }
     }
 
     override public function onStateChangeEnd(event:StateChangeScriptEvent):Void {
         var target = event.targetState;
+        _isInPlayState = false;
         if (Std.isOfType(target, OptionsState)) addSettingsCategory(target);
-        if (Std.isOfType(target, PlayState)) createHUDWatermark(target);
+        if (Std.isOfType(target, PlayState)) {
+            _isInPlayState = true;
+            createHUDWatermark(target);
+        }
     }
 
     function createHUDWatermark(state:PlayState) {
@@ -443,12 +571,75 @@ class KssetteApi extends Module {
         var safeMargin:Float = isMobileMode ? 85 : 8;
         
         var timeBarPos = getKssValue("kssette_timebar_pos");
-        var yPos:Float = (timeBarPos == "Bottom") ? 10 : (FlxG.height - 24);
+        var yPos:Float = (timeBarPos == "Bottom" || timeBarPos == "Bottom Right") ? 10 : (FlxG.height - 24);
 
         var watermark = new FlxText(0, yPos, FlxG.width - safeMargin, "Kassette HUD " + platform + " [" + hudVersion + "]", 16);
         watermark.setFormat("VCR OSD Mono", 16, 0xFFFFFFFF, "right", FlxTextBorderStyle.OUTLINE, 0xFF000000);
         watermark.alpha = 0.5; watermark.zIndex = 1000; watermark.cameras = [state.camHUD];
         state.add(watermark);
+    }
+
+    public function getAvailableFonts():Map<String, String> {
+        if (cachedFontMap != null) {
+            return cachedFontMap;
+        }
+
+        var fonts:Map<String, String> = ["VCR (Default)" => "vcr.ttf"];
+        var blacklist = ["vcr.ttf", "pixel.otf", "ds_digii.ttf", "ds_digib.ttf", "ds_digi.ttf", "nokiafc22.ttf", "arial.ttf", "5by7_b.ttf", "consolas.ttf", "quantico_bolditalic.ttf", "quantico_bold.ttf", "quantico_regular.ttf", "inconsolata_semibold.ttf", "inconsolata_bold.ttf", "inconsolata_medium.ttf", "vcr_italic.ttf", "inconsolata_extralight.ttf", "insolata_regular.ttf", "5by7.ttf", "quantico_italic.ttf", "monsterrat.ttf", "vcr_bold.ttf", "vcr_bolditalic.ttf", "incosolata_black.ttf"];
+
+        try {
+            var files = Assets.list();
+            if (files != null) {
+                for (file in files) {
+                    var f = file.toLowerCase();
+                    var normalizedFile = StringTools.replace(f, "\\", "/");
+                    if (normalizedFile.indexOf("fonts/") != -1 && (StringTools.endsWith(normalizedFile, ".ttf") || StringTools.endsWith(normalizedFile, ".otf"))) {
+                        var parts = StringTools.replace(file, "\\", "/").split("/");
+                        var fileName = parts[parts.length - 1];
+                        if (blacklist.indexOf(fileName.toLowerCase()) == -1) {
+                            fonts.set(fileName, fileName); 
+                        }
+                    }
+                }
+            }
+        } catch(e:Dynamic) {}
+        
+        var folders:Array<String> = [];
+        try {
+            var loadedMods = PolymodHandler.loadedModIds;
+            if (loadedMods != null && loadedMods.length > 0) {
+                for (mod in loadedMods) folders.push(mod);
+            }
+        } catch(e:Dynamic) {}
+
+        if (folders.length == 0) {
+            try {
+                var readMods = FileUtil.readDir("mods");
+                if (readMods != null) {
+                    for (mod in readMods) folders.push(mod);
+                }
+            } catch(e:Dynamic) {}
+        }
+
+        for (folder in folders) {
+            var path = "mods/" + folder + "/fonts";
+            try {
+                var files = FileUtil.readDir(path);
+                if (files != null) {
+                    for (file in files) {
+                        var f = file.toLowerCase();
+                        if (StringTools.endsWith(f, ".ttf") || StringTools.endsWith(f, ".otf")) {
+                            if (blacklist.indexOf(f) == -1) {
+                                fonts.set(file, file); 
+                            }
+                        }
+                    }
+                }
+            } catch(e:Dynamic) {}
+        }
+
+        cachedFontMap = fonts;
+        return fonts;
     }
 
     public function buildKassettePage(state:OptionsState) {
@@ -464,6 +655,7 @@ class KssetteApi extends Module {
         
         page.onExit.add(function() { 
             if (FlxG.sound.music != null) FlxG.sound.music.stop();
+            destroyPreview();
 
             FlxG.camera.fade(0xFF000000, 0.4, false, function() {
                 var newState = new OptionsState();
@@ -483,47 +675,239 @@ class KssetteApi extends Module {
 
         var onOffMap = ["On" => "On", "Off" => "Off"];
 
+        var updateAndSave = function(key:String, val:Dynamic) {
+            Save.instance.modOptions.set(key, val);
+            Save.instance.flush();
+            updatePreview();
+        };
+
         if (isMobileMode) {
-            page.createPrefItemEnum("External Keyboard", "Select 'On' ONLY if you use a physical keyboard to unlock PC options.", onOffMap, function(v) { Save.instance.modOptions.set("kssette_mobile_keyboard", v); Save.instance.flush(); }, Save.instance.modOptions.get("kssette_mobile_keyboard"));
+            page.createPrefItemEnum("PC/Hitbox Mode", "Enable if using a Hitbox or Keyboard on mobile. Unlocks PC settings.", onOffMap, function(v) { updateAndSave("kssette_mobile_keyboard", v); }, Save.instance.modOptions.get("kssette_mobile_keyboard"));
         }
         createSeparator("-- Mod Options --");
 
         if (!isMobileMode || isMobileLikePC()) {
-            page.createPrefItemEnum("Middle Scroll", "Centers player's notes and moves opponent's notes to edges.", ["Off" => "Off", "On" => "On", "P Style" => "P Style", "Hidden Notes" => "Hidden Notes"], function(v) { Save.instance.modOptions.set("kssette_middlescroll", v); Save.instance.flush(); }, Save.instance.modOptions.get("kssette_middlescroll"));
-            page.createPrefItemEnum("Ghost Tapping", "Prevents misses when pressing keys without incoming notes.", onOffMap, function(v) { Save.instance.modOptions.set("kssette_ghost_tapping", v); Save.instance.flush(); }, Save.instance.modOptions.get("kssette_ghost_tapping"));
-            page.createPrefItemEnum("Ghost Sing", "Enables singing animations during ghost tapping.", onOffMap, function(v) { Save.instance.modOptions.set("kssette_ghost_sing", v); Save.instance.flush(); }, Save.instance.modOptions.get("kssette_ghost_sing"));
+            page.createPrefItemEnum("Middle Scroll", "Moves your notes to the center of the screen for better focus.", ["Off" => "Off", "On" => "On", "P Style" => "P Style", "Hidden Notes" => "Hidden Notes"], function(v) { updateAndSave("kssette_middlescroll", v); }, Save.instance.modOptions.get("kssette_middlescroll"));
+            page.createPrefItemEnum("Ghost Tapping", "Press keys anytime without penalty. You won't miss if there's no note.", onOffMap, function(v) { updateAndSave("kssette_ghost_tapping", v); }, Save.instance.modOptions.get("kssette_ghost_tapping"));
+            page.createPrefItemEnum("Ghost Sing", "Your character will play singing animations when you press empty keys.", onOffMap, function(v) { updateAndSave("kssette_ghost_sing", v); }, Save.instance.modOptions.get("kssette_ghost_sing"));
         }
-        page.createPrefItemEnum("Resume Countdown", "Adds a 3-second countdown when resuming from pause.", onOffMap, function(v) { Save.instance.modOptions.set("kssette_resume_countdown", v); Save.instance.flush(); }, Save.instance.modOptions.get("kssette_resume_countdown"));
-        page.createPrefItemEnum("Judge Counter", "Sets the screen position for judgment statistics.", ["Left" => "Left", "Right" => "Right", "Top Left" => "Top Left", "Top Right" => "Top Right", "Off" => "Off"], function(v) { Save.instance.modOptions.set("kssette_judge_pos", v); Save.instance.flush(); }, Save.instance.modOptions.get("kssette_judge_pos"));
+        page.createPrefItemEnum("Resume Countdown", "Adds a 'Ready, Set, Go!' countdown when you unpause the game.", onOffMap, function(v) { updateAndSave("kssette_resume_countdown", v); }, Save.instance.modOptions.get("kssette_resume_countdown"));
+        page.createPrefItemEnum("Judge Counter", "Shows a counter for Sicks, Goods, Bads, etc. Choose where to place it.", ["Left" => "Left", "Right" => "Right", "Top Left" => "Top Left", "Top Right" => "Top Right", "Off" => "Off"], function(v) { updateAndSave("kssette_judge_pos", v); }, Save.instance.modOptions.get("kssette_judge_pos"));
 
+        var currFont = Std.string(Save.instance.modOptions.get("kssette_custom_font"));
+        var displayFont = (currFont == "vcr.ttf") ? "VCR (Default)" : currFont;
+        page.createPrefItemEnum("Font", "Choose a font from the 'fonts' folder (Install any .ttf or .otf file) folder of this mod, base game fonts or any font from another installed mod.", getAvailableFonts(), function(v) { updateAndSave("kssette_custom_font", v); }, displayFont);
+        
         createSeparator("-- Performance --");
-        page.createPrefItemEnum("Smooth Display", "Toggles the rolling number effect for score and accuracy.", onOffMap, function(v) { Save.instance.modOptions.set("kssette_smooth_display", v); Save.instance.flush(); }, Save.instance.modOptions.get("kssette_smooth_display"));
-        page.createPrefItemEnum("Hide Splashes", "Disables note splash particles for better performance.", onOffMap, function(v) { Save.instance.modOptions.set("kssette_hide_splashes", v); Save.instance.flush(); }, Save.instance.modOptions.get("kssette_hide_splashes"));
+        page.createPrefItemEnum("Smooth Display", "Makes the score and accuracy numbers scroll smoothly.", onOffMap, function(v) { updateAndSave("kssette_smooth_display", v); }, Save.instance.modOptions.get("kssette_smooth_display"));
+        page.createPrefItemEnum("Hide Splashes", "Removes the particles when hitting 'Sick!'. Helps with lag.", onOffMap, function(v) { updateAndSave("kssette_hide_splashes", v); }, Save.instance.modOptions.get("kssette_hide_splashes"));
 
         createSeparator("-- Positions --");
         if (!isMobileMode || isMobileLikePC()) {
-            page.createPrefItemEnum("Middle Opponent Pos", "Sets horizontal position for opponent notes (Only active when Middle Scroll is 'On').", ["Left" => "Left", "Right" => "Right"], function(v) { Save.instance.modOptions.set("kssette_opponent_pos", v); Save.instance.flush(); }, Save.instance.modOptions.get("kssette_opponent_pos"));
+            page.createPrefItemEnum("Middle Opponent Pos", "Where to put the opponent's notes when Middle Scroll is ON.", ["Left" => "Left", "Right" => "Right"], function(v) { updateAndSave("kssette_opponent_pos", v); }, Save.instance.modOptions.get("kssette_opponent_pos"));
         }
-        page.createPrefItemEnum("Time Bar Pos", "Sets the vertical position for the time bar.", ["Top" => "Top", "Bottom" => "Bottom"], function(v) { Save.instance.modOptions.set("kssette_timebar_pos", v); Save.instance.flush(); }, Save.instance.modOptions.get("kssette_timebar_pos"));
-        page.createPrefItemEnum("Info Text Pos", "Choose where the song information is displayed.", ["Below Score" => "Below Score", "Bottom Left" => "Bottom Left"], function(v) { Save.instance.modOptions.set("kssette_info_pos", v); Save.instance.flush(); }, Save.instance.modOptions.get("kssette_info_pos"));
+        page.createPrefItemEnum("Time Bar Pos", "Choose where the Song Progress Bar is placed on screen.", ["Top" => "Top", "Bottom" => "Bottom", "Top Left" => "Top Left", "Top Right" => "Top Right", "Bottom Left" => "Bottom Left", "Bottom Right" => "Bottom Right"], function(v) { updateAndSave("kssette_timebar_pos", v); }, Save.instance.modOptions.get("kssette_timebar_pos"));
+        
+        var forceDownscrollLook = (isMobileMode && !isMobileLikePC());
+        var infoLabel = (!Preferences.downscroll && !forceDownscrollLook) ? "Above Arrows" : "Below Score";
+        var infoMap = [infoLabel => "Below Score", "Bottom Left" => "Bottom Left"];
+        var currInfo = Save.instance.modOptions.get("kssette_info_pos");
+        var displayInfo = (currInfo == "Below Score") ? infoLabel : currInfo;
+
+        page.createPrefItemEnum("Info Text Pos", "Where to show the Song Name and Difficulty.", infoMap, function(v) { updateAndSave("kssette_info_pos", v); }, displayInfo);
         
         createSeparator("-- HUD Elements --");
         var createSlider = function(text, desc, key) {
-            page.createPrefItemEnum(text, desc, onOffMap, function(v) { Save.instance.modOptions.set(key, v); Save.instance.flush(); }, Save.instance.modOptions.get(key));
+            page.createPrefItemEnum(text, desc, onOffMap, function(v) { updateAndSave(key, v); }, Save.instance.modOptions.get(key));
         };
         
-        createSlider("Show Misses", "Displays the total count of song misses.", "kssette_show_misses");
-        page.createPrefItemEnum("Accuracy Mode", "Sets accuracy calculation to Classic or Ascending.", ["Classic" => "Classic", "Ascending" => "Ascending", "Off" => "Off"], function(v) { Save.instance.modOptions.set("kssette_acc_mode", v); Save.instance.flush(); }, Save.instance.modOptions.get("kssette_acc_mode"));
+        createSlider("Show Misses", "Show a counter for how many notes you've missed.", "kssette_show_misses");
+        page.createPrefItemEnum("Accuracy Mode", "How accuracy is calculated. 'Ascending' starts at 0% and climbs up.", ["Classic" => "Classic", "Ascending" => "Ascending", "Off" => "Off"], function(v) { updateAndSave("kssette_acc_mode", v); }, Save.instance.modOptions.get("kssette_acc_mode"));
         
-        createSlider("Show Rank", "Displays the current letter rank grade.", "kssette_show_rank");
-        createSlider("Show FC Tier", "Displays the current combo milestone (SFC, GFC, etc).", "kssette_show_tier");
-        createSlider("Show Time Bar", "Displays a progress bar on the screen.", "kssette_show_timebar");
-        createSlider("Show Break Bar", "Displays a progress bar during long sections without notes.", "kssette_show_breakbar");
-        createSlider("Show Song Title", "Displays the current song name.", "kssette_show_song_title");
-        createSlider("Show Difficulty", "Displays the current difficulty level.", "kssette_show_song_diff");
-        createSlider("Show Time Left", "Displays the remaining song time.", "kssette_show_song_time");
+        createSlider("Show Rank", "Show your current Rank (P, E, G) based on performance.", "kssette_show_rank");
+        createSlider("Show FC Tier", "Show your Combo Status (SFC, GFC, FC, Clear).", "kssette_show_tier");
+        createSlider("Show Time Bar", "Show a bar indicating song progress.", "kssette_show_timebar");
+        createSlider("Show Break Bar", "Show a specific timer during long breaks in the song.", "kssette_show_breakbar");
+        createSlider("Show Song Title", "Show the name of the song on the HUD.", "kssette_show_song_title");
+        createSlider("Show Difficulty", "Show the difficulty level on the HUD.", "kssette_show_song_diff");
+        createSlider("Show Time Left", "Show a digital timer counting down the song.", "kssette_show_song_time");
 
         createSeparator("-- Custom Options --");
+    }
+
+    function createPreview(state:OptionsState) {
+        destroyPreview();
+        previewGroup = [];
+
+        pScore = new FlxText(0, 0, FlxG.width, "", 18);
+        pScore.setFormat("VCR OSD Mono", 18, 0xFFFFFFFF, "center", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        pScore.scrollFactor.set(0, 0);
+        pScore.alpha = 0.5;
+        state.add(pScore);
+        previewGroup.push(pScore);
+        
+        pInfo = new FlxText(0, 0, FlxG.width, "", 16);
+        pInfo.setFormat("VCR OSD Mono", 16, 0xFFFFFFFF, "center", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        pInfo.scrollFactor.set(0, 0);
+        pInfo.alpha = 0.5;
+        state.add(pInfo);
+        previewGroup.push(pInfo);
+        
+        pTimeBarBG = new FlxSprite(0, 0).makeGraphic(1, 1, 0xFF000000);
+        pTimeBarBG.scrollFactor.set(0, 0);
+        pTimeBarBG.alpha = 0.5;
+        state.add(pTimeBarBG);
+        previewGroup.push(pTimeBarBG);
+        
+        pTimeBar = new FlxSprite(0, 0).makeGraphic(1, 1, 0xFFFFFFFF);
+        pTimeBar.scrollFactor.set(0, 0);
+        pTimeBar.alpha = 0.5;
+        state.add(pTimeBar);
+        previewGroup.push(pTimeBar);
+        
+        pJudges = [];
+        var judgeNames = ["Sicks", "Goods", "Bads", "Shits", "Misses", "Max Combo"];
+        for(i in 0...judgeNames.length) {
+            var txt = new FlxText(0, 0, 200, judgeNames[i] + ": 0", 20);
+            txt.setFormat("VCR OSD Mono", 20, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+            txt.scrollFactor.set(0, 0);
+            txt.alpha = 0.5;
+            state.add(txt);
+            pJudges.push(txt);
+            previewGroup.push(txt);
+        }
+        
+        updatePreview();
+    }
+
+    function updatePreview() {
+        if (previewGroup == null) return;
+        
+        var showHUD = (getKssValue("kssette_show_hud") == true);
+        
+        for (item in previewGroup) {
+            if (item != null) {
+                item.visible = showHUD;
+                // Enforce translucency on update
+                if (Reflect.hasField(item, "alpha")) item.alpha = 0.5;
+            }
+        }
+        if (!showHUD) return;
+
+        var downscroll = Preferences.downscroll;
+        if (isMobileMode && !isMobileLikePC()) downscroll = true;
+        
+        var font = getCustomFont();
+        if (pScore != null) pScore.font = font;
+        if (pInfo != null) pInfo.font = font;
+        for (t in pJudges) {
+            if (t != null) t.font = font;
+        }
+        
+        var scoreText = "";
+        if (getKssValue("kssette_show_score") == true) scoreText += "Score: 123456";
+        if (getKssValue("kssette_show_misses") == true && (Std.string(getKssValue("kssette_judge_pos")) == "Off")) scoreText += (scoreText.length > 0 ? " / " : "") + "Misses: 0";
+        if (Std.string(getKssValue("kssette_acc_mode")) != "Off") scoreText += (scoreText.length > 0 ? " / " : "") + "Acc: 100%";
+        if (getKssValue("kssette_show_rank") == true) scoreText += (scoreText.length > 0 ? " / " : "") + "Rank: P";
+        if (getKssValue("kssette_show_tier") == true) scoreText += (scoreText.length > 0 ? " / " : "") + "SFC";
+        pScore.text = scoreText;
+        pScore.screenCenter(0x01); 
+        
+        var scoreY = downscroll ? 110 : (FlxG.height - 50);
+        pScore.y = scoreY;
+        
+        var infoPos = Std.string(getKssValue("kssette_info_pos"));
+        var showTimeBar = (getKssValue("kssette_show_timebar") == true);
+        var timeBarPos = Std.string(getKssValue("kssette_timebar_pos"));
+        
+        var tText = "";
+        if (getKssValue("kssette_show_song_title") == true) tText += "Song Name";
+        if (getKssValue("kssette_show_song_diff") == true) tText += (tText.length > 0 ? " - " : "") + "HARD";
+        pInfo.text = tText;
+        
+        var showTime = (getKssValue("kssette_show_song_time") == true);
+        var timeTextStr = showTime ? "[3:20]" : "";
+        
+        if (infoPos == "Bottom Left") {
+            var yOffset:Float = 0;
+            if (showTimeBar == true && timeBarPos == "Bottom Left") yOffset = 25;
+            pInfo.x = (isMobileMode ? 85 : 18);
+            pInfo.y = FlxG.height - 50 - yOffset;
+            pInfo.alignment = "left";
+            if (showTime) pInfo.text += " " + timeTextStr;
+        } else {
+            pInfo.screenCenter(0x01);
+            pInfo.alignment = "center";
+            if (downscroll) {
+                pInfo.y = pScore.y + 32;
+                if (showTime) pInfo.text = timeTextStr + " " + pInfo.text;
+            } else {
+                pInfo.y = 20;
+                if (showTime) pInfo.text = timeTextStr + " " + pInfo.text;
+            }
+        }
+        pInfo.visible = (pInfo.text.length > 0);
+
+        if (showTimeBar) {
+            pTimeBarBG.visible = true; pTimeBar.visible = true;
+            
+            var isMini:Bool = (timeBarPos == "Bottom Left" || timeBarPos == "Bottom Right" || timeBarPos == "Top Left" || timeBarPos == "Top Right");
+            var barWidth:Int = isMini ? 360 : FlxG.width;
+            
+            pTimeBarBG.setGraphicSize(barWidth, 15);
+            pTimeBar.setGraphicSize(Std.int(barWidth * 0.5), 11);
+            pTimeBarBG.updateHitbox(); pTimeBar.updateHitbox();
+            
+            var padX = 0; var padY = 20;
+            var tx = 0.0; var ty = 0.0;
+            
+            if (timeBarPos == "Top") { ty = 0; tx = (FlxG.width - barWidth) / 2; }
+            else if (timeBarPos == "Top Left") { tx = padX; ty = padY; }
+            else if (timeBarPos == "Top Right") { tx = FlxG.width - barWidth - padX; ty = padY; }
+            else if (timeBarPos == "Bottom Left") { tx = padX; ty = FlxG.height - 15 - padY; }
+            else if (timeBarPos == "Bottom Right") { tx = FlxG.width - barWidth - padX; ty = FlxG.height - 15 - padY; }
+            else { ty = FlxG.height - 15; tx = (FlxG.width - barWidth) / 2; }
+            
+            pTimeBarBG.x = tx; pTimeBarBG.y = ty;
+            pTimeBar.x = tx; pTimeBar.y = ty + 2;
+        } else {
+            pTimeBarBG.visible = false; pTimeBar.visible = false;
+        }
+        
+        var jPos = Std.string(getKssValue("kssette_judge_pos"));
+        if (jPos != "Off" && jPos != "false") {
+            for (t in pJudges) {
+                if (t != null) t.visible = true;
+            }
+            var jMargin:Float = (isMobileMode ? 85 : 6);
+            var tw = 200; var sy = 22; var sx = jMargin; var sY = (FlxG.height - 6 * sy) * 0.5;
+            if (jPos == "Right") sx = FlxG.width - tw - jMargin;
+            if (jPos == "Top Left") sY = 100;
+            if (jPos == "Top Right") { sx = FlxG.width - tw - jMargin; sY = 100; }
+            
+            var idx = 0;
+            for (txt in pJudges) {
+                if (txt == null) continue;
+                txt.x = sx; txt.y = sY + (idx * sy);
+                idx++;
+            }
+        } else {
+            for (t in pJudges) {
+                if (t != null) t.visible = false;
+            }
+        }
+    }
+    
+    function destroyPreview() {
+        if (previewGroup != null) {
+            for (item in previewGroup) {
+                if (item != null) {
+                    if (FlxG.state != null) FlxG.state.remove(item);
+                    item.destroy();
+                }
+            }
+            previewGroup = [];
+        }
     }
 
     public function addSettingsCategory(state:OptionsState) {
@@ -553,11 +937,9 @@ class KssetteApi extends Module {
                 try {
                     customBg.loadGraphic(Paths.image('ui/menuKssette'));
                     if (customBg.graphic == null) {
-                        trace("KASSETTE HUD: No se encontro la imagen en 'ui/menuKssette'. Buscando en raiz...");
                         customBg.loadGraphic(Paths.image('menuKssette'));
                     }
                 } catch(e:Dynamic) {
-                    trace("KASSETTE HUD ERROR: Fallo al intentar cargar la imagen.");
                 }
 
                 if (customBg.graphic != null) {
@@ -567,9 +949,9 @@ class KssetteApi extends Module {
                     customBg.scrollFactor.set(0, 0);
                     
                     state.insert(1, customBg);
-                } else {
-                    trace("KASSETTE HUD ERROR CRITICO: Imagen no encontrada en ninguna ruta.");
-                }
+                } 
+
+                createPreview(state);
 
                 if (Reflect.hasField(state, "bg")) {
                     var oldBg = Reflect.getProperty(state, "bg");

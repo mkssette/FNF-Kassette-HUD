@@ -9,6 +9,7 @@ import Std;
 class KssGhostTapping extends Module {
     var cachedGhostTapping:Bool = false;
     var cachedGhostSing:Bool = false;
+    var hasGhostTimer:Bool = false;
 
     public function new() {
         super('KssGhostTapping', 1); 
@@ -26,16 +27,19 @@ class KssGhostTapping extends Module {
             cachedGhostTapping = api.scriptCall("getKssValue", ["kssette_ghost_tapping"]) == true;
             cachedGhostSing = api.scriptCall("getKssValue", ["kssette_ghost_sing"]) == true;
         }
+        
+        var state = PlayState.instance;
+        if (state != null && state.playerStrumline != null) {
+            hasGhostTimer = Reflect.hasField(state.playerStrumline, "ghostTapTimer");
+        }
     }
 
     override public function onUpdate(event) {
         super.onUpdate(event);
         
         var state = PlayState.instance;
-        if (state != null && state.playerStrumline != null) {
-            if (Reflect.hasField(state.playerStrumline, "ghostTapTimer")) {
-                Reflect.setProperty(state.playerStrumline, "ghostTapTimer", 1000);
-            }
+        if (hasGhostTimer && state != null && state.playerStrumline != null) {
+            Reflect.setProperty(state.playerStrumline, "ghostTapTimer", 1000);
         }
     }
 

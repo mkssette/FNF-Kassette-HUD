@@ -8,7 +8,6 @@ import flixel.text.FlxTextBorderStyle;
 import Math;
 import Std;
 
-// visual module that shows a progress bar during long breaks
 class KssetteBreakBar extends Module {
     var borders:Array<FlxSprite> = [];
     var barFill:FlxSprite;
@@ -19,6 +18,7 @@ class KssetteBreakBar extends Module {
     var currentAlpha:Float = 0;
     var apiModule:Dynamic = null;
     var cachedActive:Bool = false;
+    var cachedFont:String = "VCR OSD Mono";
     
     public function new() {
         super("KssetteBreakBar");
@@ -34,6 +34,9 @@ class KssetteBreakBar extends Module {
         if (apiModule != null) {
             apiModule.scriptCall("registerModule", ["KssetteBreakBar", this]);
             cachedActive = apiModule.scriptCall("getKssValue", ["kssette_show_breakbar"]) == true;
+
+            cachedFont = Std.string(apiModule.scriptCall("getCustomFont"));
+            if (cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
         }
         
         if (borders != null) {
@@ -74,7 +77,7 @@ class KssetteBreakBar extends Module {
         state.add(barFill);
 
         breakText = new FlxText(startX, centerY - 28, barWidth, "BREAK", 20);
-        breakText.setFormat("VCR OSD Mono", 20, 0xFFFFFFFF, "center", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        breakText.setFormat(cachedFont, 20, 0xFFFFFFFF, "center", FlxTextBorderStyle.OUTLINE, 0xFF000000);
         breakText.scrollFactor.set(0, 0);
         breakText.zIndex = 996;
         breakText.alpha = 0;
