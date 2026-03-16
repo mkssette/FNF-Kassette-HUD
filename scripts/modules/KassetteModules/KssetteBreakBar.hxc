@@ -1,0 +1,123 @@
+import funkin.modding.module.Module;
+import funkin.modding.module.ModuleHandler;
+import funkin.play.PlayState;
+import flixel.FlxG;
+import flixel.FlxSprite;
+import flixel.text.FlxText;
+import flixel.text.FlxTextBorderStyle;
+import Math;
+import Std;
+
+// visual module that shows a progress bar during long breaks
+class KssetteBreakBar extends Module {
+    var borders:Array<FlxSprite> = [];
+    var barFill:FlxSprite;
+    var breakText:FlxText;
+    var barWidth:Float = 260;
+    var barHeight:Float = 20;
+    var alphaTarget:Float = 0;
+    var currentAlpha:Float = 0;
+    var apiModule:Dynamic = null;
+    var cachedActive:Bool = false;
+    
+    public function new() {
+        super("KssetteBreakBar");
+    }
+    
+    override public function onCountdownStart(event) {
+        super.onCountdownStart(event);
+        
+        var state = PlayState.instance;
+        if (state == null) return;
+        
+        apiModule = ModuleHandler.getModule("KssetteApi");
+        if (apiModule != null) {
+            apiModule.scriptCall("registerModule", ["KssetteBreakBar", this]);
+            cachedActive = apiModule.scriptCall("getKssValue", ["kssette_show_breakbar"]) == true;
+        }
+        
+        if (borders != null) {
+            for (b in borders) {
+                if (b != null) b.destroy();
+            }
+        }
+        borders = [];
+        
+        if (barFill != null) barFill.destroy();
+        if (breakText != null) breakText.destroy();
+        
+        var centerY = (FlxG.height / 2) - 60;
+        var centerX = FlxG.width / 2;
+        var startX = centerX - (barWidth / 2);
+        var thick = 4;
+        
+        var bTop = new FlxSprite(startX, centerY).makeGraphic(Std.int(barWidth), thick, 0xFFFFFFFF);
+        var bBot = new FlxSprite(startX, centerY + barHeight - thick).makeGraphic(Std.int(barWidth), thick, 0xFFFFFFFF);
+        var bLeft = new FlxSprite(startX, centerY + thick).makeGraphic(thick, Std.int(barHeight - thick * 2), 0xFFFFFFFF);
+        var bRight = new FlxSprite(startX + barWidth - thick, centerY + thick).makeGraphic(thick, Std.int(barHeight - thick * 2), 0xFFFFFFFF);
+        
+        borders = [bTop, bBot, bLeft, bRight];
+        for (b in borders) {
+            b.scrollFactor.set(0, 0);
+            b.zIndex = 995;
+            b.alpha = 0;
+            if (state.camHUD != null) b.cameras = [state.camHUD];
+            state.add(b);
+        }
+        
+        barFill = new FlxSprite(startX + thick, centerY + thick).makeGraphic(Std.int(barWidth - thick * 2), Std.int(barHeight - thick * 2), 0xFFFFFFFF);
+        barFill.scrollFactor.set(0, 0);
+        barFill.zIndex = 994;
+        barFill.origin.set(0, 0);
+        barFill.alpha = 0;
+        if (state.camHUD != null) barFill.cameras = [state.camHUD];
+        state.add(barFill);
+
+        breakText = new FlxText(startX, centerY - 28, barWidth, "BREAK", 20);
+        breakText.setFormat("VCR OSD Mono", 20, 0xFFFFFFFF, "center", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        breakText.scrollFactor.set(0, 0);
+        breakText.zIndex = 996;
+        breakText.alpha = 0;
+        if (state.camHUD != null) breakText.cameras = [state.camHUD];
+        state.add(breakText);
+
+        currentAlpha = 0;
+        alphaTarget = 0;
+    }
+    
+    override public function onUpdate(event) {
+        super.onUpdate(event);
+        var state = PlayState.instance;
+        
+        if (state == null || apiModule == null) return;
+        
+        var spritesReady = (barFill != null && breakText != null && borders != null);
+
+        if (!cachedActive || !spritesReady) {
+            alphaTarget = 0;
+        } else {
+            var breakData:Dynamic = apiModule.scriptCall("getBreakData");
+            if (breakData != null && breakData.active) {
+                alphaTarget = 1;
+                
+                var prog = 1.0 - breakData.progress; 
+                if (prog < 0) prog = 0;
+                if (prog > 1) prog = 1;
+                barFill.scale.x = prog;
+            } else {
+                alphaTarget = 0;
+            }
+        }
+        
+        currentAlpha += (alphaTarget - currentAlpha) * (event.elapsed * 10);
+        if (Math.abs(alphaTarget - currentAlpha) < 0.01) currentAlpha = alphaTarget;
+        
+        if (spritesReady) {
+            for (b in borders) {
+                if (b != null) b.alpha = currentAlpha * 0.6;
+            }
+            barFill.alpha = currentAlpha * 0.4;
+            breakText.alpha = currentAlpha * 0.8;
+        }
+    }
+}

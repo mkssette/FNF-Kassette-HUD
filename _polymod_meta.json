@@ -1,0 +1,16 @@
+{
+    "title": "Kassette HUD",
+    "description": "Custom Hud for V-Slice",
+    "author": "Mikassette",
+    "contributors": [
+    {
+      "name": "Mikassette",
+      "role": "Creator",
+      "url": "https://x.com/mikulessi"
+    }
+  ],
+    "api_version": "0.8.1",
+    "mod_version": "0.1.3",
+    "id": "kassette-hud",
+    "license": ""
+}

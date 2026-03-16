@@ -1,0 +1,214 @@
+import flixel.FlxG;
+import funkin.save.Save;
+import funkin.ui.options.OptionsState;
+import funkin.modding.module.Module;
+import funkin.modding.module.ModuleHandler;
+import funkin.modding.events.ScriptEvent;
+import funkin.modding.events.UpdateScriptEvent;
+import funkin.play.PlayState;
+import funkin.play.notes.Strumline;
+import funkin.util.Constants;
+import Reflect;
+import Std;
+import Math;
+import StringTools;
+
+// this module handles the middlescroll logic and opponent strumline positioning
+class KssMiddlescroll extends Module {
+    var cachedMode:String = "Off";
+    var cachedOppPos:String = "Left";
+    var hasShifted:Bool = false;
+    var apiModule:Dynamic = null;
+
+    public function new() {
+        super('KssMiddlescroll'); 
+    }
+
+
+    override function onCountdownStart(event:ScriptEvent):Void {
+        hasShifted = false;
+        
+        apiModule = ModuleHandler.getModule("KssetteApi");
+        if (apiModule != null) {
+            apiModule.scriptCall("registerModule", ["KssMiddlescroll", this]);
+            var rawMode:Dynamic = apiModule.scriptCall("getKssValue", ["kssette_middlescroll"]);
+            if (rawMode == true) cachedMode = "On";
+            else if (rawMode == false) cachedMode = "Off";
+            else cachedMode = Std.string(rawMode);
+
+            cachedOppPos = Std.string(apiModule.scriptCall("getKssValue", ["kssette_opponent_pos"]));
+        }
+        
+        if (cachedMode == "Off" || cachedMode == "null") return;
+
+        var state = PlayState.instance;
+        if (state == null) return;
+
+        state.comboPopUps.offsets = [480, -50];
+
+        if (state.playerStrumline != null) {
+            state.playerStrumline.x = (FlxG.width - state.playerStrumline.width) * 0.5;
+        }
+
+        if (state.opponentStrumline != null) {
+            var bg = Reflect.getProperty(state.opponentStrumline, "background");
+            if (bg != null) bg.visible = false;
+
+            hideAllCovers(state);
+
+            if (cachedMode == "Hidden Notes") {
+                state.opponentStrumline.x = -5000;
+                for (note in state.opponentStrumline.strumlineNotes.members) {
+                    note.x = -5000;
+                }
+            } else if (!hasShifted) {
+                var receptors = state.opponentStrumline.strumlineNotes.members;
+                
+                if (cachedMode == "P Style" && receptors.length >= 4) {
+                    var targetLeftX:Float = Constants.STRUMLINE_X_OFFSET;
+                    var targetRightX:Float = FlxG.width - Constants.STRUMLINE_X_OFFSET - receptors[3].width;
+
+                    receptors[0].x = targetLeftX;
+                    receptors[1].x = targetLeftX + Strumline.NOTE_SPACING;
+                    receptors[3].x = targetRightX;
+                    receptors[2].x = targetRightX - Strumline.NOTE_SPACING;
+                    
+                    for (receptor in receptors) receptor.alpha = 0.6;
+                    hasShifted = true;
+                } 
+                else if (cachedMode == "On" && receptors.length > 0) {
+                    var sizeRatio:Float = 0.65;
+                    var targetSpacing:Float = Strumline.NOTE_SPACING * sizeRatio;
+
+                    for (receptor in receptors) {
+                        var defaultScale:Float = receptor.antialiasing ? 0.7 : 6.0;
+                        receptor.scale.set(defaultScale * sizeRatio, defaultScale * sizeRatio);
+                        receptor.updateHitbox();
+                        receptor.alpha = 1.0; 
+                    }
+
+                    var compactStartX:Float = Constants.STRUMLINE_X_OFFSET;
+
+                    if (cachedOppPos == "Right") {
+                        var exactTotalWidth:Float = (targetSpacing * (receptors.length - 1)) + receptors[receptors.length - 1].width;
+                        compactStartX = FlxG.width - Constants.STRUMLINE_X_OFFSET - exactTotalWidth;
+                    }
+
+                    for (i in 0...receptors.length) {
+                        receptors[i].x = compactStartX + (targetSpacing * i);
+                    }
+                    
+                    hasShifted = true;
+                }
+            }
+        }
+    }
+
+    override function onNoteIncoming(event:ScriptEvent) {
+        super.onNoteIncoming(event);
+        
+        if (cachedMode == "Off" || cachedMode == "null" || cachedMode == "Hidden Notes") return;
+        
+        var state = PlayState.instance;
+        if (state == null) return;
+
+        if (!event.note.noteData.getMustHitNote() && state.opponentStrumline != null) {
+            var targetReceptor = state.opponentStrumline.strumlineNotes.members[event.note.direction];
+            
+            if (cachedMode == "P Style") {
+                if (targetReceptor != null) {
+                    event.note.x = targetReceptor.x + (targetReceptor.width * 0.5) - (event.note.width * 0.5);
+                    if (event.note.holdNoteSprite != null) {
+                        event.note.holdNoteSprite.x = targetReceptor.x + (targetReceptor.width * 0.5) - (event.note.holdNoteSprite.width * 0.5);
+                        event.note.holdNoteSprite.alpha = 0.6;
+                    }
+                }
+                event.note.alpha = 0.6;
+            } 
+            else if (cachedMode == "On") {
+                var sizeRatio:Float = 0.65;
+                var defaultScale:Float = event.note.antialiasing ? 0.7 : 6.0;
+                
+                event.note.scale.set(defaultScale * sizeRatio, defaultScale * sizeRatio);
+                event.note.updateHitbox();
+                event.note.alpha = 1.0;
+
+                if (targetReceptor != null) {
+                    event.note.x = targetReceptor.x + (targetReceptor.width * 0.5) - (event.note.width * 0.5);
+                    
+                    if (event.note.holdNoteSprite != null) {
+                        var sustainSprite = event.note.holdNoteSprite;
+                        sustainSprite.scale.x = defaultScale * sizeRatio * 0.2; 
+                        sustainSprite.updateHitbox();
+                        
+                        sustainSprite.x = event.note.x + (event.note.width * 0.5) - (sustainSprite.width * 0.5);
+                        sustainSprite.alpha = 0.8;
+                    }
+                }
+            }
+        }
+    }
+
+    override function onUpdate(event:UpdateScriptEvent) {
+        super.onUpdate(event);
+        
+        if (cachedMode == "Off" || cachedMode == "null" || cachedMode == "Hidden Notes") return;
+        
+        var state = PlayState.instance;
+        if (state == null) return;
+
+        if (state.opponentStrumline != null && hasShifted) {
+            if (state.opponentStrumline.noteSplashes != null) {
+                for (splash in state.opponentStrumline.noteSplashes.members) {
+                    if (splash != null && splash.alive) {
+                        var dir:Int = -1;
+                        if (splash.animation != null && splash.animation.name != null) {
+                            if (StringTools.contains(splash.animation.name, "LEFT")) dir = 0;
+                            else if (StringTools.contains(splash.animation.name, "DOWN")) dir = 1;
+                            else if (StringTools.contains(splash.animation.name, "UP")) dir = 2;
+                            else if (StringTools.contains(splash.animation.name, "RIGHT")) dir = 3;
+                        }
+
+                        if (dir != -1) {
+                            var receptor = state.opponentStrumline.strumlineNotes.members[dir];
+                            if (receptor != null) {
+                                splash.scale.set(receptor.scale.x, receptor.scale.y);
+                                splash.updateHitbox();
+
+                                var targetX:Float = receptor.x + (receptor.width * 0.5) - (splash.width * 0.5);
+                                var offsets = state.opponentStrumline.noteStyle.getSplashOffsets();
+                                if (offsets != null && offsets.length > 0) targetX += offsets[0] * splash.scale.x;
+
+                                splash.x = targetX;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private function hideAllCovers(state:PlayState):Void {
+        if (state.opponentStrumline == null) return;
+
+        if (state.opponentStrumline.noteHoldCovers != null) {
+            state.opponentStrumline.noteHoldCovers.visible = false;
+            for (cover in state.opponentStrumline.noteHoldCovers.members) {
+                if (cover != null) {
+                    cover.visible = false;
+                    cover.alpha = 0.0;
+                }
+            }
+        }
+
+        if (state.opponentStrumline.holdNotes != null) {
+            for (hold in state.opponentStrumline.holdNotes.members) {
+                if (hold == null) continue;
+                if (hold.cover != null) {
+                    hold.cover.visible = false;
+                    hold.cover.alpha = 0.0;
+                }
+            }
+        }
+    }
+}

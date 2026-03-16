@@ -1,0 +1,601 @@
+import flixel.FlxG;
+import flixel.FlxSprite;
+import flixel.text.FlxText;
+import flixel.text.FlxTextBorderStyle;
+import flixel.util.FlxTimer;
+import funkin.save.Save;
+import funkin.ui.options.PreferencesMenu;
+import funkin.modding.module.Module;
+import funkin.modding.module.ModuleHandler;
+import funkin.ui.options.OptionsState;
+import funkin.modding.events.StateChangeScriptEvent;
+import funkin.modding.events.UpdateScriptEvent;
+import funkin.play.PlayState;
+import funkin.play.scoring.Scoring;
+import funkin.Highscore;
+import funkin.Paths;
+import flixel.util.FlxStringUtil;
+import Std;
+import Math;
+import Reflect;
+import funkin.mobile.input.ControlsHandler;
+
+class KssetteApi extends Module {
+    // core system that manages settings score calculations and integrity verification
+    final optionsID:String = "kassette-hud";
+    public var hudVersion:String = "0.1.3";
+    public var missesCount:Int = 0;
+    public var isMobileMode:Bool = false;
+    public var isCompromised:Bool = false;
+    private var expectedResponse:String = ""; 
+    private var heartbeatTimer:Float = 4.0; 
+    private var gracePeriod:Float = 3.0;    
+
+    public var playerNoteTimes:Array<Float> = [];
+    public var currentNoteIndex:Int = 0;
+
+    // Cache variables
+    var lastRankScore:Int = -1;
+    var lastRankMisses:Int = -1;
+    var cachedRank:String = "?";
+    var lastTierMisses:Int = -1;
+    var lastTierGoods:Int = -1;
+    var lastTierBads:Int = -1;
+    var lastTierShits:Int = -1;
+    var cachedTier:String = "N/A";
+
+    public function new() {
+        super('KssetteApi', 1000);
+        isMobileMode = (FlxG.onMobile); 
+        initSettings();
+        isCompromised = false;
+    }
+
+    function initSettings() {
+        var options = [
+            "kssette_show_hud", "kssette_show_score", "kssette_show_misses",
+            "kssette_acc_mode", "kssette_show_rank", "kssette_show_tier",
+            "kssette_middlescroll", "kssette_opponent_pos", "kssette_ghost_tapping", 
+            "kssette_ghost_sing", "kssette_show_timebar", "kssette_info_pos",
+            "kssette_show_song_title", "kssette_show_song_diff",  
+            "kssette_show_song_time", "kssette_judge_pos", "kssette_mobile_keyboard",
+            "kssette_timebar_pos", "kssette_show_breakbar", "kssette_resume_countdown",
+            "kssette_smooth_display", "kssette_hide_splashes"
+        ];
+
+        for (opt in options) {
+            if (!Save.instance.modOptions.exists(opt)) {
+                var defaultVal:Dynamic = "On"; 
+                
+                if (opt == "kssette_middlescroll") defaultVal = "Off"; 
+                if (opt == "kssette_opponent_pos") defaultVal = "Left";
+                if (opt == "kssette_acc_mode") defaultVal = "Classic";
+                if (opt == "kssette_ghost_sing") defaultVal = "Off";
+                if (opt == "kssette_judge_pos") defaultVal = "Off";
+                if (opt == "kssette_info_pos") defaultVal = "Below Score";
+                if (opt == "kssette_mobile_keyboard") defaultVal = "Off";
+                if (opt == "kssette_timebar_pos") defaultVal = "Bottom";
+                if (opt == "kssette_hide_splashes") defaultVal = "Off";
+                
+                if (opt == "kssette_ghost_tapping") {
+                    defaultVal = isMobileMode ? "Off" : "On";
+                }
+
+                Save.instance.modOptions.set(opt, defaultVal);
+            }
+        }
+        
+        Save.instance.flush();
+    }
+
+    public function registerModule(name:String, module:Dynamic) {
+    }
+
+    override public function onCountdownStart(event) {
+        super.onCountdownStart(event);
+        playerNoteTimes = [];
+        currentNoteIndex = 0;
+        
+        lastRankScore = -1;
+        lastRankMisses = -1;
+        cachedRank = "?";
+        lastTierMisses = -1;
+        lastTierGoods = -1;
+        lastTierBads = -1;
+        lastTierShits = -1;
+        cachedTier = "N/A";
+        
+        if (getKssValue("kssette_show_breakbar") != true) return;
+
+        var state = PlayState.instance;
+        if (state != null && state.currentChart != null && state.currentChart.notes != null) {
+            for (note in state.currentChart.notes) {
+                var isPlayer = false;
+                var noteTime:Float = -1;
+
+                try {
+                    if (note.getMustHitNote() == true) isPlayer = true;
+                } catch(e:Dynamic) {
+                    var d = Reflect.getProperty(note, "data");
+                    if (d == null) d = Reflect.getProperty(note, "d");
+                    if (d != null && Std.parseInt(Std.string(d)) >= 4) isPlayer = true;
+                    if (Reflect.getProperty(note, "mustHitNote") == true) isPlayer = true;
+                }
+                
+                if (isPlayer) {
+                    var t:Dynamic = Reflect.getProperty(note, "time");
+                    if (t == null) t = Reflect.getProperty(note, "t");
+                    if (t != null) noteTime = Std.parseFloat(Std.string(t));
+
+                    if (noteTime != -1) playerNoteTimes.push(noteTime);
+                }
+            }
+            playerNoteTimes.sort(function(a, b) return Math.round(a - b));
+        }
+    }
+
+    override public function onNoteSplash(event) {
+        if (getKssValue("kssette_hide_splashes") == true) {
+            event.cancel();
+        }
+    }
+
+    public function getBreakData():Dynamic {
+        if (getKssValue("kssette_show_breakbar") != true) return {active: false, progress: 0, timeLeft: 0};
+        var state = PlayState.instance;
+        if (state == null || state.conductorInUse == null || playerNoteTimes.length == 0) return {active: false, progress: 0, timeLeft: 0};
+
+        var currentTime = state.conductorInUse.songPosition;
+
+        while (currentNoteIndex < playerNoteTimes.length && playerNoteTimes[currentNoteIndex] <= currentTime) {
+            currentNoteIndex++;
+        }
+
+        if (currentNoteIndex >= playerNoteTimes.length) return {active: false, progress: 0, timeLeft: 0};
+
+        var nextTime = playerNoteTimes[currentNoteIndex];
+        var prevTime:Float = 0;
+        if (currentNoteIndex > 0) prevTime = playerNoteTimes[currentNoteIndex - 1];
+        
+        var gap = nextTime - prevTime;
+        
+        if (gap >= 2500) {
+            var timeSincePrev = currentTime - prevTime;
+            var timeUntilNext = nextTime - currentTime;
+
+            if (timeSincePrev > 400 && timeUntilNext > 400) {
+                var totalVisibleTime = gap - 800; 
+                var currentVisibleTime = timeSincePrev - 400;
+                var progress = currentVisibleTime / totalVisibleTime;
+                
+                return {active: true, progress: progress, timeLeft: timeUntilNext};
+            }
+        }
+        return {active: false, progress: 0, timeLeft: 0};
+    }
+
+    public function isMobileLikePC():Bool {
+        if (!FlxG.onMobile) return true;
+        var val = Save.instance.modOptions.get("kssette_mobile_keyboard");
+        return (val == "On");
+    }
+
+    public function getSongTitle():String {
+        if (getKssValue("kssette_show_song_title") != true) return "";
+        var state = PlayState.instance;
+        if (state == null) return "Unknown";
+        if (state.currentChart != null && state.currentChart.songName != null) return state.currentChart.songName;
+        return Std.string(state.currentSong);
+    }
+
+    public function getDifficulty():String {
+        if (getKssValue("kssette_show_song_diff") != true) return "";
+        var state = PlayState.instance;
+        if (state == null) return "NORMAL";
+        var diff:String = Std.string(state.currentDifficulty);
+        return (diff == null || diff == "" || diff == "null") ? "NORMAL" : diff.toUpperCase();
+    }
+
+    public function getTimeRemaining():String {
+        if (getKssValue("kssette_show_song_time") != true) return "";
+        var state = PlayState.instance;
+        if (state == null || state.conductorInUse == null) return "0:00";
+        var remaining:Float = (state.currentSongLengthMs - state.conductorInUse.songPosition) / 1000;
+        if (remaining < 0) remaining = 0;
+        return FlxStringUtil.formatTime(remaining, false);
+    }
+
+    public function getSongProgress():Float {
+        var state = PlayState.instance;
+        if (state == null || state.currentSongLengthMs <= 0) return 0.0;
+        return Math.min(1.0, Math.max(0.0, state.conductorInUse.songPosition / state.currentSongLengthMs));
+    }
+
+    public function getNoteCount():Int {
+        if (getKssValue("kssette_acc_mode") != "Ascending") return 0;
+        var state = PlayState.instance;
+        if (state == null || state.currentChart == null || state.currentChart.notes == null) return 0;
+        var count:Int = 0;
+        for (note in state.currentChart.notes) {
+            var isPlayer = false;
+            try {
+                if (note.getMustHitNote() == true) isPlayer = true;
+            } catch(e:Dynamic) {
+                var d = Reflect.getProperty(note, "data");
+                if (d == null) d = Reflect.getProperty(note, "d");
+                if (d != null && Std.parseInt(Std.string(d)) >= 4) isPlayer = true;
+                if (Reflect.getProperty(note, "mustHitNote") == true) isPlayer = true;
+            }
+            if (isPlayer) count++;
+        }
+        return (count == 0) ? Std.int(state.currentChart.notes.length / 2) : count;
+    }
+
+    public function getNoteStyle():String {
+        var state = PlayState.instance;
+        if (state == null) return "funkin";
+        if (state.currentChart != null && state.currentChart.playData != null && state.currentChart.playData.noteStyle != null) {
+            return state.currentChart.playData.noteStyle;
+        }
+        return "funkin";
+    }
+
+    public function getRankID(state:PlayState):String {
+        if (getKssValue("kssette_show_rank") != true) return "?";
+        var t = Highscore.tallies;
+        if (t == null || (t.totalNotesHit + t.missed) <= 0) return "?";
+        
+        if (state.songScore == lastRankScore && t.missed == lastRankMisses && cachedRank != "?") return cachedRank;
+
+        lastRankScore = state.songScore;
+        lastRankMisses = t.missed;
+        cachedRank = Scoring.calculateRank({
+            score: state.songScore,
+            tallies: {
+                sick: t.sick,
+                good: t.good,
+                bad: t.bad,
+                shit: t.shit,
+                miss: t.missed,
+                combo: t.combo,
+                maxCombo: t.maxCombo,
+                totalNotesHit: t.totalNotesHit,
+                totalNotes: t.totalNotesHit + t.missed
+            }
+        });
+        return cachedRank;
+    }
+
+    public function getComboTier(state:PlayState):String {
+        if (getKssValue("kssette_show_tier") != true) return "";
+        var t = Highscore.tallies;
+        if (t == null) return "N/A";
+        
+        if (t.missed == lastTierMisses && t.good == lastTierGoods && t.bad == lastTierBads && t.shit == lastTierShits && cachedTier != "N/A") return cachedTier;
+
+        lastTierMisses = t.missed;
+        lastTierGoods = t.good;
+        lastTierBads = t.bad;
+        lastTierShits = t.shit;
+
+        if (t.missed == 0) {
+            if (t.good == 0 && t.bad == 0 && t.shit == 0) cachedTier = "SFC";
+            else if (t.bad == 0 && t.shit == 0) cachedTier = "GFC";
+            else cachedTier = "FC";
+        } else {
+            cachedTier = (t.missed < 10) ? "SDCB" : "Clear";
+        }
+        return cachedTier;
+    }
+
+    public function getAccuracy(state:PlayState):Float {
+        var t = Highscore.tallies;
+        if (t == null) return 0.0;
+        var total:Int = t.totalNotesHit + t.missed;
+        if (total <= 0) return 0.0;
+        var raw:Float = ((t.sick + t.good - t.missed) / total) * 100;
+        return Math.floor(Math.max(0, raw) * 100) / 100;
+    }
+
+    public function getAscendingAccuracy(state:PlayState, cachedTotalNotes:Int):Float {
+        if (getKssValue("kssette_acc_mode") != "Ascending") return 0.0;
+        if (state == null) return 0.0;
+
+        var realAcc:Float = getAccuracy(state);
+        var totalPlayerNotes:Int = cachedTotalNotes;
+        var processed:Int = 0;
+        
+        if (Highscore.tallies != null) {
+            processed = Highscore.tallies.sick + Highscore.tallies.good + Highscore.tallies.bad + Highscore.tallies.shit + Highscore.tallies.missed;
+            
+            if (Reflect.hasField(Highscore.tallies, "totalNotes")) {
+                var realTotal:Int = Reflect.getProperty(Highscore.tallies, "totalNotes");
+                if (realTotal > 0) totalPlayerNotes = realTotal;
+            }
+        }
+
+        if (processed > totalPlayerNotes) totalPlayerNotes = processed;
+
+        var noteProgress:Float = (totalPlayerNotes > 0) ? (processed / totalPlayerNotes) : 1.0;
+        if (noteProgress > 1.0) noteProgress = 1.0;
+        
+        var songProgress:Float = getSongProgress();
+        if (Math.isNaN(songProgress) || songProgress < 0) songProgress = 0;
+        if (songProgress >= 0.995) noteProgress = 1.0;
+        
+        return realAcc * noteProgress;
+    }
+
+    public function getChallenge():String {
+        var msg = getModeMessage();
+        var isBotting:Bool = (msg.indexOf('Botplay') != -1);
+        var randomId = FlxG.random.int(100, 999);
+        var challenge = 'sync_' + randomId;
+
+        if (isBotting) {
+            expectedResponse = 'err_' + (randomId * 3);
+        } else {
+            expectedResponse = 'ok_' + (randomId * 3);
+        }
+        return challenge;
+    }
+
+    public function sendResponse(response:String):Void {
+        if (response == expectedResponse && expectedResponse != "") {
+            heartbeatTimer = 4.0; 
+            gracePeriod = 0;      
+        } else {
+            if (gracePeriod <= 0) isCompromised = true;
+        }
+    }
+
+    public function getModeMessage():String {
+        var state = PlayState.instance;
+        if (state == null) return "";
+        var botplay:Bool = state.isBotPlayMode || (Save.instance.modOptions.get("BotMode") == true);
+        
+        if (!botplay) {
+            var songId:String = (state.currentSong != null && state.currentSong.id != null) ? state.currentSong.id : ((state.currentChart != null && state.currentChart.songName != null) ? state.currentChart.songName : "");
+            
+            if (songId.toLowerCase() == "termination") {
+                var qtModule = ModuleHandler.getModule("QTdodgeModule");
+                if (qtModule != null && qtModule.scriptGet("qtBotplay") == true) botplay = true;
+            }
+        }
+        
+        var practice:Bool = (Reflect.field(state, "practiceMode") == true);
+        var songName:String = getSongTitle();
+
+        if (botplay && practice) return 'Watching "' + songName + '" with Botplay & Practice';
+        if (botplay) return 'Watching "' + songName + '" with Botplay';
+        if (practice) return 'Watching "' + songName + '" with Practice';
+
+        return ""; 
+    }
+
+    public function getKssValue(key:String):Dynamic { 
+        var val = Save.instance.modOptions.get(key);
+        
+        if (FlxG.onMobile && !isMobileLikePC()) {
+            if (key == "kssette_middlescroll") return "Off";
+            if (key == "kssette_opponent_pos") return "Left";
+        }
+
+        if (key == "isCompromised") return isCompromised;
+        if (val == "On") return true;
+        if (val == "Off") return false;
+        
+        return val;
+    }
+
+    override public function onUpdate(event:UpdateScriptEvent) {
+        super.onUpdate(event);
+        if (Highscore.tallies != null) missesCount = Highscore.tallies.missed;
+        
+        var state = FlxG.state;
+        if (Std.isOfType(state, PlayState)) {
+            if (PlayState.instance == null || PlayState.instance.startingSong) return;
+
+            if (!isCompromised) {
+                if (gracePeriod > 0) gracePeriod -= event.elapsed;
+
+                heartbeatTimer -= event.elapsed;
+                
+                if (heartbeatTimer <= 0 && gracePeriod <= 0) {
+                    isCompromised = true;
+                } else if (gracePeriod <= 0) {
+                    var accMod = ModuleHandler.getModule("KssetteAccuracy");
+                    if (accMod == null) {
+                        isCompromised = true;
+                    } else {
+                        var msg = getModeMessage();
+                        var isBotting:Bool = (msg != null && msg.indexOf('Botplay') != -1);
+                        
+                        if (isBotting) {
+                            var modeTxt = Reflect.getProperty(accMod, "modeText");
+                            if (modeTxt == null) {
+                                isCompromised = true;
+                            } else {
+                                if (modeTxt.visible == false || modeTxt.alpha < 0.1 || modeTxt.text.indexOf("Botplay") == -1) {
+                                    isCompromised = true;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            heartbeatTimer = 4.0;
+            gracePeriod = 3.0;
+            isCompromised = false;
+        }
+    }
+
+    override public function onStateChangeEnd(event:StateChangeScriptEvent):Void {
+        var target = event.targetState;
+        if (Std.isOfType(target, OptionsState)) addSettingsCategory(target);
+        if (Std.isOfType(target, PlayState)) createHUDWatermark(target);
+    }
+
+    function createHUDWatermark(state:PlayState) {
+        if (state == null || state.camHUD == null) return;
+        var platform = isMobileMode ? (isMobileLikePC() ? "Mobile+KB" : "Mobile") : "PC";
+        var safeMargin:Float = isMobileMode ? 85 : 8;
+        
+        var timeBarPos = getKssValue("kssette_timebar_pos");
+        var yPos:Float = (timeBarPos == "Bottom") ? 10 : (FlxG.height - 24);
+
+        var watermark = new FlxText(0, yPos, FlxG.width - safeMargin, "Kassette HUD " + platform + " [" + hudVersion + "]", 16);
+        watermark.setFormat("VCR OSD Mono", 16, 0xFFFFFFFF, "right", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        watermark.alpha = 0.5; watermark.zIndex = 1000; watermark.cameras = [state.camHUD];
+        state.add(watermark);
+    }
+
+    public function buildKassettePage(state:OptionsState) {
+        var codex = state.optionsCodex;
+        if (codex.pages.exists(optionsID)) codex.pages.remove(optionsID);
+
+        var page = new PreferencesMenu();
+        if (page.items != null) page.items.clear();
+        if (page.preferenceItems != null) page.preferenceItems.clear();
+        if (page.preferenceDesc != null) page.preferenceDesc = []; 
+        
+        codex.addPage(optionsID, page);
+        
+        page.onExit.add(function() { 
+            if (FlxG.sound.music != null) FlxG.sound.music.stop();
+
+            FlxG.camera.fade(0xFF000000, 0.4, false, function() {
+                var newState = new OptionsState();
+                FlxG.switchState(newState);
+
+                if (PlayState.instance == null) {
+                    FlxG.sound.playMusic(Paths.music('freakyMenu'), 1.0, true);
+                }
+            });
+        });
+
+        var createSeparator = function(text:String) {
+            page.items.createItem(0, (120 * page.items.length) + 30, text, "bold", function(){}, true);
+            page.preferenceItems.add(new FlxSprite().makeGraphic(0, 0, 0x00000000));
+            if (page.preferenceDesc != null) page.preferenceDesc.push(""); 
+        };
+
+        var onOffMap = ["On" => "On", "Off" => "Off"];
+
+        if (isMobileMode) {
+            page.createPrefItemEnum("External Keyboard", "Select 'On' ONLY if you use a physical keyboard to unlock PC options.", onOffMap, function(v) { Save.instance.modOptions.set("kssette_mobile_keyboard", v); Save.instance.flush(); }, Save.instance.modOptions.get("kssette_mobile_keyboard"));
+        }
+        createSeparator("-- Mod Options --");
+
+        if (!isMobileMode || isMobileLikePC()) {
+            page.createPrefItemEnum("Middle Scroll", "Centers player's notes and moves opponent's notes to edges.", ["Off" => "Off", "On" => "On", "P Style" => "P Style", "Hidden Notes" => "Hidden Notes"], function(v) { Save.instance.modOptions.set("kssette_middlescroll", v); Save.instance.flush(); }, Save.instance.modOptions.get("kssette_middlescroll"));
+            page.createPrefItemEnum("Ghost Tapping", "Prevents misses when pressing keys without incoming notes.", onOffMap, function(v) { Save.instance.modOptions.set("kssette_ghost_tapping", v); Save.instance.flush(); }, Save.instance.modOptions.get("kssette_ghost_tapping"));
+            page.createPrefItemEnum("Ghost Sing", "Enables singing animations during ghost tapping.", onOffMap, function(v) { Save.instance.modOptions.set("kssette_ghost_sing", v); Save.instance.flush(); }, Save.instance.modOptions.get("kssette_ghost_sing"));
+        }
+        page.createPrefItemEnum("Resume Countdown", "Adds a 3-second countdown when resuming from pause.", onOffMap, function(v) { Save.instance.modOptions.set("kssette_resume_countdown", v); Save.instance.flush(); }, Save.instance.modOptions.get("kssette_resume_countdown"));
+        page.createPrefItemEnum("Judge Counter", "Sets the screen position for judgment statistics.", ["Left" => "Left", "Right" => "Right", "Top Left" => "Top Left", "Top Right" => "Top Right", "Off" => "Off"], function(v) { Save.instance.modOptions.set("kssette_judge_pos", v); Save.instance.flush(); }, Save.instance.modOptions.get("kssette_judge_pos"));
+
+        createSeparator("-- Performance --");
+        page.createPrefItemEnum("Smooth Display", "Toggles the rolling number effect for score and accuracy.", onOffMap, function(v) { Save.instance.modOptions.set("kssette_smooth_display", v); Save.instance.flush(); }, Save.instance.modOptions.get("kssette_smooth_display"));
+        page.createPrefItemEnum("Hide Splashes", "Disables note splash particles for better performance.", onOffMap, function(v) { Save.instance.modOptions.set("kssette_hide_splashes", v); Save.instance.flush(); }, Save.instance.modOptions.get("kssette_hide_splashes"));
+
+        createSeparator("-- Positions --");
+        if (!isMobileMode || isMobileLikePC()) {
+            page.createPrefItemEnum("Middle Opponent Pos", "Sets horizontal position for opponent notes (Only active when Middle Scroll is 'On').", ["Left" => "Left", "Right" => "Right"], function(v) { Save.instance.modOptions.set("kssette_opponent_pos", v); Save.instance.flush(); }, Save.instance.modOptions.get("kssette_opponent_pos"));
+        }
+        page.createPrefItemEnum("Time Bar Pos", "Sets the vertical position for the time bar.", ["Top" => "Top", "Bottom" => "Bottom"], function(v) { Save.instance.modOptions.set("kssette_timebar_pos", v); Save.instance.flush(); }, Save.instance.modOptions.get("kssette_timebar_pos"));
+        page.createPrefItemEnum("Info Text Pos", "Choose where the song information is displayed.", ["Below Score" => "Below Score", "Bottom Left" => "Bottom Left"], function(v) { Save.instance.modOptions.set("kssette_info_pos", v); Save.instance.flush(); }, Save.instance.modOptions.get("kssette_info_pos"));
+        
+        createSeparator("-- HUD Elements --");
+        var createSlider = function(text, desc, key) {
+            page.createPrefItemEnum(text, desc, onOffMap, function(v) { Save.instance.modOptions.set(key, v); Save.instance.flush(); }, Save.instance.modOptions.get(key));
+        };
+        
+        createSlider("Show Misses", "Displays the total count of song misses.", "kssette_show_misses");
+        page.createPrefItemEnum("Accuracy Mode", "Sets accuracy calculation to Classic or Ascending.", ["Classic" => "Classic", "Ascending" => "Ascending", "Off" => "Off"], function(v) { Save.instance.modOptions.set("kssette_acc_mode", v); Save.instance.flush(); }, Save.instance.modOptions.get("kssette_acc_mode"));
+        
+        createSlider("Show Rank", "Displays the current letter rank grade.", "kssette_show_rank");
+        createSlider("Show FC Tier", "Displays the current combo milestone (SFC, GFC, etc).", "kssette_show_tier");
+        createSlider("Show Time Bar", "Displays a progress bar on the screen.", "kssette_show_timebar");
+        createSlider("Show Break Bar", "Displays a progress bar during long sections without notes.", "kssette_show_breakbar");
+        createSlider("Show Song Title", "Displays the current song name.", "kssette_show_song_title");
+        createSlider("Show Difficulty", "Displays the current difficulty level.", "kssette_show_song_diff");
+        createSlider("Show Time Left", "Displays the remaining song time.", "kssette_show_song_time");
+
+        createSeparator("-- Custom Options --");
+    }
+
+    public function addSettingsCategory(state:OptionsState) {
+        var codex = state.optionsCodex;
+        var mainPage = codex.pages.get('options');
+        if (mainPage == null) return;
+
+        var label = isMobileMode ? "KASSETTE HUD MOBILE" : "KASSETTE HUD";
+        
+        var i:Int = mainPage.items.members.length - 1;
+        while (i >= 0) {
+            var item = mainPage.items.members[i];
+            if (item != null && (item.label == "KASSETTE HUD" || item.label == "KASSETTE HUD MOBILE")) {
+                mainPage.items.remove(item, true); 
+                item.destroy();
+            }
+            i--;
+        }
+
+        var item = mainPage.createItem(label, function() { 
+            FlxG.camera.fade(0xFF000000, 0.4, false, function() {
+                buildKassettePage(state);
+                codex.switchPage(optionsID); 
+                
+                var customBg = new FlxSprite();
+                
+                try {
+                    customBg.loadGraphic(Paths.image('ui/menuKssette'));
+                    if (customBg.graphic == null) {
+                        trace("KASSETTE HUD: No se encontro la imagen en 'ui/menuKssette'. Buscando en raiz...");
+                        customBg.loadGraphic(Paths.image('menuKssette'));
+                    }
+                } catch(e:Dynamic) {
+                    trace("KASSETTE HUD ERROR: Fallo al intentar cargar la imagen.");
+                }
+
+                if (customBg.graphic != null) {
+                    customBg.setGraphicSize(Std.int(FlxG.width), Std.int(FlxG.height));
+                    customBg.updateHitbox();
+                    customBg.screenCenter();
+                    customBg.scrollFactor.set(0, 0);
+                    
+                    state.insert(1, customBg);
+                } else {
+                    trace("KASSETTE HUD ERROR CRITICO: Imagen no encontrada en ninguna ruta.");
+                }
+
+                if (Reflect.hasField(state, "bg")) {
+                    var oldBg = Reflect.getProperty(state, "bg");
+                    if (oldBg != null) {
+                        oldBg.visible = false;
+                    }
+                }
+
+                if (PlayState.instance == null) {
+                    FlxG.sound.playMusic(Paths.music('offsetsLoop/offsetsLoop'), 1.0, true);
+                }
+                
+                FlxG.camera.fade(0xFF000000, 0.4, true);
+            });
+        });
+        
+        var pref = mainPage.items.getItem("PREFERENCES");
+        if (pref != null) {
+            mainPage.items.members.remove(item);
+            mainPage.items.members.insert(mainPage.items.members.indexOf(pref) + 1, item);
+        }
+        
+        for (i in 0...mainPage.items.length) { 
+            if (mainPage.items.members[i] != null) mainPage.items.members[i].y = 100 * (i + 1); 
+        }
+
+        buildKassettePage(state);
+    }
+}
