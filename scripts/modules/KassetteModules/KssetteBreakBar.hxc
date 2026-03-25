@@ -1,3 +1,5 @@
+package kassettehud.util;
+
 import funkin.modding.module.Module;
 import funkin.modding.module.ModuleHandler;
 import funkin.play.PlayState;
@@ -30,6 +32,7 @@ class KssetteBreakBar extends Module {
         var state = PlayState.instance;
         if (state == null) return;
         
+        apiModule = ModuleHandler.getModule("kassettehud.util.KssetteApi");
         apiModule = ModuleHandler.getModule("KssetteApi");
         if (apiModule != null) {
             apiModule.scriptCall("registerModule", ["KssetteBreakBar", this]);

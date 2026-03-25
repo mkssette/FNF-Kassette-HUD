@@ -1,3 +1,5 @@
+package kassettehud.util;
+
 import funkin.modding.module.Module;
 import funkin.modding.module.ModuleHandler;
 import funkin.play.PlayState;
@@ -75,6 +77,5 @@ class KssGhostTapping extends Module {
                     }
                 }
             }
-        }
-    }
+}   }
 }

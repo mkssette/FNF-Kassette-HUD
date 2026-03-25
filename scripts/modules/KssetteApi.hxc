@@ -1,3 +1,5 @@
+package kassettehud.util;
+
 import flixel.FlxG;
 import flixel.FlxSprite;
 import flixel.text.FlxText;
@@ -28,7 +30,7 @@ import funkin.modding.PolymodHandler;
 
     class KssetteApi extends Module {
     final optionsID:String = "kassette-hud";
-    public var hudVersion:String = "0.1.4";
+    public var hudVersion:String = "0.1.5.b1";
     public var missesCount:Int = 0;
     public var isMobileMode:Bool = false;
     public var isCompromised:Bool = false;
@@ -85,7 +87,8 @@ import funkin.modding.PolymodHandler;
             "kssette_show_song_title", "kssette_show_song_diff",  
             "kssette_show_song_time", "kssette_judge_pos", "kssette_mobile_keyboard",
             "kssette_timebar_pos", "kssette_show_breakbar", "kssette_resume_countdown",
-            "kssette_smooth_display", "kssette_hide_splashes", "kssette_custom_font"
+            "kssette_smooth_display", "kssette_hide_splashes", "kssette_custom_font",
+            "kssette_intro_text", "kssette_intro_font_title", "kssette_intro_font_artist"
         ];
 
         for (opt in options) {
@@ -102,6 +105,9 @@ import funkin.modding.PolymodHandler;
                 if (opt == "kssette_timebar_pos") defaultVal = "Bottom";
                 if (opt == "kssette_hide_splashes") defaultVal = "Off";
                 if (opt == "kssette_custom_font") defaultVal = "vcr.ttf";
+                if (opt == "kssette_intro_text") defaultVal = "On";
+                if (opt == "kssette_intro_font_title") defaultVal = "vcr.ttf";
+                if (opt == "kssette_intro_font_artist") defaultVal = "vcr.ttf";
                 
                 if (opt == "kssette_ghost_tapping") {
                     defaultVal = isMobileMode ? "Off" : "On";
@@ -226,6 +232,62 @@ import funkin.modding.PolymodHandler;
         if (state == null) return "Unknown";
         if (state.currentChart != null && state.currentChart.songName != null) return state.currentChart.songName;
         return Std.string(state.currentSong);
+    }
+
+    public function getSongArtist():String {
+        var state = PlayState.instance;
+        if (state == null) return "Unknown Artist";
+        
+        try {
+            if (state.currentChart != null) {
+                var cArtist = Reflect.getProperty(state.currentChart, "songArtist");
+                if (cArtist == null) cArtist = Reflect.getProperty(state.currentChart, "artist");
+                
+                var meta = Reflect.getProperty(state.currentChart, "metadata");
+                if (cArtist == null && meta != null) cArtist = Reflect.getProperty(meta, "artist");
+
+                if (cArtist != null && Std.string(cArtist) != "" && Std.string(cArtist) != "null") {
+                    return Std.string(cArtist);
+                }
+            }
+        } catch(e:Dynamic) {}
+
+        try {
+            if (state.currentSong != null) {
+                var aArtist = Reflect.getProperty(state.currentSong, "artist");
+                var meta2 = Reflect.getProperty(state.currentSong, "metadata");
+                if (aArtist == null && meta2 != null) aArtist = Reflect.getProperty(meta2, "artist");
+
+                if (aArtist != null && Std.string(aArtist) != "" && Std.string(aArtist) != "null") {
+                    return Std.string(aArtist);
+                }
+            }
+        } catch(e:Dynamic) {}
+        
+        return "Unknown Artist";
+    }
+
+    public function getSongAlbum():String {
+        var state = PlayState.instance;
+        if (state == null) return "";
+        
+        var albumId = "";
+        try {
+            if (state.currentSong != null) {
+                var playData = Reflect.getProperty(state.currentSong, "playData");
+                if (playData == null) {
+                    var meta = Reflect.getProperty(state.currentSong, "metadata");
+                    if (meta != null) playData = Reflect.getProperty(meta, "playData");
+                }
+
+                if (playData != null && Reflect.hasField(playData, "album")) {
+                    var a = Reflect.getProperty(playData, "album");
+                    if (a != null && Std.string(a) != "" && Std.string(a) != "null") albumId = Std.string(a);
+                }
+            }
+        } catch(e:Dynamic) {}
+        
+        return albumId;
     }
 
     public function getDifficulty():String {
@@ -435,15 +497,9 @@ import funkin.modding.PolymodHandler;
         return val;
     }
 
-    public function getCustomFont():String {
-        var fontKey:String = Std.string(getKssValue("kssette_custom_font"));
-        
+    public function resolveCustomFont(fontKey:String):String {
         if (fontKey == "vcr.ttf" || fontKey == "VCR OSD Mono" || fontKey == "null" || fontKey == "") {
             return "VCR OSD Mono";
-        }
-
-        if (fontKey == lastFontKey && cachedCustomFontPath != "") {
-            return cachedCustomFontPath;
         }
         
         var foundPath:String = ""; 
@@ -499,12 +555,20 @@ import funkin.modding.PolymodHandler;
         }
         
         if (foundPath != "") {
-            lastFontKey = fontKey;
-            cachedCustomFontPath = foundPath;
             return foundPath;
         }
         
         return "VCR OSD Mono"; 
+    }
+
+    public function getCustomFont():String {
+        var fontKey:String = Std.string(getKssValue("kssette_custom_font"));
+        if (fontKey == lastFontKey && cachedCustomFontPath != "") return cachedCustomFontPath;
+        
+        var resolved = resolveCustomFont(fontKey);
+        lastFontKey = fontKey;
+        cachedCustomFontPath = resolved;
+        return resolved;
     }
 
     override public function onUpdate(event:UpdateScriptEvent) {
@@ -731,6 +795,17 @@ import funkin.modding.PolymodHandler;
         createSlider("Show Song Title", "Show the name of the song on the HUD.", "kssette_show_song_title");
         createSlider("Show Difficulty", "Show the difficulty level on the HUD.", "kssette_show_song_diff");
         createSlider("Show Time Left", "Show a digital timer counting down the song.", "kssette_show_song_time");
+
+        createSeparator("-- Intro Text --");
+        page.createPrefItemEnum("Show Song Intro", "Displays the song title and artist when the song starts.", onOffMap, function(v) { updateAndSave("kssette_intro_text", v); }, Save.instance.modOptions.get("kssette_intro_text"));
+        
+        var introTitleFont = Std.string(Save.instance.modOptions.get("kssette_intro_font_title"));
+        var dispIntroTitleFont = (introTitleFont == "vcr.ttf") ? "VCR (Default)" : introTitleFont;
+        page.createPrefItemEnum("Intro Title Font", "Choose the font for the intro title.", getAvailableFonts(), function(v) { updateAndSave("kssette_intro_font_title", v); }, dispIntroTitleFont);
+
+        var introArtistFont = Std.string(Save.instance.modOptions.get("kssette_intro_font_artist"));
+        var dispIntroArtistFont = (introArtistFont == "vcr.ttf") ? "VCR (Default)" : introArtistFont;
+        page.createPrefItemEnum("Intro Artist Font", "Choose the font for the intro artist.", getAvailableFonts(), function(v) { updateAndSave("kssette_intro_font_artist", v); }, dispIntroArtistFont);
 
         createSeparator("-- Custom Options --");
     }
