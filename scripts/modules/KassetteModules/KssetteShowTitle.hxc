@@ -1,0 +1,170 @@
+package kassettehud.util;
+
+import funkin.modding.module.Module;
+import funkin.modding.module.ModuleHandler;
+import funkin.play.PlayState;
+import flixel.FlxG;
+import flixel.text.FlxText;
+import flixel.text.FlxTextBorderStyle;
+import flixel.tweens.FlxTween;
+import flixel.tweens.FlxEase;
+import flixel.FlxSprite;
+import funkin.Paths;
+import Std;
+
+class KssetteShowTitle extends Module {
+    var titleTxt:FlxText;
+    var artistTxt:FlxText;
+    var albumSprite:FlxSprite;
+    var apiModule:Dynamic = null;
+    var isActive:Bool = false;
+
+    public function new() {
+        super("KssetteShowTitle");
+    }
+
+    override public function onSongStart(event:Dynamic) {
+        super.onSongStart(event);
+
+        apiModule = ModuleHandler.getModule("KssetteApi");
+        if (apiModule == null) return;
+
+        try {
+            isActive = apiModule.getKssValue("kssette_intro_text") == true;
+        } catch(e:Dynamic) {
+            isActive = false;
+        }
+        if (!isActive) return;
+
+        var state = PlayState.instance;
+        if (state == null || state.camHUD == null) return;
+
+        var titleStr = "Unknown";
+        var artistStr = "Unknown Artist";
+
+        try {
+            if (state.currentChart != null) {
+                if (state.currentChart.songName != null && Std.string(state.currentChart.songName) != "") {
+                    titleStr = Std.string(state.currentChart.songName);
+                }
+                if (state.currentChart.songArtist != null && Std.string(state.currentChart.songArtist) != "") {
+                    artistStr = Std.string(state.currentChart.songArtist);
+                }
+            }
+        } catch(e:Dynamic) {}
+
+        if (titleStr == "Unknown" || titleStr == "null") {
+            try { titleStr = Std.string(apiModule.getSongTitle()); } catch(e:Dynamic) {}
+        }
+        if (artistStr == "Unknown Artist" || artistStr == "null") {
+            try { artistStr = Std.string(apiModule.getSongArtist()); } catch(e:Dynamic) {}
+        }
+
+        var titleFontKey = "vcr.ttf";
+        var artistFontKey = "vcr.ttf";
+        try { titleFontKey = Std.string(apiModule.getKssValue("kssette_intro_font_title")); } catch(e:Dynamic) {}
+        try { artistFontKey = Std.string(apiModule.getKssValue("kssette_intro_font_artist")); } catch(e:Dynamic) {}
+        
+        var titleFont = "VCR OSD Mono";
+        var artistFont = "VCR OSD Mono";
+        try { titleFont = Std.string(apiModule.resolveCustomFont(titleFontKey)); } catch(e:Dynamic) {}
+        try { artistFont = Std.string(apiModule.resolveCustomFont(artistFontKey)); } catch(e:Dynamic) {}
+
+        var titleBaseSize = 44;
+        var artistBaseSize = 32;
+        try { titleBaseSize = apiModule.getFontSize(44, "kssette_size_intro"); } catch(e:Dynamic) {}
+        try { artistBaseSize = apiModule.getFontSize(32, "kssette_size_intro"); } catch(e:Dynamic) {}
+
+        var albumId:String = "";
+        try { albumId = Std.string(apiModule.getSongAlbum()); } catch(e:Dynamic) {}
+
+        var hasAlbum = false;
+        albumSprite = new FlxSprite();
+        if (albumId != "" && albumId != "null") {
+            try {
+                var imgPath = Paths.image('freeplay/albums/' + albumId);
+                if (imgPath == null) imgPath = Paths.image('freeplay/album/' + albumId);
+                
+                if (imgPath != null) {
+                    albumSprite.loadGraphic(imgPath);
+                    albumSprite.setGraphicSize(80, 80);
+                    albumSprite.updateHitbox();
+                    albumSprite.antialiasing = true;
+                    hasAlbum = true;
+                }
+            } catch(e:Dynamic) {}
+        }
+
+        var baseY = (FlxG.height / 2) - 150; 
+
+        titleTxt = new FlxText(0, baseY, 0, titleStr, titleBaseSize);
+        titleTxt.setFormat(titleFont, titleBaseSize, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        titleTxt.borderSize = 3;
+        titleTxt.updateHitbox();
+
+        artistTxt = new FlxText(0, baseY + 50, 0, artistStr, artistBaseSize);
+        artistTxt.setFormat(artistFont, artistBaseSize, 0xFFCCCCCC, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        artistTxt.borderSize = 2;
+        artistTxt.updateHitbox();
+
+        var albumOffset = hasAlbum ? 100 : 0; 
+        var totalTitleWidth = albumOffset + titleTxt.width;
+        
+        var titleTargetX = (FlxG.width / 2) - (totalTitleWidth / 2) + albumOffset;
+        var albumTargetX = titleTargetX - albumOffset;
+        var artistTargetX = (FlxG.width / 2) - (artistTxt.width / 2);
+
+        titleTxt.x = -totalTitleWidth - 200;
+        titleTxt.alpha = 0; titleTxt.cameras = [state.camHUD]; titleTxt.zIndex = 1005;
+        state.add(titleTxt);
+
+        if (hasAlbum) {
+            albumSprite.x = titleTxt.x - albumOffset;
+            albumSprite.y = baseY - 10; 
+            albumSprite.alpha = 0; albumSprite.cameras = [state.camHUD]; albumSprite.zIndex = 1005;
+            state.add(albumSprite);
+        }
+
+        artistTxt.x = FlxG.width + 200;
+        artistTxt.alpha = 0; artistTxt.cameras = [state.camHUD]; artistTxt.zIndex = 1005;
+        state.add(artistTxt);
+
+        if (artistStr == "Unknown Artist" || artistStr == "null" || artistStr == "") {
+            artistTxt.visible = false;
+            titleTxt.y = baseY + 15; 
+            if (hasAlbum) albumSprite.y = baseY + 5;
+        }
+
+        state.refresh();
+
+        var floatDist = 60; 
+
+        FlxTween.tween(titleTxt, {x: titleTargetX - (floatDist/2), alpha: 1}, 1.0, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
+            FlxTween.tween(titleTxt, {x: titleTargetX + (floatDist/2)}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
+                FlxTween.tween(titleTxt, {x: FlxG.width + 200, alpha: 0}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
+                    if (titleTxt != null) { state.remove(titleTxt); titleTxt.destroy(); }
+                }});
+            }});
+        }});
+
+        if (hasAlbum) {
+            FlxTween.tween(albumSprite, {x: albumTargetX - (floatDist/2), alpha: 1}, 1.0, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
+                FlxTween.tween(albumSprite, {x: albumTargetX + (floatDist/2)}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
+                    FlxTween.tween(albumSprite, {x: FlxG.width + 200, alpha: 0}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
+                        if (albumSprite != null) { state.remove(albumSprite); albumSprite.destroy(); }
+                    }});
+                }});
+            }});
+        }
+
+        if (artistTxt.visible) {
+            FlxTween.tween(artistTxt, {x: artistTargetX + (floatDist/2), alpha: 1}, 1.0, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
+                FlxTween.tween(artistTxt, {x: artistTargetX - (floatDist/2)}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
+                    FlxTween.tween(artistTxt, {x: -artistTxt.width - 200, alpha: 0}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
+                        if (artistTxt != null) { state.remove(artistTxt); artistTxt.destroy(); }
+                    }});
+                }});
+            }});
+        }
+    }
+}

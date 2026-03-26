@@ -10,7 +10,7 @@
     }
   ],
     "api_version": "0.8.1",
-    "mod_version": "0.1.4",
+    "mod_version": "0.1.5",
     "id": "kassette-hud",
     "license": ""
 }

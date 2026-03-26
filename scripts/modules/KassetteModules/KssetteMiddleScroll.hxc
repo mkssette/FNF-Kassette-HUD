@@ -1,3 +1,5 @@
+package kassettehud.util;
+
 import flixel.FlxG;
 import funkin.save.Save;
 import funkin.ui.options.OptionsState;
