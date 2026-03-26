@@ -9,11 +9,13 @@ import flixel.text.FlxText;
 import flixel.text.FlxTextBorderStyle;
 import flixel.text.FlxTextFormat;
 import flixel.util.FlxStringUtil;
+import flixel.util.FlxColor;
 import funkin.Highscore;
 import flixel.FlxG;
 import Std;
 import Math;
 import Reflect;
+import StringTools;
 import funkin.mobile.input.ControlsHandler;
 
 /* handles the display of gameplay statistics like accuracy rank and judgment counters */
@@ -120,8 +122,9 @@ class KssetteAccuracy extends Module {
         judgeLabels = []; judgeValues = [];
         if (state.scoreText != null) state.scoreText.visible = false;
 
-        uiText = new FlxText(0, state.healthBarBG.y + 36, FlxG.width, "", 20);
-        uiText.setFormat(cachedFont, 18, 0xFFFFFFFF, "center", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        uiText = new FlxText(0, state.healthBarBG.y + 36, FlxG.width, "", 18);
+        uiText.setFormat(cachedFont, 18, FlxColor.WHITE, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        uiText.updateHitbox();
         uiText.zIndex = 1000; 
         if (state.camHUD != null) uiText.cameras = [state.camHUD];
         state.add(uiText);
@@ -149,23 +152,25 @@ class KssetteAccuracy extends Module {
                 tY = 15; iY = 24; tX = 0; tW = (FlxG.width / 2) - 10; tA = "right";
                 iX = (FlxG.width / 2) + 10; iW = (FlxG.width / 2) - 10; iA = "left";
             } else {
-                tY = uiText.y + 24; iY = tY + 32;
+                tY = uiText.y + 24; 
+                iY = tY + 32;
             }
         }
+        
         timeText = new FlxText(tX, tY, tW, "", 28);
-        timeText.setFormat(cachedFont, 28, 0xFFFFFFFF, tA, FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        timeText.setFormat(cachedFont, 28, FlxColor.WHITE, tA, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
         timeText.zIndex = 1000; 
         if (state.camHUD != null) timeText.cameras = [state.camHUD];
         state.add(timeText);
         
         infoText = new FlxText(iX, iY, iW, "", 16);
-        infoText.setFormat(cachedFont, 16, 0xFFFFFFFF, iA, FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        infoText.setFormat(cachedFont, 16, FlxColor.WHITE, iA, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
         infoText.zIndex = 1000; 
         if (state.camHUD != null) infoText.cameras = [state.camHUD];
         state.add(infoText);
         
         modeText = new FlxText(FlxG.width, 200, 0, "", 24);
-        modeText.setFormat(cachedFont, 24, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        modeText.setFormat(cachedFont, 24, FlxColor.WHITE, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
         modeText.zIndex = 1000;
         if (state.camHUD != null) modeText.cameras = [state.camHUD];
         state.add(modeText);
@@ -179,13 +184,13 @@ class KssetteAccuracy extends Module {
             if (jPos == "Top Right") { sx = FlxG.width - tw - jMargin; sY = 100; }
             
             for (i in 0...judgeNames.length) {
-                var label = new FlxText(sx, sY + (i * sy), tw, getJudgeName(judgeNames[i]));
-                label.setFormat(cachedFont, 20, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+                var label = new FlxText(sx, sY + (i * sy), tw, getJudgeName(judgeNames[i]), 20);
+                label.setFormat(cachedFont, 20, FlxColor.WHITE, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
                 label.zIndex = 1000; label.cameras = [state.camHUD];
                 state.add(label); judgeLabels.push(label);
                 
-                var val = new FlxText(sx, label.y, tw, "0");
-                val.setFormat(cachedFont, 20, 0xFFFFFFFF, "right", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+                var val = new FlxText(sx, label.y, tw, "0", 20);
+                val.setFormat(cachedFont, 20, FlxColor.WHITE, "right", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
                 val.zIndex = 1000; val.cameras = [state.camHUD];
                 state.add(val); judgeValues.push(val);
             }
@@ -357,7 +362,7 @@ class KssetteAccuracy extends Module {
                     uiParts.push("Score: " + FlxStringUtil.formatMoney(state.songScore, false, true));
                 
                 if (showMisses && !judgesVisible) 
- uiParts.push("Misses: " + m);
+                    uiParts.push("Misses: " + m);
                 
                 if (accMode != "Off" && accMode != "null" && accMode != "false") {
                     uiParts.push("Acc: " + visualAcc + "%");

@@ -73,6 +73,11 @@ class KssetteShowTitle extends Module {
         try { titleFont = Std.string(apiModule.resolveCustomFont(titleFontKey)); } catch(e:Dynamic) {}
         try { artistFont = Std.string(apiModule.resolveCustomFont(artistFontKey)); } catch(e:Dynamic) {}
 
+        var titleBaseSize = 44;
+        var artistBaseSize = 32;
+        try { titleBaseSize = apiModule.getFontSize(44, "kssette_size_intro"); } catch(e:Dynamic) {}
+        try { artistBaseSize = apiModule.getFontSize(32, "kssette_size_intro"); } catch(e:Dynamic) {}
+
         var albumId:String = "";
         try { albumId = Std.string(apiModule.getSongAlbum()); } catch(e:Dynamic) {}
 
@@ -95,13 +100,13 @@ class KssetteShowTitle extends Module {
 
         var baseY = (FlxG.height / 2) - 150; 
 
-        titleTxt = new FlxText(0, baseY, 0, titleStr, 44);
-        titleTxt.setFormat(titleFont, 44, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        titleTxt = new FlxText(0, baseY, 0, titleStr, titleBaseSize);
+        titleTxt.setFormat(titleFont, titleBaseSize, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
         titleTxt.borderSize = 3;
         titleTxt.updateHitbox();
 
-        artistTxt = new FlxText(0, baseY + 50, 0, artistStr, 32);
-        artistTxt.setFormat(artistFont, 32, 0xFFCCCCCC, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        artistTxt = new FlxText(0, baseY + 50, 0, artistStr, artistBaseSize);
+        artistTxt.setFormat(artistFont, artistBaseSize, 0xFFCCCCCC, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
         artistTxt.borderSize = 2;
         artistTxt.updateHitbox();
 
