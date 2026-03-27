@@ -29,7 +29,7 @@ import funkin.modding.PolymodHandler;
 
 class KssetteApi extends Module {
     final optionsID:String = "kassette-hud";
-    public var hudVersion:String = "0.1.5";
+    public var hudVersion:String = "0.1.6.b1";
     public var missesCount:Int = 0;
     public var isMobileMode:Bool = false;
     public var isCompromised:Bool = false;
