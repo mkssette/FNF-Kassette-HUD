@@ -1,0 +1,144 @@
+package kassettehud.util;
+
+import funkin.modding.module.Module;
+import funkin.modding.module.ModuleHandler;
+import funkin.play.PlayState;
+import flixel.FlxG;
+import flixel.text.FlxText;
+import flixel.text.FlxTextBorderStyle;
+import flixel.tweens.FlxTween;
+import flixel.tweens.FlxEase;
+import Reflect;
+import Std;
+
+class KssetteSubtitles extends Module {
+    var apiModule:Dynamic = null;
+    var cachedFont:String = "VCR OSD Mono";
+    var animType:String = "Slide";
+    var posType:String = "Bottom";
+    
+    var lastText:String = "";
+    var currentTween:FlxTween = null;
+    var isShowing:Bool = false;
+    
+    var subText:FlxText;
+
+    // Variables de caché para evitar el uso excesivo de Reflect en el onUpdate
+    var _nativeSubs:Dynamic = null;
+    var _nativeBg:Dynamic = null;
+    var _nativeTextObj:Dynamic = null;
+    
+    public function new() {
+        super("KssetteSubtitles");
+    }
+    
+    override public function onCountdownStart(event:Dynamic) {
+        super.onCountdownStart(event);
+        
+        apiModule = ModuleHandler.getModule("KssetteApi");
+        if (apiModule != null) {
+            cachedFont = Std.string(apiModule.getCustomFont());
+            if (cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
+            animType = Std.string(apiModule.getKssValue("kssette_subtitles_anim"));
+            posType = Std.string(apiModule.getKssValue("kssette_subtitles_pos"));
+        }
+        
+        var state = PlayState.instance;
+        if (state == null) return;
+
+        if (subText != null) {
+            state.remove(subText);
+            subText.destroy();
+        }
+
+        subText = new FlxText(0, 0, FlxG.width, "", 30);
+        subText.setFormat(cachedFont, 30, 0xFFFFFFFF, "center", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        subText.borderSize = 2;
+        subText.visible = false;
+        subText.cameras = [state.camHUD];
+        subText.zIndex = 1010;
+        state.add(subText);
+        
+        lastText = "";
+        isShowing = false;
+        
+        // Limpiamos la caché de la canción anterior
+        _nativeSubs = null;
+        _nativeBg = null;
+        _nativeTextObj = null;
+    }
+    
+    override public function onUpdate(event:Dynamic) {
+        super.onUpdate(event);
+        var state = PlayState.instance;
+        if (state == null || subText == null) return;
+        
+        // Solo usamos Reflect una vez, si los objetos no están en caché
+        if (_nativeSubs == null) {
+            _nativeSubs = Reflect.getProperty(state, "subtitles");
+            if (_nativeSubs != null) {
+                _nativeBg = Reflect.getProperty(_nativeSubs, "background");
+                _nativeTextObj = Reflect.getProperty(_nativeSubs, "subtitleText");
+            }
+        }
+        
+        // Si sigue siendo nulo, no hay subtítulos en este stage/canción
+        if (_nativeSubs == null) return;
+        
+        _nativeSubs.visible = false;
+        _nativeSubs.alpha = 0;
+        
+        if (_nativeBg != null) { _nativeBg.visible = false; _nativeBg.alpha = 0; }
+        if (_nativeTextObj != null) { _nativeTextObj.visible = false; _nativeTextObj.alpha = 0; }
+        
+        var nativeText:String = "";
+        if (_nativeTextObj != null) nativeText = Std.string(_nativeTextObj.text);
+        
+        var shouldShow = (nativeText != "" && nativeText != "null");
+
+        if (nativeText != lastText || (!isShowing && shouldShow)) {
+            lastText = nativeText;
+            
+            if (shouldShow) {
+                subText.text = nativeText;
+                
+                var targetX:Float = 0; 
+                
+                var targetY:Float = (posType == "Top") ? 150 : (FlxG.height - subText.height - 150);
+                
+                if (currentTween != null) currentTween.cancel();
+                
+                if (animType == "Slide") {
+                    if (!isShowing) {
+                        subText.x = -80; 
+                        subText.alpha = 0;
+                    }
+                    
+                    subText.y = targetY; 
+                    subText.visible = true;
+                    isShowing = true;
+                    
+                    currentTween = FlxTween.tween(subText, {x: targetX, alpha: 1}, 0.35, {ease: FlxEase.expoOut});
+                } else {
+                    subText.x = targetX;
+                    subText.y = targetY;
+                    subText.alpha = 1;
+                    subText.visible = true;
+                    isShowing = true;
+                }
+            } else if (isShowing) {
+                if (animType == "Slide") {
+                    if (currentTween != null) currentTween.cancel();
+                    
+                    currentTween = FlxTween.tween(subText, {x: 80, alpha: 0}, 0.3, {ease: FlxEase.expoIn, onComplete: function(t:FlxTween) {
+                        subText.visible = false;
+                        isShowing = false;
+                    }});
+                } else {
+                    subText.visible = false;
+                    isShowing = false;
+                }
+            }
+        }
+    }
+}

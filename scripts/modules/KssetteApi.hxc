@@ -91,7 +91,8 @@ class KssetteApi extends Module {
             "kssette_show_song_time", "kssette_judge_pos", "kssette_mobile_keyboard",
             "kssette_timebar_pos", "kssette_show_breakbar", "kssette_resume_countdown",
             "kssette_smooth_display", "kssette_hide_splashes", "kssette_custom_font",
-            "kssette_intro_text", "kssette_intro_font_title", "kssette_intro_font_artist"
+            "kssette_intro_text", "kssette_intro_font_title", "kssette_intro_font_artist",
+            "kssette_subtitles_anim", "kssette_subtitles_pos"
         ];
 
         for (opt in options) {
@@ -111,6 +112,8 @@ class KssetteApi extends Module {
                 if (opt == "kssette_intro_text") defaultVal = "On";
                 if (opt == "kssette_intro_font_title") defaultVal = "vcr.ttf";
                 if (opt == "kssette_intro_font_artist") defaultVal = "vcr.ttf";
+                if (opt == "kssette_subtitles_anim") defaultVal = "Slide";
+                if (opt == "kssette_subtitles_pos") defaultVal = "Bottom";
                 
                 if (opt == "kssette_ghost_tapping") {
                     defaultVal = isMobileMode ? "Off" : "On";
@@ -814,6 +817,10 @@ class KssetteApi extends Module {
 
         var introArtistFont = Std.string(Save.instance.modOptions.get("kssette_intro_font_artist"));
         page.createPrefItemEnum("Intro Artist Font", "Choose the font for the intro artist.", getAvailableFonts(), function(v) { updateAndSave("kssette_intro_font_artist", v); }, introArtistFont);
+
+        createSeparator("-- Subtitles --");
+        page.createPrefItemEnum("Subtitles Position", "Where to display subtitles.", ["Bottom" => "Bottom", "Top" => "Top"], function(v) { updateAndSave("kssette_subtitles_pos", v); }, Save.instance.modOptions.get("kssette_subtitles_pos"));
+        page.createPrefItemEnum("Subtitles Animation", "How subtitles appear on screen.", ["Vanilla" => "Vanilla", "Slide" => "Slide"], function(v) { updateAndSave("kssette_subtitles_anim", v); }, Save.instance.modOptions.get("kssette_subtitles_anim"));
 
         createSeparator("-- Custom Options --");
     }
