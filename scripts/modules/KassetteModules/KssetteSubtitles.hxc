@@ -22,8 +22,6 @@ class KssetteSubtitles extends Module {
     var isShowing:Bool = false;
     
     var subText:FlxText;
-
-    // Variables de caché para evitar el uso excesivo de Reflect en el onUpdate
     var _nativeSubs:Dynamic = null;
     var _nativeBg:Dynamic = null;
     var _nativeTextObj:Dynamic = null;
@@ -61,8 +59,6 @@ class KssetteSubtitles extends Module {
         
         lastText = "";
         isShowing = false;
-        
-        // Limpiamos la caché de la canción anterior
         _nativeSubs = null;
         _nativeBg = null;
         _nativeTextObj = null;
@@ -73,7 +69,12 @@ class KssetteSubtitles extends Module {
         var state = PlayState.instance;
         if (state == null || subText == null) return;
         
-        // Solo usamos Reflect una vez, si los objetos no están en caché
+        var kssttl:Dynamic = ModuleHandler.getModule("KssttLSubtitles");
+        if (kssttl != null && kssttl.activeForSong && kssttl.disableKassetteSubs) {
+            subText.visible = false;
+            return;
+        }
+
         if (_nativeSubs == null) {
             _nativeSubs = Reflect.getProperty(state, "subtitles");
             if (_nativeSubs != null) {
@@ -82,7 +83,6 @@ class KssetteSubtitles extends Module {
             }
         }
         
-        // Si sigue siendo nulo, no hay subtítulos en este stage/canción
         if (_nativeSubs == null) return;
         
         _nativeSubs.visible = false;
