@@ -22,6 +22,7 @@ class KssetteSubtitles extends Module {
     var isShowing:Bool = false;
     
     var subText:FlxText;
+
     var _nativeSubs:Dynamic = null;
     var _nativeBg:Dynamic = null;
     var _nativeTextObj:Dynamic = null;
@@ -59,6 +60,7 @@ class KssetteSubtitles extends Module {
         
         lastText = "";
         isShowing = false;
+        
         _nativeSubs = null;
         _nativeBg = null;
         _nativeTextObj = null;
@@ -97,28 +99,43 @@ class KssetteSubtitles extends Module {
         var shouldShow = (nativeText != "" && nativeText != "null");
 
         if (nativeText != lastText || (!isShowing && shouldShow)) {
+            var isAppend:Bool = false;
+            if (lastText != "" && nativeText.indexOf(lastText) == 0 && nativeText.length > lastText.length) {
+                isAppend = true;
+            }
+            
             lastText = nativeText;
             
             if (shouldShow) {
                 subText.text = nativeText;
                 
                 var targetX:Float = 0; 
-                
                 var targetY:Float = (posType == "Top") ? 150 : (FlxG.height - subText.height - 150);
                 
                 if (currentTween != null) currentTween.cancel();
                 
                 if (animType == "Slide") {
+                    var dur:Float = 0.35;
+                    
                     if (!isShowing) {
                         subText.x = -80; 
                         subText.alpha = 0;
+                        dur = 0.35;
+                    } else if (isAppend) {
+                        subText.x = targetX + 30;
+                        subText.alpha = 0.7;
+                        dur = 0.15;
+                    } else {
+                        subText.x = -50;
+                        subText.alpha = 0;
+                        dur = 0.2;
                     }
                     
                     subText.y = targetY; 
                     subText.visible = true;
                     isShowing = true;
                     
-                    currentTween = FlxTween.tween(subText, {x: targetX, alpha: 1}, 0.35, {ease: FlxEase.expoOut});
+                    currentTween = FlxTween.tween(subText, {x: targetX, alpha: 1}, dur, {ease: FlxEase.expoOut});
                 } else {
                     subText.x = targetX;
                     subText.y = targetY;
@@ -135,8 +152,14 @@ class KssetteSubtitles extends Module {
                         isShowing = false;
                     }});
                 } else {
-                    subText.visible = false;
-                    isShowing = false;
+                    if (currentTween != null) currentTween.cancel();
+                    var baseTargetY:Float = (posType == "Top") ? 150 : (FlxG.height - subText.height - 150);
+                    var endY:Float = (posType == "Top") ? baseTargetY - 20 : baseTargetY + 20;
+                    
+                    currentTween = FlxTween.tween(subText, {y: endY, alpha: 0}, 0.25, {onComplete: function(t:FlxTween) {
+                        subText.visible = false;
+                        isShowing = false;
+                    }});
                 }
             }
         }
