@@ -8,7 +8,9 @@ import flixel.text.FlxText;
 import flixel.text.FlxTextBorderStyle;
 import flixel.tweens.FlxTween;
 import flixel.tweens.FlxEase;
+import funkin.Conductor;
 import Reflect;
+import Math;
 import Std;
 
 class KssetteSubtitles extends Module {
@@ -16,9 +18,11 @@ class KssetteSubtitles extends Module {
     var cachedFont:String = "VCR OSD Mono";
     var animType:String = "Slide";
     var posType:String = "Bottom";
+    var smartKaraoke:Bool = false;
     
     var lastText:String = "";
     var currentTween:FlxTween = null;
+    var karaokeTween:FlxTween = null;
     var isShowing:Bool = false;
     
     var subText:FlxText;
@@ -26,6 +30,7 @@ class KssetteSubtitles extends Module {
     var _nativeSubs:Dynamic = null;
     var _nativeBg:Dynamic = null;
     var _nativeTextObj:Dynamic = null;
+    var _cachedEntries:Dynamic = null;
     
     public function new() {
         super("KssetteSubtitles");
@@ -39,7 +44,11 @@ class KssetteSubtitles extends Module {
             cachedFont = Std.string(apiModule.getCustomFont());
             if (cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
             animType = Std.string(apiModule.getKssValue("kssette_subtitles_anim"));
+            
+            if (animType == "Karaoke") animType = "Fade"; 
+            
             posType = Std.string(apiModule.getKssValue("kssette_subtitles_pos"));
+            smartKaraoke = apiModule.getKssValue("kssette_smart_karaoke") == true;
         }
         
         var state = PlayState.instance;
@@ -64,6 +73,7 @@ class KssetteSubtitles extends Module {
         _nativeSubs = null;
         _nativeBg = null;
         _nativeTextObj = null;
+        _cachedEntries = null;
     }
     
     override public function onUpdate(event:Dynamic) {
@@ -82,6 +92,7 @@ class KssetteSubtitles extends Module {
             if (_nativeSubs != null) {
                 _nativeBg = Reflect.getProperty(_nativeSubs, "background");
                 _nativeTextObj = Reflect.getProperty(_nativeSubs, "subtitleText");
+                _cachedEntries = Reflect.getProperty(_nativeSubs, "entries");
             }
         }
         
@@ -107,22 +118,79 @@ class KssetteSubtitles extends Module {
             lastText = nativeText;
             
             if (shouldShow) {
-                subText.text = nativeText;
-                
                 var targetX:Float = 0; 
-                var targetY:Float = (posType == "Top") ? 150 : (FlxG.height - subText.height - 150);
+                var targetY:Float = (posType == "Top") ? 220 : (FlxG.height - subText.height - 220);
+                
+                if (smartKaraoke) {
+                    var startIdx:Int = isAppend ? lastText.length : 0;
+                    var endIdx:Int = nativeText.length;
+                    var durK:Float = 0.35;
+                    var hasExactTiming:Bool = false;
+
+                    if (_cachedEntries != null) {
+                        try {
+                            var len:Int = _cachedEntries.length;
+                            for (i in 0...len) {
+                                var entry = _cachedEntries[i];
+                                if (entry != null && entry.text == nativeText) {
+                                    var exactStart:Float = entry.startTime;
+                                    var exactEnd:Float = entry.endTime;
+                                    var currentPos:Float = exactStart;
+                                    if (Conductor.instance != null) {
+                                        currentPos = Conductor.instance.songPosition;
+                                    }
+                                    var timeRemaining:Float = (exactEnd - currentPos) / 1000.0;
+                                    if (timeRemaining > 0.05) {
+                                        durK = timeRemaining;
+                                        hasExactTiming = true;
+                                    }
+                                    break;
+                                }
+                            }
+                        } catch(e:Dynamic) {}
+                    }
+
+                    if (!hasExactTiming) {
+                        var stepSecs:Float = 0.15;
+                        if (Conductor.instance != null && Conductor.instance.stepCrochet > 0) {
+                            stepSecs = Conductor.instance.stepCrochet / 1000.0;
+                        }
+                        if (!isShowing) {
+                            durK = Math.min(endIdx * (stepSecs * 0.35), stepSecs * 16); 
+                        } else if (isAppend) {
+                            durK = Math.min((endIdx - startIdx) * (stepSecs * 0.25), stepSecs * 8); 
+                        } else {
+                            durK = Math.min(endIdx * (stepSecs * 0.3), stepSecs * 12);
+                        }
+                    }
+
+                    subText.text = nativeText.substring(0, startIdx);
+                    
+                    if (karaokeTween != null) karaokeTween.cancel();
+                    karaokeTween = FlxTween.num(startIdx, endIdx, durK, {
+                        ease: FlxEase.sineOut, 
+                        onComplete: function(t:FlxTween) {
+                            if (subText != null) subText.text = nativeText;
+                        }
+                    }, function(v:Float) {
+                        if (subText != null) subText.text = nativeText.substring(0, Math.floor(v));
+                    });
+                } else {
+                    if (karaokeTween != null) karaokeTween.cancel();
+                    subText.text = nativeText;
+                }
                 
                 if (currentTween != null) currentTween.cancel();
+                subText.scale.set(1, 1);
                 
                 if (animType == "Slide") {
                     var dur:Float = 0.35;
-                    
                     if (!isShowing) {
                         subText.x = -80; 
                         subText.alpha = 0;
                         dur = 0.35;
                     } else if (isAppend) {
-                        subText.x = targetX + 30;
+                        subText.x = targetX + 30; 
                         subText.alpha = 0.7;
                         dur = 0.15;
                     } else {
@@ -130,12 +198,82 @@ class KssetteSubtitles extends Module {
                         subText.alpha = 0;
                         dur = 0.2;
                     }
-                    
                     subText.y = targetY; 
                     subText.visible = true;
                     isShowing = true;
-                    
                     currentTween = FlxTween.tween(subText, {x: targetX, alpha: 1}, dur, {ease: FlxEase.expoOut});
+                    
+                } else if (animType == "Fade") {
+                    var dur:Float = 0.35;
+                    if (!isShowing) {
+                        subText.x = targetX;
+                        subText.alpha = 0;
+                        dur = 0.35;
+                    } else if (isAppend) {
+                        subText.x = targetX + 20; 
+                        subText.alpha = 0.5;
+                        dur = 0.15;
+                    } else {
+                        subText.x = targetX;
+                        subText.alpha = 0;
+                        dur = 0.2;
+                    }
+                    subText.y = targetY;
+                    subText.visible = true;
+                    isShowing = true;
+                    currentTween = FlxTween.tween(subText, {x: targetX, alpha: 1}, dur, {ease: FlxEase.quadOut});
+                    
+                } else if (animType == "Vertical") {
+                    var dur:Float = 0.35;
+                    var smallOffset:Float = (posType == "Top") ? -40 : 40;
+                    var edgeY:Float = (posType == "Top") ? -subText.height - 20 : FlxG.height + 20;
+                    var easeF:Dynamic = FlxEase.expoOut;
+                    
+                    if (!isShowing) {
+                        subText.x = targetX;
+                        subText.y = edgeY; 
+                        subText.alpha = 0;
+                        dur = 0.35;
+                    } else if (isAppend) {
+                        subText.x = targetX + 25; 
+                        subText.y = targetY; 
+                        subText.alpha = 0.7;
+                        dur = 0.15;
+                        easeF = FlxEase.expoOut;
+                    } else {
+                        subText.x = targetX;
+                        subText.y = targetY + smallOffset; 
+                        subText.alpha = 0;
+                        dur = 0.2;
+                    }
+                    subText.visible = true;
+                    isShowing = true;
+                    currentTween = FlxTween.tween(subText, {x: targetX, y: targetY, alpha: 1}, dur, {ease: easeF});
+                    
+                } else if (animType == "Zoom") {
+                    var dur:Float = 0.35;
+                    if (!isShowing) {
+                        subText.x = targetX;
+                        subText.scale.set(0.1, 0.1); 
+                        subText.alpha = 0;
+                        dur = 0.35;
+                    } else if (isAppend) {
+                        subText.x = targetX + 15; 
+                        subText.scale.set(1.15, 1.15); 
+                        subText.alpha = 0.7;
+                        dur = 0.15;
+                    } else {
+                        subText.x = targetX;
+                        subText.scale.set(0.6, 0.6); 
+                        subText.alpha = 0;
+                        dur = 0.2;
+                    }
+                    subText.y = targetY;
+                    subText.visible = true;
+                    isShowing = true;
+                    FlxTween.tween(subText.scale, {x: 1, y: 1}, dur, {ease: FlxEase.backOut});
+                    currentTween = FlxTween.tween(subText, {x: targetX, alpha: 1}, dur, {ease: FlxEase.expoOut});
+                    
                 } else {
                     subText.x = targetX;
                     subText.y = targetY;
@@ -144,16 +282,34 @@ class KssetteSubtitles extends Module {
                     isShowing = true;
                 }
             } else if (isShowing) {
+                if (currentTween != null) currentTween.cancel();
+                if (karaokeTween != null) karaokeTween.cancel();
+                
                 if (animType == "Slide") {
-                    if (currentTween != null) currentTween.cancel();
-                    
                     currentTween = FlxTween.tween(subText, {x: 80, alpha: 0}, 0.3, {ease: FlxEase.expoIn, onComplete: function(t:FlxTween) {
                         subText.visible = false;
                         isShowing = false;
                     }});
+                } else if (animType == "Fade") {
+                    currentTween = FlxTween.tween(subText, {alpha: 0}, 0.3, {ease: FlxEase.quadIn, onComplete: function(t:FlxTween) {
+                        subText.visible = false;
+                        isShowing = false;
+                    }});
+                } else if (animType == "Vertical") {
+                    var edgeY:Float = (posType == "Top") ? -subText.height - 20 : FlxG.height + 20;
+                    currentTween = FlxTween.tween(subText, {y: edgeY, alpha: 0}, 0.3, {ease: FlxEase.expoIn, onComplete: function(t:FlxTween) {
+                        subText.visible = false;
+                        isShowing = false;
+                    }});
+                } else if (animType == "Zoom") {
+                    FlxTween.tween(subText.scale, {x: 0.1, y: 0.1}, 0.3, {ease: FlxEase.backIn}); 
+                    currentTween = FlxTween.tween(subText, {alpha: 0}, 0.3, {ease: FlxEase.expoIn, onComplete: function(t:FlxTween) {
+                        subText.visible = false;
+                        isShowing = false;
+                        subText.scale.set(1, 1); 
+                    }});
                 } else {
-                    if (currentTween != null) currentTween.cancel();
-                    var baseTargetY:Float = (posType == "Top") ? 150 : (FlxG.height - subText.height - 150);
+                    var baseTargetY:Float = (posType == "Top") ? 220 : (FlxG.height - subText.height - 220);
                     var endY:Float = (posType == "Top") ? baseTargetY - 20 : baseTargetY + 20;
                     
                     currentTween = FlxTween.tween(subText, {y: endY, alpha: 0}, 0.25, {onComplete: function(t:FlxTween) {
