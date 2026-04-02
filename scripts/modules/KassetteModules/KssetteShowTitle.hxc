@@ -18,13 +18,55 @@ class KssetteShowTitle extends Module {
     var albumSprite:FlxSprite;
     var apiModule:Dynamic = null;
     var isActive:Bool = false;
+    
+    var titleTargetX:Float = 0;
+    var albumTargetX:Float = 0;
+    var artistTargetX:Float = 0;
+    var hasAlbum:Bool = false;
+    var floatDist:Float = 60;
 
     public function new() {
         super("KssetteShowTitle");
     }
 
-    override public function onSongStart(event:Dynamic) {
-        super.onSongStart(event);
+    function cleanUp() {
+        var state = PlayState.instance;
+        if (state == null) return;
+
+        if (titleTxt != null) {
+            FlxTween.cancelTweensOf(titleTxt);
+            state.remove(titleTxt);
+            titleTxt.destroy();
+            titleTxt = null;
+        }
+        if (artistTxt != null) {
+            FlxTween.cancelTweensOf(artistTxt);
+            state.remove(artistTxt);
+            artistTxt.destroy();
+            artistTxt = null;
+        }
+        if (albumSprite != null) {
+            FlxTween.cancelTweensOf(albumSprite);
+            state.remove(albumSprite);
+            albumSprite.destroy();
+            albumSprite = null;
+        }
+    }
+
+    override public function onSongRetry(event:Dynamic) {
+        super.onSongRetry(event);
+        cleanUp();
+    }
+
+    override public function onDestroy(event:Dynamic) {
+        super.onDestroy(event);
+        cleanUp();
+    }
+
+    override public function onCountdownStart(event:Dynamic) {
+        super.onCountdownStart(event);
+
+        cleanUp();
 
         apiModule = ModuleHandler.getModule("KssetteApi");
         if (apiModule == null) return;
@@ -34,6 +76,7 @@ class KssetteShowTitle extends Module {
         } catch(e:Dynamic) {
             isActive = false;
         }
+        
         if (!isActive) return;
 
         var state = PlayState.instance;
@@ -78,7 +121,7 @@ class KssetteShowTitle extends Module {
         var albumId:String = "";
         try { albumId = Std.string(apiModule.getSongAlbum()); } catch(e:Dynamic) {}
 
-        var hasAlbum = false;
+        hasAlbum = false;
         albumSprite = new FlxSprite();
         if (albumId != "" && albumId != "null") {
             try {
@@ -110,23 +153,29 @@ class KssetteShowTitle extends Module {
         var albumOffset = hasAlbum ? 100 : 0; 
         var totalTitleWidth = albumOffset + titleTxt.width;
         
-        var titleTargetX = (FlxG.width / 2) - (totalTitleWidth / 2) + albumOffset;
-        var albumTargetX = titleTargetX - albumOffset;
-        var artistTargetX = (FlxG.width / 2) - (artistTxt.width / 2);
+        titleTargetX = (FlxG.width / 2) - (totalTitleWidth / 2) + albumOffset;
+        albumTargetX = titleTargetX - albumOffset;
+        artistTargetX = (FlxG.width / 2) - (artistTxt.width / 2);
 
         titleTxt.x = -totalTitleWidth - 200;
-        titleTxt.alpha = 0; titleTxt.cameras = [state.camHUD]; titleTxt.zIndex = 1005;
+        titleTxt.alpha = 0; 
+        titleTxt.cameras = [state.camHUD]; 
+        titleTxt.zIndex = 1005;
         state.add(titleTxt);
 
         if (hasAlbum) {
             albumSprite.x = titleTxt.x - albumOffset;
             albumSprite.y = baseY - 10; 
-            albumSprite.alpha = 0; albumSprite.cameras = [state.camHUD]; albumSprite.zIndex = 1005;
+            albumSprite.alpha = 0; 
+            albumSprite.cameras = [state.camHUD]; 
+            albumSprite.zIndex = 1005;
             state.add(albumSprite);
         }
 
         artistTxt.x = FlxG.width + 200;
-        artistTxt.alpha = 0; artistTxt.cameras = [state.camHUD]; artistTxt.zIndex = 1005;
+        artistTxt.alpha = 0; 
+        artistTxt.cameras = [state.camHUD]; 
+        artistTxt.zIndex = 1005;
         state.add(artistTxt);
 
         if (artistStr == "Unknown Artist" || artistStr == "null" || artistStr == "") {
@@ -136,8 +185,14 @@ class KssetteShowTitle extends Module {
         }
 
         state.refresh();
+    }
 
-        var floatDist = 60; 
+    override public function onSongStart(event:Dynamic) {
+        super.onSongStart(event);
+
+        if (!isActive) return;
+        var state = PlayState.instance;
+        if (state == null || state.camHUD == null || titleTxt == null) return;
 
         FlxTween.tween(titleTxt, {x: titleTargetX - (floatDist/2), alpha: 1}, 1.0, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
             FlxTween.tween(titleTxt, {x: titleTargetX + (floatDist/2)}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
@@ -147,7 +202,7 @@ class KssetteShowTitle extends Module {
             }});
         }});
 
-        if (hasAlbum) {
+        if (hasAlbum && albumSprite != null) {
             FlxTween.tween(albumSprite, {x: albumTargetX - (floatDist/2), alpha: 1}, 1.0, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
                 FlxTween.tween(albumSprite, {x: albumTargetX + (floatDist/2)}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
                     FlxTween.tween(albumSprite, {x: FlxG.width + 200, alpha: 0}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
@@ -157,7 +212,7 @@ class KssetteShowTitle extends Module {
             }});
         }
 
-        if (artistTxt.visible) {
+        if (artistTxt != null && artistTxt.visible) {
             FlxTween.tween(artistTxt, {x: artistTargetX + (floatDist/2), alpha: 1}, 1.0, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
                 FlxTween.tween(artistTxt, {x: artistTargetX - (floatDist/2)}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
                     FlxTween.tween(artistTxt, {x: -artistTxt.width - 200, alpha: 0}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {

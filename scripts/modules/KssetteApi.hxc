@@ -29,7 +29,7 @@ import funkin.modding.PolymodHandler;
 
 class KssetteApi extends Module {
     final optionsID:String = "kassette-hud";
-    public var hudVersion:String = "0.1.5";
+    public var hudVersion:String = "0.1.6";
     public var missesCount:Int = 0;
     public var isMobileMode:Bool = false;
     public var isCompromised:Bool = false;
@@ -91,7 +91,8 @@ class KssetteApi extends Module {
             "kssette_show_song_time", "kssette_judge_pos", "kssette_mobile_keyboard",
             "kssette_timebar_pos", "kssette_show_breakbar", "kssette_resume_countdown",
             "kssette_smooth_display", "kssette_hide_splashes", "kssette_custom_font",
-            "kssette_intro_text", "kssette_intro_font_title", "kssette_intro_font_artist"
+            "kssette_intro_text", "kssette_intro_font_title", "kssette_intro_font_artist",
+            "kssette_subtitles_anim", "kssette_subtitles_pos", "kssette_smart_karaoke"
         ];
 
         for (opt in options) {
@@ -111,6 +112,7 @@ class KssetteApi extends Module {
                 if (opt == "kssette_intro_text") defaultVal = "On";
                 if (opt == "kssette_intro_font_title") defaultVal = "vcr.ttf";
                 if (opt == "kssette_intro_font_artist") defaultVal = "vcr.ttf";
+                if (opt == "kssette_smart_karaoke") defaultVal = "Off";
                 
                 if (opt == "kssette_ghost_tapping") {
                     defaultVal = isMobileMode ? "Off" : "On";
@@ -814,6 +816,11 @@ class KssetteApi extends Module {
 
         var introArtistFont = Std.string(Save.instance.modOptions.get("kssette_intro_font_artist"));
         page.createPrefItemEnum("Intro Artist Font", "Choose the font for the intro artist.", getAvailableFonts(), function(v) { updateAndSave("kssette_intro_font_artist", v); }, introArtistFont);
+
+        createSeparator("-- Subtitles --");
+        page.createPrefItemEnum("Subtitles Position", "Where to display subtitles.", ["Bottom" => "Bottom", "Top" => "Top"], function(v) { updateAndSave("kssette_subtitles_pos", v); }, Save.instance.modOptions.get("kssette_subtitles_pos"));
+        page.createPrefItemEnum("Subtitles Animation", "How subtitles appear on screen.", ["Vanilla" => "Vanilla", "Slide" => "Slide", "Fade" => "Fade", "Vertical" => "Vertical", "Zoom" => "Zoom"], function(v) { updateAndSave("kssette_subtitles_anim", v); }, Save.instance.modOptions.get("kssette_subtitles_anim"));
+        page.createPrefItemEnum("Smart Karaoke", "[EXPERIMENTAL] Syncs the text letter by letter like singing.", onOffMap, function(v) { updateAndSave("kssette_smart_karaoke", v); }, Save.instance.modOptions.get("kssette_smart_karaoke"));
 
         createSeparator("-- Custom Options --");
     }
