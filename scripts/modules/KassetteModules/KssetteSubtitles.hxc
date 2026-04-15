@@ -33,7 +33,6 @@ class KssetteSubtitles extends Module {
     var _nativeBg:Dynamic = null;
     var _nativeTextObj:Dynamic = null;
     var _cachedEntries:Dynamic = null;
-    var _assignedSound:Dynamic = null;
     
     public function new() {
         super("KssetteSubtitles");
@@ -47,6 +46,21 @@ class KssetteSubtitles extends Module {
             try { val = Reflect.field(obj, fieldName); } catch(e:Dynamic) {}
         }
         return val;
+    }
+
+    override public function onSongRetry(event:Dynamic) {
+        super.onSongRetry(event);
+        if (currentTween != null) {
+            currentTween.cancel();
+            currentTween = null;
+        }
+        if (karaokeTween != null) {
+            karaokeTween.cancel();
+            karaokeTween = null;
+        }
+        lastText = "";
+        lastRawText = "";
+        isShowing = false;
     }
     
     override public function onCountdownStart(event:Dynamic) {
@@ -68,8 +82,17 @@ class KssetteSubtitles extends Module {
         if (state == null) return;
 
         if (subText != null) {
+            if (currentTween != null) {
+                currentTween.cancel();
+                currentTween = null;
+            }
+            if (karaokeTween != null) {
+                karaokeTween.cancel();
+                karaokeTween = null;
+            }
             state.remove(subText);
             subText.destroy();
+            subText = null;
         }
 
         subText = new FlxText(0, 0, FlxG.width, "", 30);
@@ -88,7 +111,6 @@ class KssetteSubtitles extends Module {
         _nativeBg = null;
         _nativeTextObj = null;
         _cachedEntries = null;
-        _assignedSound = null;
     }
     
     override public function onUpdate(event:Dynamic) {
@@ -125,14 +147,8 @@ class KssetteSubtitles extends Module {
         var activeEntry:Dynamic = null;
 
         if (_cachedEntries != null) {
-            if (_assignedSound == null) {
-                _assignedSound = getFieldSafe(_nativeSubs, "assignedSound");
-            }
-
             var currentPos:Float = 0;
-            if (_assignedSound != null) {
-                currentPos = _assignedSound.time;
-            } else if (Conductor.instance != null) {
+            if (Conductor.instance != null) {
                 currentPos = Conductor.instance.songPosition;
             }
 
