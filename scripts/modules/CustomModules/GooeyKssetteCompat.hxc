@@ -1,0 +1,40 @@
+import funkin.modding.module.Module;
+import funkin.modding.module.ModuleHandler;
+import funkin.modding.events.UpdateScriptEvent;
+import funkin.ui.options.OptionsState;
+import flixel.FlxG;
+import Reflect;
+import Std;
+
+class GooeyKssetteCompat extends Module {
+    public function new() {
+        super('GooeyKssetteCompat', 100);
+    }
+
+    public override function onUpdate(event:UpdateScriptEvent):Void {
+        super.onUpdate(event);
+
+        if (Std.isOfType(FlxG.state, OptionsState)) {
+            var gooeyMod:Dynamic = ModuleHandler.getModule("GooeyMenuOption");
+            
+            if (gooeyMod != null) {
+                var inKassetteMenu = false;
+                var st:Dynamic = FlxG.state;
+
+                try {
+                    if (st.members != null && st.members.length > 1) {
+                        var m1:Dynamic = st.members[1];
+                        
+                        if (m1 != null && !Reflect.hasField(m1, "members")) {
+                            inKassetteMenu = true;
+                        }
+                    }
+                } catch(e:Dynamic) {
+                    inKassetteMenu = true;
+                }
+
+                gooeyMod.active = !inKassetteMenu;
+            }
+        }
+    }
+}
