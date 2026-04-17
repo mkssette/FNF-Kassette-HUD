@@ -22,6 +22,7 @@ import funkin.mobile.input.ControlsHandler;
 class KssetteAccuracy extends Module {
     var separator:String = " / ";
     public var uiText:FlxText;
+    public var rankText:FlxText;
     public var infoText:FlxText; 
     public var timeText:FlxText; 
     public var modeText:FlxText; 
@@ -34,6 +35,7 @@ class KssetteAccuracy extends Module {
     var securityTriggered:Bool = false; 
     var displayedAcc:Float = 0;
     var cachedTotalNotes:Int = -1;
+    var lastVisualAcc:Float = -1;
     
     public var cachedFont:String = "";
 
@@ -114,6 +116,7 @@ class KssetteAccuracy extends Module {
         securityTriggered = false;
         displayedAcc = 0;
         if (uiText != null) uiText.destroy();
+        if (rankText != null) rankText.destroy();
         if (infoText != null) infoText.destroy();
         if (timeText != null) timeText.destroy();
         if (modeText != null) modeText.destroy();
@@ -122,12 +125,19 @@ class KssetteAccuracy extends Module {
         judgeLabels = []; judgeValues = [];
         if (state.scoreText != null) state.scoreText.visible = false;
 
-        uiText = new FlxText(0, state.healthBarBG.y + 36, FlxG.width, "", 18);
-        uiText.setFormat(cachedFont, 18, FlxColor.WHITE, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        uiText = new FlxText(0, state.healthBarBG.y + 36, 0, "", 18);
+        uiText.setFormat(cachedFont, 18, FlxColor.WHITE, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
         uiText.updateHitbox();
         uiText.zIndex = 1000; 
         if (state.camHUD != null) uiText.cameras = [state.camHUD];
         state.add(uiText);
+        
+        rankText = new FlxText(0, state.healthBarBG.y + 36, 0, "", 18);
+        rankText.setFormat(cachedFont, 18, FlxColor.WHITE, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        rankText.updateHitbox();
+        rankText.zIndex = 1000; 
+        if (state.camHUD != null) rankText.cameras = [state.camHUD];
+        state.add(rankText);
 
         var infoPos:String = Std.string(api.getKssValue("kssette_info_pos"));
         var timeBarPos:String = Std.string(api.getKssValue("kssette_timebar_pos"));
@@ -312,6 +322,7 @@ class KssetteAccuracy extends Module {
 
         if (uiText == null || !uiText.exists) return;
         uiText.visible = showHUD;
+        if (rankText != null && rankText.exists) rankText.visible = showHUD;
 
         if (showHUD) {
             var m:Int = (Highscore.tallies != null) ? Highscore.tallies.missed : 0;
@@ -331,7 +342,7 @@ class KssetteAccuracy extends Module {
             if (accMode != "Off" && accMode != "null" && accMode != "false") {
                 var lastVisual = displayedAcc;
                 if (smoothDisplay) {
-                    displayedAcc += (visualTarget - displayedAcc) * (event.elapsed * 8);
+                    displayedAcc += (visualTarget - displayedAcc) * (event.elapsed * 4);
                     if (Math.abs(visualTarget - displayedAcc) < 0.001) displayedAcc = visualTarget;
                 } else {
                     displayedAcc = visualTarget;
@@ -368,51 +379,58 @@ class KssetteAccuracy extends Module {
                     uiParts.push("Acc: " + visualAcc + "%");
                 }
                 
-                if (showRank) 
-                    uiParts.push("Rank: " + formatRank(cachedRankStr));
-                
-                if (showTier) 
-                    uiParts.push(cachedTierStr);
-                    
-                uiText.text = uiParts.join(separator);
+                var needsSeparator = uiParts.length > 0 && (showRank || showTier);
+                uiText.text = uiParts.join(separator) + (needsSeparator ? separator : "");
 
-                if (showRank) {
-                    var targetFmt:FlxTextFormat = null;
+                if (scoreChanged) {
+                    var rankParts:Array<String> = [];
+                    if (showRank) rankParts.push("Rank: " + formatRank(cachedRankStr));
+                    if (showTier) rankParts.push(cachedTierStr);
                     
-                    switch(cachedRankStr.toUpperCase()) {
-                        case "PERFECT_GOLD": 
-                            if (_fmtPerfectGold == null) _fmtPerfectGold = new FlxTextFormat(0xFFF9E859);
-                            targetFmt = _fmtPerfectGold;
-                        case "PERFECT": 
-                            if (_fmtPerfect == null) _fmtPerfect = new FlxTextFormat(0xFFFFAEFF);
-                            targetFmt = _fmtPerfect;
-                        case "EXCELLENT": 
-                            if (_fmtExcellent == null) _fmtExcellent = new FlxTextFormat(0xFFFFFFC5);
-                            targetFmt = _fmtExcellent;
-                        case "GREAT": 
-                            if (_fmtGreat == null) _fmtGreat = new FlxTextFormat(0xFFDCE6F1);
-                            targetFmt = _fmtGreat;
-                        case "GOOD": 
-                            if (_fmtGood == null) _fmtGood = new FlxTextFormat(0xFFE19978);
-                            targetFmt = _fmtGood;
-                        case "SHIT": 
-                            if (_fmtShit == null) _fmtShit = new FlxTextFormat(0xFF4460B7);
-                            targetFmt = _fmtShit;
-                        default: 
-                            if (_fmtDefault == null) _fmtDefault = new FlxTextFormat(0xFFFFFFFF);
-                            targetFmt = _fmtDefault;
-                    }
+                    rankText.text = rankParts.join(separator);
+                    
+                    if (showRank) {
+                        var targetFmt:FlxTextFormat = null;
+                        
+                        switch(cachedRankStr.toUpperCase()) {
+                            case "PERFECT_GOLD": 
+                                if (_fmtPerfectGold == null) _fmtPerfectGold = new FlxTextFormat(0xFFF9E859);
+                                targetFmt = _fmtPerfectGold;
+                            case "PERFECT": 
+                                if (_fmtPerfect == null) _fmtPerfect = new FlxTextFormat(0xFFFFAEFF);
+                                targetFmt = _fmtPerfect;
+                            case "EXCELLENT": 
+                                if (_fmtExcellent == null) _fmtExcellent = new FlxTextFormat(0xFFFFFFC5);
+                                targetFmt = _fmtExcellent;
+                            case "GREAT": 
+                                if (_fmtGreat == null) _fmtGreat = new FlxTextFormat(0xFFDCE6F1);
+                                targetFmt = _fmtGreat;
+                            case "GOOD": 
+                                if (_fmtGood == null) _fmtGood = new FlxTextFormat(0xFFE19978);
+                                targetFmt = _fmtGood;
+                            case "SHIT": 
+                                if (_fmtShit == null) _fmtShit = new FlxTextFormat(0xFF4460B7);
+                                targetFmt = _fmtShit;
+                            default: 
+                                if (_fmtDefault == null) _fmtDefault = new FlxTextFormat(0xFFFFFFFF);
+                                targetFmt = _fmtDefault;
+                        }
 
-                    uiText.clearFormats();
-                    var fullString = uiText.text;
-                    var rankVisual = formatRank(cachedRankStr);
-                    var searchStr = "Rank: " + rankVisual;
-                    var rIdx = fullString.indexOf(searchStr);
-                    
-                    if (rIdx != -1) {
-                        uiText.addFormat(targetFmt, rIdx + 6, rIdx + 6 + rankVisual.length);
+                        rankText.clearFormats();
+                        var rankVisual = formatRank(cachedRankStr);
+                        var rIdx = rankText.text.indexOf(rankVisual);
+                        
+                        if (rIdx != -1) {
+                            rankText.addFormat(targetFmt, rIdx, rIdx + rankVisual.length);
+                        }
                     }
                 }
+                
+                uiText.updateHitbox();
+                rankText.updateHitbox();
+                var combinedWidth = uiText.width + rankText.width;
+                uiText.x = (FlxG.width - combinedWidth) / 2;
+                rankText.x = uiText.x + uiText.width;
             }
         }
     }

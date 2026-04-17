@@ -32,14 +32,15 @@ class KssetteBreakBar extends Module {
         var state = PlayState.instance;
         if (state == null) return;
         
-        apiModule = ModuleHandler.getModule("kassettehud.util.KssetteApi");
         apiModule = ModuleHandler.getModule("KssetteApi");
         if (apiModule != null) {
-            apiModule.scriptCall("registerModule", ["KssetteBreakBar", this]);
-            cachedActive = apiModule.scriptCall("getKssValue", ["kssette_show_breakbar"]) == true;
+            try {
+                apiModule.registerModule("KssetteBreakBar", this);
+                cachedActive = apiModule.getKssValue("kssette_show_breakbar") == true;
 
-            cachedFont = Std.string(apiModule.scriptCall("getCustomFont"));
-            if (cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
+                cachedFont = Std.string(apiModule.getCustomFont());
+                if (cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
+            } catch(e:Dynamic) {}
         }
         
         if (borders != null) {
@@ -102,7 +103,11 @@ class KssetteBreakBar extends Module {
         if (!cachedActive || !spritesReady) {
             alphaTarget = 0;
         } else {
-            var breakData:Dynamic = apiModule.scriptCall("getBreakData");
+            var breakData:Dynamic = null;
+            try {
+                breakData = apiModule.getBreakData();
+            } catch(e:Dynamic) {}
+
             if (breakData != null && breakData.active) {
                 alphaTarget = 1;
                 

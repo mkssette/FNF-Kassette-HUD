@@ -197,7 +197,9 @@ class KssetteShowTitle extends Module {
         FlxTween.tween(titleTxt, {x: titleTargetX - (floatDist/2), alpha: 1}, 1.0, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
             FlxTween.tween(titleTxt, {x: titleTargetX + (floatDist/2)}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
                 FlxTween.tween(titleTxt, {x: FlxG.width + 200, alpha: 0}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
-                    if (titleTxt != null) { state.remove(titleTxt); titleTxt.destroy(); }
+                    if (titleTxt != null) {
+                        titleTxt.visible = false;
+                    }
                 }});
             }});
         }});
@@ -206,7 +208,9 @@ class KssetteShowTitle extends Module {
             FlxTween.tween(albumSprite, {x: albumTargetX - (floatDist/2), alpha: 1}, 1.0, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
                 FlxTween.tween(albumSprite, {x: albumTargetX + (floatDist/2)}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
                     FlxTween.tween(albumSprite, {x: FlxG.width + 200, alpha: 0}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
-                        if (albumSprite != null) { state.remove(albumSprite); albumSprite.destroy(); }
+                        if (albumSprite != null) {
+                            albumSprite.visible = false;
+                        }
                     }});
                 }});
             }});
@@ -216,7 +220,9 @@ class KssetteShowTitle extends Module {
             FlxTween.tween(artistTxt, {x: artistTargetX + (floatDist/2), alpha: 1}, 1.0, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
                 FlxTween.tween(artistTxt, {x: artistTargetX - (floatDist/2)}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
                     FlxTween.tween(artistTxt, {x: -artistTxt.width - 200, alpha: 0}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
-                        if (artistTxt != null) { state.remove(artistTxt); artistTxt.destroy(); }
+                        if (artistTxt != null) {
+                            artistTxt.visible = false;
+                        }
                     }});
                 }});
             }});

@@ -29,7 +29,7 @@ import funkin.modding.PolymodHandler;
 
 class KssetteApi extends Module {
     final optionsID:String = "kassette-hud";
-    public var hudVersion:String = "0.1.6.2";
+    public var hudVersion:String = "0.1.7.b1";
     public var missesCount:Int = 0;
     public var isMobileMode:Bool = false;
     public var isCompromised:Bool = false;
@@ -60,6 +60,7 @@ class KssetteApi extends Module {
     var _qtModule:Dynamic = null;
     var _cachedBotplay:Bool = false;
     var _cachedModeMsg:String = null;
+    var _cachedModeTextRef:FlxText = null;
 
     public var cachedFontMap:Map<String, String> = null;
     public var cachedCustomFontPath:String = "";
@@ -144,6 +145,11 @@ class KssetteApi extends Module {
         _cachedSongArtist = null;
         _cachedSongAlbum = null;
         _cachedSongId = null;
+        
+        _accModule = ModuleHandler.getModule("KssetteAccuracy");
+        if (_accModule != null) {
+            _cachedModeTextRef = Reflect.getProperty(_accModule, "modeText");
+        }
         
         _accModule = null;
         _qtModule = null;
@@ -665,12 +671,10 @@ class KssetteApi extends Module {
                         var isBotting:Bool = (msg != null && msg.indexOf('Botplay') != -1);
                         
                         if (isBotting) {
-                            var modeTxt = null;
-                            try { modeTxt = Reflect.getProperty(_accModule, "modeText"); } catch(e:Dynamic) {}
-                            if (modeTxt == null) {
+                            if (_cachedModeTextRef == null) {
                                 isCompromised = true;
                             } else {
-                                if (modeTxt.visible == false || modeTxt.alpha < 0.1 || modeTxt.text.indexOf("Botplay") == -1) {
+                                if (_cachedModeTextRef.visible == false || _cachedModeTextRef.alpha < 0.1 || _cachedModeTextRef.text.indexOf("Botplay") == -1) {
                                     isCompromised = true;
                                 }
                             }

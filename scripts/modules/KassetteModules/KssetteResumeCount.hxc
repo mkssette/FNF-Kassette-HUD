@@ -26,6 +26,7 @@ class KssetteResumeCount extends Module {
     var storedVolume:Float = 1.0;
     var storedVocalsVolume:Float = 1.0;
     var storedScore:Int = 0;
+    var storedHealth:Float = 1.0;
     var apiModule:Dynamic = null;
     var countdownSprite:FlxSprite = null;
     var countdownTween:FlxTween = null;
@@ -33,7 +34,6 @@ class KssetteResumeCount extends Module {
     public function new() {
         super("KssetteResumeCount");
     }
-
 
     override public function onCountdownStart(event) {
         super.onCountdownStart(event);
@@ -65,6 +65,7 @@ class KssetteResumeCount extends Module {
             else
             {
                 state.songScore = storedScore;
+                state.health = storedHealth;
             }
         }
     }
@@ -102,6 +103,7 @@ class KssetteResumeCount extends Module {
 
         isResuming = true;
         storedScore = state.songScore;
+        storedHealth = state.health;
 
         if (FlxG.sound.music != null) {
             storedVolume = FlxG.sound.music.volume;
@@ -192,10 +194,10 @@ class KssetteResumeCount extends Module {
                         var dataObj = Reflect.getProperty(assetData, "data");
                         if (dataObj != null) {
                             var audioPath = Reflect.getProperty(dataObj, "audioPath");
-                            if (audioPath != null) soundAsset = Paths.sound(audioPath);
+                            if (audioPath != null && audioPath != "") soundAsset = Paths.sound(audioPath);
                         }
                         var imgPath = Reflect.getProperty(assetData, "assetPath");
-                        if (imgPath != null) imageAsset = Paths.image(imgPath);
+                        if (imgPath != null && imgPath != "") imageAsset = Paths.image(imgPath);
                         var s = Reflect.getProperty(assetData, "scale");
                         if (s != null) assetScale = s;
                         var p = Reflect.getProperty(assetData, "isPixel");
@@ -233,36 +235,40 @@ class KssetteResumeCount extends Module {
             }
         }
 
-
-        if (soundAsset != null) FunkinSound.playOnce(soundAsset, 1.0);
+        if (soundAsset != null) FlxG.sound.play(soundAsset, 1.0);
 
         if (imageAsset != null) {
             var sprite = new FlxSprite().loadGraphic(imageAsset);
-            sprite.scrollFactor.set(0, 0);
-
-            if (usedPixelAsset) {
-                sprite.antialiasing = false;
-            }
-            sprite.setGraphicSize(Std.int(sprite.width * assetScale));
-
-            sprite.updateHitbox();
-            sprite.screenCenter();
-            if (state.camHUD != null) sprite.cameras = [state.camHUD];
-            state.add(sprite);
-
-            var tweenParams:Dynamic = {alpha: 0};
-            var tweenDuration:Float = beatTime * 0.8;
-            var tweenEase:Dynamic = FlxEase.cubeInOut;
-
-            if (num == 0) {
-                if (!usedPixelAsset) {
-                    tweenParams = {alpha: 0, "scale.x": 1.4, "scale.y": 1.4};
-                }
-                tweenDuration = beatTime;
-                tweenEase = FlxEase.cubeOut;
-            }
             
-            FlxTween.tween(sprite, tweenParams, tweenDuration, { ease: tweenEase, onComplete: function(t:FlxTween) { state.remove(sprite, true); sprite.destroy(); } });
+            if (sprite.graphic != null) {
+                sprite.scrollFactor.set(0, 0);
+
+                if (usedPixelAsset) {
+                    sprite.antialiasing = false;
+                }
+                sprite.setGraphicSize(Std.int(sprite.width * assetScale));
+
+                sprite.updateHitbox();
+                sprite.screenCenter();
+                if (state.camHUD != null) sprite.cameras = [state.camHUD];
+                state.add(sprite);
+
+                var tweenParams:Dynamic = {alpha: 0};
+                var tweenDuration:Float = beatTime * 0.8;
+                var tweenEase:Dynamic = FlxEase.cubeInOut;
+
+                if (num == 0) {
+                    if (!usedPixelAsset) {
+                        tweenParams = {alpha: 0, "scale.x": 1.4, "scale.y": 1.4};
+                    }
+                    tweenDuration = beatTime;
+                    tweenEase = FlxEase.cubeOut;
+                }
+                
+                FlxTween.tween(sprite, tweenParams, tweenDuration, { ease: tweenEase, onComplete: function(t:FlxTween) { state.remove(sprite, true); sprite.destroy(); } });
+            } else {
+                sprite.destroy();
+            }
         }
 
         if (num > 0) {
