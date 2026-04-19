@@ -79,9 +79,11 @@ class KssetteTimeBar extends Module {
         super.onCountdownStart(event);
         apiModule = ModuleHandler.getModule("KssetteApi");
         if (apiModule != null) {
-            apiModule.registerModule("KssetteTimeBar", this);
-            cachedActive = apiModule.getKssValue("kssette_show_timebar") == true;
-            timeBarPos = Std.string(apiModule.getKssValue("kssette_timebar_pos"));
+            try {
+                apiModule.registerModule("KssetteTimeBar", this);
+                cachedActive = apiModule.getKssValue("kssette_show_timebar") == true;
+                timeBarPos = Std.string(apiModule.getKssValue("kssette_timebar_pos"));
+            } catch(e:Dynamic) {}
         }
         if (cachedActive && PlayState.instance != null) setupProgressHUD(PlayState.instance);
     }
@@ -90,6 +92,8 @@ class KssetteTimeBar extends Module {
         super.onUpdate(event);
         if (!cachedActive || timeBar == null || !timeBar.exists || apiModule == null) return;
         
-        timeBar.scale.x = apiModule.getSongProgress();
+        try {
+            timeBar.scale.x = apiModule.getSongProgress();
+        } catch(e:Dynamic) {}
     }
 }

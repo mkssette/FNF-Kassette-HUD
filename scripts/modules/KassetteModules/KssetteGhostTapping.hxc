@@ -11,6 +11,7 @@ class KssGhostTapping extends Module {
     var cachedGhostTapping:Bool = false;
     var cachedGhostSing:Bool = false;
     var hasGhostTimer:Bool = false;
+    var gtTimer:Float = 0.0;
 
     public function new() {
         super('KssGhostTapping', 1); 
@@ -39,15 +40,22 @@ class KssGhostTapping extends Module {
                 hasGhostTimer = false;
             }
         }
+        gtTimer = 0.0;
     }
 
     override public function onUpdate(event) {
         super.onUpdate(event);
         
-        if (hasGhostTimer) {
-            var state = PlayState.instance;
-            if (state != null && state.playerStrumline != null) {
-                Reflect.setProperty(state.playerStrumline, "ghostTapTimer", 1000);
+        if (hasGhostTimer && cachedGhostTapping) {
+            gtTimer += event.elapsed;
+            if (gtTimer >= 0.5) {
+                gtTimer = 0.0;
+                var state = PlayState.instance;
+                if (state != null && state.playerStrumline != null) {
+                    try {
+                        Reflect.setProperty(state.playerStrumline, "ghostTapTimer", 1000);
+                    } catch(e:Dynamic) {}
+                }
             }
         }
     }

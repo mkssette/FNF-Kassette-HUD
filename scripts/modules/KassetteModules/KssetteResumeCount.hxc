@@ -41,7 +41,9 @@ class KssetteResumeCount extends Module {
         apiModule = ModuleHandler.getModule("KssetteApi");
         if (apiModule != null) {
             apiModule.registerModule("KssetteResumeCount", this);
-            cachedActive = apiModule.getKssValue("kssette_resume_countdown") == true;
+            try {
+                cachedActive = apiModule.getKssValue("kssette_resume_countdown") == true;
+            } catch(e:Dynamic) {}
         }
         isCounting = false;
         isResuming = false;
@@ -63,7 +65,9 @@ class KssetteResumeCount extends Module {
                     resumeTimer = null;
                 }
             } else {
-                state.songScore = storedScore;
+                if (state.songScore != storedScore) {
+                    state.songScore = storedScore;
+                }
             }
         }
     }
