@@ -34,6 +34,10 @@ class KssetteSubtitles extends Module {
     var _nativeTextObj:Dynamic = null;
     var _cachedEntries:Dynamic = null;
     
+    var kssttlModule:Dynamic = null;
+    var checkedKssttl:Bool = false;
+    var localSubIndex:Int = 0;
+    
     public function new() {
         super("KssetteSubtitles");
     }
@@ -61,6 +65,7 @@ class KssetteSubtitles extends Module {
         lastText = "";
         lastRawText = "";
         isShowing = false;
+        localSubIndex = 0;
     }
     
     override public function onCountdownStart(event:Dynamic) {
@@ -111,6 +116,10 @@ class KssetteSubtitles extends Module {
         _nativeBg = null;
         _nativeTextObj = null;
         _cachedEntries = null;
+        
+        checkedKssttl = false;
+        kssttlModule = null;
+        localSubIndex = 0;
     }
     
     override public function onUpdate(event:Dynamic) {
@@ -118,8 +127,12 @@ class KssetteSubtitles extends Module {
         var state = PlayState.instance;
         if (state == null || subText == null) return;
         
-        var kssttl:Dynamic = ModuleHandler.getModule("KssttLSubtitles");
-        if (kssttl != null && kssttl.activeForSong && kssttl.disableKassetteSubs) {
+        if (!checkedKssttl) {
+            kssttlModule = ModuleHandler.getModule("KssttLSubtitles");
+            checkedKssttl = true;
+        }
+
+        if (kssttlModule != null && kssttlModule.activeForSong && kssttlModule.disableKassetteSubs) {
             subText.visible = false;
             return;
         }
@@ -131,18 +144,18 @@ class KssetteSubtitles extends Module {
                 _nativeTextObj = getFieldSafe(_nativeSubs, "subtitleText");
             }
         }
-        
-        if (_nativeSubs == null) return;
-        
-        _nativeSubs.visible = false;
-        _nativeSubs.alpha = 0;
-        if (_nativeBg != null) { _nativeBg.visible = false; _nativeBg.alpha = 0; }
-        if (_nativeTextObj != null) { _nativeTextObj.visible = false; _nativeTextObj.alpha = 0; }
 
-        if (_cachedEntries == null) {
-            _cachedEntries = getFieldSafe(_nativeSubs, "subtitlesData");
+        if (_nativeSubs != null) {
+            _nativeSubs.visible = false;
+            _nativeSubs.alpha = 0;
+            if (_nativeBg != null) { _nativeBg.visible = false; _nativeBg.alpha = 0; }
+            if (_nativeTextObj != null) { _nativeTextObj.visible = false; _nativeTextObj.alpha = 0; }
+
+            if (_cachedEntries == null) {
+                _cachedEntries = getFieldSafe(_nativeSubs, "subtitlesData");
+            }
         }
-
+        
         var rawTargetText:String = "";
         var activeEntry:Dynamic = null;
 
@@ -152,11 +165,20 @@ class KssetteSubtitles extends Module {
                 currentPos = Conductor.instance.songPosition;
             }
 
-            var len:Int = _cachedEntries.length;
+            if (localSubIndex > 0 && currentPos < _cachedEntries[localSubIndex - 1].end) {
+                localSubIndex = 0;
+            }
+
+            while (localSubIndex < _cachedEntries.length && _cachedEntries[localSubIndex].end < currentPos) {
+                localSubIndex++;
+            }
+
+            var tempIdx = localSubIndex;
             var isFirst:Bool = true;
-            for (i in 0...len) {
-                var entry = _cachedEntries[i];
-                if (entry != null && currentPos >= entry.start && currentPos <= entry.end) {
+            
+            while (tempIdx < _cachedEntries.length && _cachedEntries[tempIdx].start <= currentPos) {
+                var entry = _cachedEntries[tempIdx];
+                if (currentPos <= entry.end) {
                     if (isFirst) {
                         rawTargetText = entry.text;
                         activeEntry = entry;
@@ -165,12 +187,11 @@ class KssetteSubtitles extends Module {
                         rawTargetText = entry.text + "\n" + rawTargetText;
                     }
                 }
+                tempIdx++;
             }
-        } else {
-            if (_nativeTextObj != null) {
-                var fallback = Std.string(getFieldSafe(_nativeTextObj, "text"));
-                if (fallback != "null" && fallback != "") rawTargetText = fallback;
-            }
+        } else if (_nativeTextObj != null) {
+            var fallback = Std.string(getFieldSafe(_nativeTextObj, "text"));
+            if (fallback != "null" && fallback != "") rawTargetText = fallback;
         }
 
         if (rawTargetText == lastRawText) return;

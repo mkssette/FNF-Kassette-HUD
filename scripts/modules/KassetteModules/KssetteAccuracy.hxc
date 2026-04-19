@@ -18,7 +18,6 @@ import Reflect;
 import StringTools;
 import funkin.mobile.input.ControlsHandler;
 
-/* handles the display of gameplay statistics like accuracy rank and judgment counters */
 class KssetteAccuracy extends Module {
     var separator:String = " / ";
     public var uiText:FlxText;
@@ -28,13 +27,33 @@ class KssetteAccuracy extends Module {
     public var judgeLabels:Array<FlxText> = [];
     public var judgeValues:Array<FlxText> = [];
     public var judgeNames:Array<String> = ["sick", "good", "bad", "shit", "miss", "maxCombo"];
+    
     var lastScore:Int = -1;
     var lastMisses:Int = -1;
     var lastMaxCombo:Int = -1;
+    var lastVisualAcc:Float = -1;
+    var lastTimeString:String = "";
+    
+    var lastSick:Int = -1;
+    var lastGood:Int = -1;
+    var lastBad:Int = -1;
+    var lastShit:Int = -1;
+    var lastMissesJudge:Int = -1;
+    var lastMaxComboJudge:Int = -1;
+    var cachedScoreStr:String = "0";
+
+    var cachedPrefix:String = "";
+    var cachedSuffix:String = "";
+    var targetAcc:Float = 0.0;
+    var currentTargetFmt:FlxTextFormat = null;
+    var cachedRankLen:Int = 0;
+    var prefixNeedsSepForAcc:Bool = false;
+    
     var securityTriggered:Bool = false; 
     var displayedAcc:Float = 0;
     var cachedTotalNotes:Int = -1;
     
+    var uiUpdateTimer:Float = 0.0;
     public var cachedFont:String = "";
 
     var _fmtPerfectGold:FlxTextFormat;
@@ -100,10 +119,20 @@ class KssetteAccuracy extends Module {
         api.registerModule("KssetteAccuracy", this);
         cachedTotalNotes = api.getNoteCount();
         
-        updateSettings();
         cachedRankStr = "?";
         lastVisualAcc = -1;
         cachedTierStr = "N/A";
+        lastTimeString = "";
+        
+        lastSick = -1;
+        lastGood = -1;
+        lastBad = -1;
+        lastShit = -1;
+        lastMissesJudge = -1;
+        lastMaxComboJudge = -1;
+        cachedScoreStr = "0";
+        prefixNeedsSepForAcc = false;
+        uiUpdateTimer = 0.0;
         
         cachedFont = Std.string(api.scriptCall("getCustomFont"));
 
@@ -175,7 +204,7 @@ class KssetteAccuracy extends Module {
         if (state.camHUD != null) modeText.cameras = [state.camHUD];
         state.add(modeText);
 
-        var jPos:String = _cJudgePos;
+        var jPos:String = Std.string(api.getKssValue("kssette_judge_pos"));
         if (jPos != "Off" && jPos != "false") {
             var jMargin:Float = FlxG.onMobile ? 85 : 6;
             var tw = 200; var sy = 22; var sx = jMargin; var sY = (FlxG.height - judgeNames.length * sy) * 0.5;
@@ -195,7 +224,9 @@ class KssetteAccuracy extends Module {
                 state.add(val); judgeValues.push(val);
             }
         }
+        
         lastScore = -1; lastMisses = -1; lastMaxCombo = -1;
+        updateSettings();
         state.refresh();
     }
 
@@ -217,6 +248,25 @@ class KssetteAccuracy extends Module {
         _cShowTitle = api.getKssValue("kssette_show_song_title") == true;
         _cShowDiff = api.getKssValue("kssette_show_song_diff") == true;
         cachedModeMsg = Std.string(api.getModeMessage());
+
+        if (infoText != null && infoText.exists) {
+            infoText.visible = (_cShowHUD && (_cShowTitle || _cShowDiff));
+            if (infoText.visible) {
+                var infoTextStr:String = "";
+                if (_cShowTitle) infoTextStr += Std.string(api.getSongTitle());
+                if (_cShowDiff) {
+                    if (infoTextStr != "") infoTextStr += " - ";
+                    infoTextStr += Std.string(api.getDifficulty());
+                }
+                infoText.text = infoTextStr;
+            }
+        }
+
+        var judgesVisible:Bool = (_cShowHUD && _cJudgePos != "Off" && _cJudgePos != "false");
+        for (i in 0...judgeLabels.length) {
+            if (judgeLabels[i] != null) judgeLabels[i].visible = judgesVisible;
+            if (judgeValues[i] != null) judgeValues[i].visible = judgesVisible;
+        }
     }
 
     override function onNoteHit(event) {
@@ -233,58 +283,30 @@ class KssetteAccuracy extends Module {
         if (state == null || api == null) return;
         
         var showHUD:Bool = _cShowHUD;
-        var judgePos:String = _cJudgePos;
-        var judgesVisible:Bool = (showHUD && judgePos != "Off" && judgePos != "false");
         
-        for (i in 0...judgeLabels.length) {
-            judgeLabels[i].visible = judgesVisible;
-            judgeValues[i].visible = judgesVisible;
-            if (judgesVisible) {
-                var count = 0;
-                if (Highscore.tallies != null) {
-                    switch(judgeNames[i]) {
-                        case 'sick': count = Highscore.tallies.sick;
-                        case 'good': count = Highscore.tallies.good;
-                        case 'bad': count = Highscore.tallies.bad;
-                        case 'shit': count = Highscore.tallies.shit;
-                        case 'miss': count = Highscore.tallies.missed;
-                        case 'maxCombo': count = Highscore.tallies.maxCombo;
-                    }
-                }
-                judgeValues[i].text = Std.string(count);
-            }
-        }
-
         if (timeText != null && timeText.exists) {
-            var show:Bool = showHUD && _cShowTime;
-            timeText.visible = show;
-            if (show) timeText.text = "[" + Std.string(api.getTimeRemaining()) + "]";
-        }
-
-        if (infoText != null && infoText.exists) {
-            var showT:Bool = showHUD && _cShowTitle;
-            var showD:Bool = showHUD && _cShowDiff;
-            infoText.visible = (showT == true || showD == true);
-            if (infoText.visible) {
-                var infoParts = [];
-                if (showT == true) infoParts.push(Std.string(api.getSongTitle()));
-                if (showD) infoParts.push(Std.string(api.getDifficulty()));
-                infoText.text = infoParts.join(" - ");
+            var showT:Bool = showHUD && _cShowTime;
+            timeText.visible = showT;
+            if (showT) {
+                var newTimeStr = api.getTimeRemaining();
+                if (newTimeStr != lastTimeString) {
+                    timeText.text = "[" + newTimeStr + "]";
+                    lastTimeString = newTimeStr;
+                }
             }
         }
 
         var msg:String = cachedModeMsg;
         if (modeText != null && modeText.exists) {
             if (msg != "" && msg != "null") {
-                modeText.text = msg;
-                modeText.visible = true;
-                modeText.alpha = 1;
+                if (modeText.text != msg) modeText.text = msg;
+                if (!modeText.visible) modeText.visible = true;
+                if (modeText.alpha != 1) modeText.alpha = 1;
+                
                 modeText.x -= 200 * event.elapsed;
                 if (modeText.x + modeText.width < 0) modeText.x = FlxG.width;
             } else {
-                modeText.text = ""; 
-                modeText.visible = false; 
-                modeText.x = FlxG.width; 
+                if (modeText.visible) modeText.visible = false; 
             }
         }
 
@@ -316,101 +338,189 @@ class KssetteAccuracy extends Module {
         if (showHUD) {
             var m:Int = (Highscore.tallies != null) ? Highscore.tallies.missed : 0;
             var c:Int = (Highscore.tallies != null) ? Highscore.tallies.maxCombo : 0;
-            var accMode:String = _cAccMode;
 
-            var visualTarget:Float = 0.0;
+            var scoreChanged:Bool = (state.songScore != lastScore || m != lastMisses || c != lastMaxCombo);
             
-            if (accMode == "Ascending") {
-                visualTarget = api.getAscendingAccuracy(state, cachedTotalNotes);
-            } else if (accMode == "Classic") {
-                visualTarget = api.getAccuracy(state);
+            var judgePos:String = _cJudgePos;
+            var judgesVisible:Bool = (judgePos != "Off" && judgePos != "false");
+
+            if (scoreChanged) {
+                if (judgesVisible && Highscore.tallies != null) {
+                    var t = Highscore.tallies;
+                    if (t.sick != lastSick) { judgeValues[0].text = Std.string(t.sick); lastSick = t.sick; }
+                    if (t.good != lastGood) { judgeValues[1].text = Std.string(t.good); lastGood = t.good; }
+                    if (t.bad != lastBad) { judgeValues[2].text = Std.string(t.bad); lastBad = t.bad; }
+                    if (t.shit != lastShit) { judgeValues[3].text = Std.string(t.shit); lastShit = t.shit; }
+                    if (t.missed != lastMissesJudge) { judgeValues[4].text = Std.string(t.missed); lastMissesJudge = t.missed; }
+                    if (t.maxCombo != lastMaxComboJudge) { judgeValues[5].text = Std.string(t.maxCombo); lastMaxComboJudge = t.maxCombo; }
+                }
+
+                lastScore = state.songScore; 
+                lastMisses = m; 
+                lastMaxCombo = c;
+                
+                cachedScoreStr = FlxStringUtil.formatMoney(lastScore, false, true);
+                
+                if (_cShowRank) cachedRankStr = api.getRankID(state);
+                if (_cShowTier) cachedTierStr = api.getComboTier(state);
+
+                if (_cAccMode == "Ascending") {
+                    var t = Highscore.tallies;
+                    if (t != null) {
+                        var totalHits:Int = t.totalNotesHit + t.missed;
+                        var realAcc:Float = 0.0;
+                        if (totalHits > 0) {
+                            realAcc = ((t.sick + t.good - t.missed) / totalHits) * 100;
+                            realAcc = Math.floor(Math.max(0, realAcc) * 100) / 100;
+                        }
+
+                        var processed:Int = t.sick + t.good + t.bad + t.shit + t.missed;
+                        var totalPlayerNotes:Int = cachedTotalNotes;
+                        
+                        if (Reflect.hasField(t, "totalNotes")) {
+                            var realTotal:Dynamic = Reflect.field(t, "totalNotes");
+                            if (realTotal != null && realTotal > 0) totalPlayerNotes = Std.int(realTotal);
+                        }
+
+                        if (processed > totalPlayerNotes) totalPlayerNotes = processed;
+
+                        var noteProgress:Float = (totalPlayerNotes > 0) ? (processed / totalPlayerNotes) : 1.0;
+                        if (noteProgress > 1.0) noteProgress = 1.0;
+                        
+                        var songProgress:Float = 0.0;
+                        if (state.currentSongLengthMs > 0 && state.conductorInUse != null) {
+                            songProgress = state.conductorInUse.songPosition / state.currentSongLengthMs;
+                        }
+                        if (Math.isNaN(songProgress) || songProgress < 0) songProgress = 0;
+                        if (songProgress >= 0.995) noteProgress = 1.0;
+                        
+                        targetAcc = realAcc * noteProgress;
+                    }
+                } else if (_cAccMode == "Classic") {
+                    var t = Highscore.tallies;
+                    if (t != null) {
+                        var totalHits:Int = t.totalNotesHit + t.missed;
+                        if (totalHits > 0) {
+                            var raw:Float = ((t.sick + t.good - t.missed) / totalHits) * 100;
+                            targetAcc = Math.floor(Math.max(0, raw) * 100) / 100;
+                        } else {
+                            targetAcc = 0.0;
+                        }
+                    }
+                }
+
+                cachedPrefix = "";
+                var prefixNeedSep = false;
+
+                if (_cShowScore) {
+                    cachedPrefix += "Score: ";
+                    cachedPrefix += cachedScoreStr;
+                    prefixNeedSep = true;
+                }
+
+                if (_cShowMisses && !judgesVisible) {
+                    if (prefixNeedSep) cachedPrefix += separator;
+                    cachedPrefix += "Misses: ";
+                    cachedPrefix += Std.string(m);
+                    prefixNeedSep = true;
+                }
+
+                prefixNeedsSepForAcc = prefixNeedSep;
+
+                cachedSuffix = "";
+                var suffixNeedSep = false;
+
+                if (_cShowRank) {
+                    var rankStr = formatRank(cachedRankStr);
+                    cachedRankLen = rankStr.length;
+                    cachedSuffix += "Rank: ";
+                    cachedSuffix += rankStr;
+                    suffixNeedSep = true;
+
+                    switch(cachedRankStr.toUpperCase()) {
+                        case "PERFECT_GOLD": 
+                            if (_fmtPerfectGold == null) _fmtPerfectGold = new FlxTextFormat(0xFFF9E859);
+                            currentTargetFmt = _fmtPerfectGold;
+                        case "PERFECT": 
+                            if (_fmtPerfect == null) _fmtPerfect = new FlxTextFormat(0xFFFFAEFF);
+                            currentTargetFmt = _fmtPerfect;
+                        case "EXCELLENT": 
+                            if (_fmtExcellent == null) _fmtExcellent = new FlxTextFormat(0xFFFFFFC5);
+                            currentTargetFmt = _fmtExcellent;
+                        case "GREAT": 
+                            if (_fmtGreat == null) _fmtGreat = new FlxTextFormat(0xFFDCE6F1);
+                            currentTargetFmt = _fmtGreat;
+                        case "GOOD": 
+                            if (_fmtGood == null) _fmtGood = new FlxTextFormat(0xFFE19978);
+                            currentTargetFmt = _fmtGood;
+                        case "SHIT": 
+                            if (_fmtShit == null) _fmtShit = new FlxTextFormat(0xFF4460B7);
+                            currentTargetFmt = _fmtShit;
+                        default: 
+                            if (_fmtDefault == null) _fmtDefault = new FlxTextFormat(0xFFFFFFFF);
+                            currentTargetFmt = _fmtDefault;
+                    }
+                }
+
+                if (_cShowTier) {
+                    if (suffixNeedSep) cachedSuffix += separator;
+                    cachedSuffix += cachedTierStr;
+                }
             }
 
-            var smoothDisplay:Bool = _cSmooth;
-            var isMoving:Bool = false;
-            if (accMode != "Off" && accMode != "null" && accMode != "false") {
-                var lastVisual = displayedAcc;
-                if (smoothDisplay) {
-                    displayedAcc += (visualTarget - displayedAcc) * (event.elapsed * 8);
-                    if (Math.abs(visualTarget - displayedAcc) < 0.001) displayedAcc = visualTarget;
+            if (_cAccMode != "Off" && _cAccMode != "null" && _cAccMode != "false") {
+                if (_cSmooth) {
+                    displayedAcc += (targetAcc - displayedAcc) * (event.elapsed * 8);
+                    if (Math.abs(targetAcc - displayedAcc) < 0.001) displayedAcc = targetAcc;
                 } else {
-                    displayedAcc = visualTarget;
+                    displayedAcc = targetAcc;
                 }
-                if (Math.abs(lastVisual - displayedAcc) > 0.001) isMoving = true;
             }
 
             var visualAcc:Float = Math.floor(displayedAcc * 100) / 100;
             var accTextChanged:Bool = (visualAcc != lastVisualAcc);
 
-            var scoreChanged:Bool = (state.songScore != lastScore || m != lastMisses || c != lastMaxCombo);
+            uiUpdateTimer += event.elapsed;
+            
+            var forceTextUpdate:Bool = scoreChanged || (accTextChanged && uiUpdateTimer >= 0.033);
 
-            if (scoreChanged || accTextChanged) {
+            if (forceTextUpdate) {
+                uiUpdateTimer = 0.0;
                 lastVisualAcc = visualAcc;
-                if (scoreChanged) {
-                    lastScore = state.songScore; lastMisses = m; lastMaxCombo = c;
-                    
-                    if (_cShowRank) cachedRankStr = api.getRankID(state);
-                    if (_cShowTier) cachedTierStr = api.getComboTier(state);
-                }
-                var showScore = _cShowScore;
-                var showMisses = _cShowMisses;
-                var showRank = _cShowRank;
-                var showTier = _cShowTier;
-
-                var uiParts:Array<String> = [];
-                if (showScore) 
-                    uiParts.push("Score: " + FlxStringUtil.formatMoney(state.songScore, false, true));
                 
-                if (showMisses && !judgesVisible) 
-                    uiParts.push("Misses: " + m);
+                var newText:String = "";
                 
-                if (accMode != "Off" && accMode != "null" && accMode != "false") {
-                    uiParts.push("Acc: " + visualAcc + "%");
+                if (cachedPrefix != "") {
+                    newText += cachedPrefix;
                 }
                 
-                if (showRank) 
-                    uiParts.push("Rank: " + formatRank(cachedRankStr));
+                var rIdx:Int = newText.length;
                 
-                if (showTier) 
-                    uiParts.push(cachedTierStr);
-                    
-                uiText.text = uiParts.join(separator);
-
-                if (showRank) {
-                    var targetFmt:FlxTextFormat = null;
-                    
-                    switch(cachedRankStr.toUpperCase()) {
-                        case "PERFECT_GOLD": 
-                            if (_fmtPerfectGold == null) _fmtPerfectGold = new FlxTextFormat(0xFFF9E859);
-                            targetFmt = _fmtPerfectGold;
-                        case "PERFECT": 
-                            if (_fmtPerfect == null) _fmtPerfect = new FlxTextFormat(0xFFFFAEFF);
-                            targetFmt = _fmtPerfect;
-                        case "EXCELLENT": 
-                            if (_fmtExcellent == null) _fmtExcellent = new FlxTextFormat(0xFFFFFFC5);
-                            targetFmt = _fmtExcellent;
-                        case "GREAT": 
-                            if (_fmtGreat == null) _fmtGreat = new FlxTextFormat(0xFFDCE6F1);
-                            targetFmt = _fmtGreat;
-                        case "GOOD": 
-                            if (_fmtGood == null) _fmtGood = new FlxTextFormat(0xFFE19978);
-                            targetFmt = _fmtGood;
-                        case "SHIT": 
-                            if (_fmtShit == null) _fmtShit = new FlxTextFormat(0xFF4460B7);
-                            targetFmt = _fmtShit;
-                        default: 
-                            if (_fmtDefault == null) _fmtDefault = new FlxTextFormat(0xFFFFFFFF);
-                            targetFmt = _fmtDefault;
+                if (_cAccMode != "Off" && _cAccMode != "null" && _cAccMode != "false") {
+                    if (prefixNeedsSepForAcc) {
+                        newText += separator;
                     }
+                    newText += "Acc: ";
+                    newText += Std.string(visualAcc);
+                    newText += "%";
+                }
 
-                    uiText.clearFormats();
-                    var fullString = uiText.text;
-                    var rankVisual = formatRank(cachedRankStr);
-                    var searchStr = "Rank: " + rankVisual;
-                    var rIdx = fullString.indexOf(searchStr);
-                    
-                    if (rIdx != -1) {
-                        uiText.addFormat(targetFmt, rIdx + 6, rIdx + 6 + rankVisual.length);
+                rIdx = newText.length;
+                
+                if (cachedSuffix != "") {
+                    if (newText != "") {
+                        newText += separator;
+                        rIdx += separator.length;
+                    }
+                    newText += cachedSuffix;
+                }
+                
+                if (uiText.text != newText) {
+                    uiText.text = newText;
+
+                    if (_cShowRank && currentTargetFmt != null) {
+                        uiText.clearFormats();
+                        uiText.addFormat(currentTargetFmt, rIdx + 6, rIdx + 6 + cachedRankLen);
                     }
                 }
             }

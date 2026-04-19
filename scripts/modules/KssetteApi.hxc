@@ -29,7 +29,7 @@ import funkin.modding.PolymodHandler;
 
 class KssetteApi extends Module {
     final optionsID:String = "kassette-hud";
-    public var hudVersion:String = "0.1.6.2";
+    public var hudVersion:String = "0.1.7.b2";
     public var missesCount:Int = 0;
     public var isMobileMode:Bool = false;
     public var isCompromised:Bool = false;
@@ -53,9 +53,16 @@ class KssetteApi extends Module {
     var _integrityTimer:Float = 0.0;
     
     var _cachedSongName:String = null;
+    var _checkedSongName:Bool = false;
+    
     var _cachedSongArtist:String = null;
+    var _checkedSongArtist:Bool = false;
+    
     var _cachedSongAlbum:String = null;
+    var _checkedSongAlbum:Bool = false;
+    
     var _cachedSongId:String = null;
+    var _checkedSongId:Bool = false;
     
     var _qtModule:Dynamic = null;
     var _cachedBotplay:Bool = false;
@@ -141,9 +148,16 @@ class KssetteApi extends Module {
         cachedTier = "N/A";
         
         _cachedSongName = null;
+        _checkedSongName = false;
+        
         _cachedSongArtist = null;
+        _checkedSongArtist = false;
+        
         _cachedSongAlbum = null;
+        _checkedSongAlbum = false;
+        
         _cachedSongId = null;
+        _checkedSongId = false;
         
         _accModule = null;
         _qtModule = null;
@@ -228,7 +242,11 @@ class KssetteApi extends Module {
     }
 
     public function getSongTitle():String {
-        if (_cachedSongName != null && _cachedSongName != "Unknown" && _cachedSongName != "null") return _cachedSongName;
+        if (_checkedSongName) return _cachedSongName;
+        
+        _checkedSongName = true;
+        _cachedSongName = "Unknown";
+        
         var state = PlayState.instance;
         if (state == null) return "Unknown";
         
@@ -253,11 +271,15 @@ class KssetteApi extends Module {
         }
         
         if (titleStr != "Unknown" && titleStr != "null") _cachedSongName = titleStr;
-        return titleStr;
+        return _cachedSongName;
     }
 
     public function getSongArtist():String {
-        if (_cachedSongArtist != null && _cachedSongArtist != "Unknown Artist" && _cachedSongArtist != "null") return _cachedSongArtist;
+        if (_checkedSongArtist) return _cachedSongArtist;
+        
+        _checkedSongArtist = true;
+        _cachedSongArtist = "Unknown Artist";
+        
         var state = PlayState.instance;
         if (state == null) return "Unknown Artist";
         
@@ -271,7 +293,8 @@ class KssetteApi extends Module {
                 if (cArtist == null && meta != null) cArtist = Reflect.getProperty(meta, "artist");
 
                 if (cArtist != null && Std.string(cArtist) != "" && Std.string(cArtist) != "null") {
-                    return Std.string(cArtist);
+                    _cachedSongArtist = Std.string(cArtist);
+                    return _cachedSongArtist;
                 }
             }
         } catch(e:Dynamic) {}
@@ -291,11 +314,15 @@ class KssetteApi extends Module {
         }
         
         if (artistStr != "Unknown Artist" && artistStr != "null") _cachedSongArtist = artistStr;
-        return artistStr;
+        return _cachedSongArtist;
     }
 
     public function getSongAlbum():String {
-        if (_cachedSongAlbum != null && _cachedSongAlbum != "null") return _cachedSongAlbum;
+        if (_checkedSongAlbum) return _cachedSongAlbum;
+        
+        _checkedSongAlbum = true;
+        _cachedSongAlbum = "";
+        
         var state = PlayState.instance;
         if (state == null) return "";
         
@@ -308,7 +335,7 @@ class KssetteApi extends Module {
         } catch(e:Dynamic) {}
         
         if (albumStr != "" && albumStr != "null") _cachedSongAlbum = albumStr;
-        return albumStr;
+        return _cachedSongAlbum;
     }
 
     public function getDifficulty():String {
@@ -430,10 +457,10 @@ class KssetteApi extends Module {
         
         if (Highscore.tallies != null) {
             processed = Highscore.tallies.sick + Highscore.tallies.good + Highscore.tallies.bad + Highscore.tallies.shit + Highscore.tallies.missed;
-            try {
-                var realTotal:Int = Reflect.getProperty(Highscore.tallies, "totalNotes");
-                if (realTotal > 0) totalPlayerNotes = realTotal;
-            } catch(e:Dynamic) {}
+            if (Reflect.hasField(Highscore.tallies, "totalNotes")) {
+                var realTotal:Dynamic = Reflect.field(Highscore.tallies, "totalNotes");
+                if (realTotal != null && realTotal > 0) totalPlayerNotes = Std.int(realTotal);
+            }
         }
 
         if (processed > totalPlayerNotes) totalPlayerNotes = processed;
@@ -477,12 +504,16 @@ class KssetteApi extends Module {
         var botplay:Bool = state.isBotPlayMode || (Save.instance.modOptions.get("BotMode") == true);
         
         if (!botplay) {
-            if (_cachedSongId == null) {
+            if (!_checkedSongId) {
+                _checkedSongId = true;
                 _cachedSongId = (state.currentSong != null && state.currentSong.id != null) ? state.currentSong.id : ((state.currentChart != null && state.currentChart.songName != null) ? state.currentChart.songName : "");
             }
-            if (_cachedSongId.toLowerCase() == "termination") {
+            if (_cachedSongId != null && _cachedSongId.toLowerCase() == "termination") {
                 if (_qtModule == null) _qtModule = ModuleHandler.getModule("QTdodgeModule");
-                if (_qtModule != null && Reflect.getProperty(_qtModule, "scriptGet") != null && Reflect.getProperty(_qtModule, "scriptGet")("qtBotplay") == true) botplay = true;
+                if (_qtModule != null && Reflect.hasField(_qtModule, "scriptGet")) {
+                    var scriptGetFn:Dynamic = Reflect.field(_qtModule, "scriptGet");
+                    if (scriptGetFn != null && scriptGetFn("qtBotplay") == true) botplay = true;
+                }
             }
         }
         
@@ -665,14 +696,13 @@ class KssetteApi extends Module {
                         var isBotting:Bool = (msg != null && msg.indexOf('Botplay') != -1);
                         
                         if (isBotting) {
-                            var modeTxt = null;
-                            try { modeTxt = Reflect.getProperty(_accModule, "modeText"); } catch(e:Dynamic) {}
-                            if (modeTxt == null) {
-                                isCompromised = true;
-                            } else {
-                                if (modeTxt.visible == false || modeTxt.alpha < 0.1 || modeTxt.text.indexOf("Botplay") == -1) {
+                            if (Reflect.hasField(_accModule, "modeText")) {
+                                var modeTxt = Reflect.field(_accModule, "modeText");
+                                if (modeTxt == null || modeTxt.visible == false || modeTxt.alpha < 0.1 || modeTxt.text.indexOf("Botplay") == -1) {
                                     isCompromised = true;
                                 }
+                            } else {
+                                isCompromised = true;
                             }
                         }
                     }
