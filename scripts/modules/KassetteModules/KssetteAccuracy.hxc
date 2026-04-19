@@ -14,8 +14,8 @@ import funkin.Highscore;
 import flixel.FlxG;
 import Std;
 import Math;
-import Reflect;
 import StringTools;
+import Reflect;
 import funkin.mobile.input.ControlsHandler;
 
 class KssetteAccuracy extends Module {
@@ -31,8 +31,10 @@ class KssetteAccuracy extends Module {
     var lastScore:Int = -1;
     var lastMisses:Int = -1;
     var lastMaxCombo:Int = -1;
+    var lastNotesHit:Int = -1;
     var lastVisualAcc:Float = -1;
     var lastTimeString:String = "";
+    var lastTimeSeconds:Int = -1;
     
     var lastSick:Int = -1;
     var lastGood:Int = -1;
@@ -45,8 +47,6 @@ class KssetteAccuracy extends Module {
     var cachedPrefix:String = "";
     var cachedSuffix:String = "";
     var targetAcc:Float = 0.0;
-    var currentTargetFmt:FlxTextFormat = null;
-    var cachedRankLen:Int = 0;
     var prefixNeedsSepForAcc:Bool = false;
     
     var securityTriggered:Bool = false; 
@@ -55,6 +55,9 @@ class KssetteAccuracy extends Module {
     
     var uiUpdateTimer:Float = 0.0;
     public var cachedFont:String = "";
+
+    var currentTargetFmt:FlxTextFormat = null;
+    var cachedRankLen:Int = 0;
 
     var _fmtPerfectGold:FlxTextFormat;
     var _fmtPerfect:FlxTextFormat;
@@ -123,6 +126,7 @@ class KssetteAccuracy extends Module {
         lastVisualAcc = -1;
         cachedTierStr = "N/A";
         lastTimeString = "";
+        lastTimeSeconds = -1;
         
         lastSick = -1;
         lastGood = -1;
@@ -151,7 +155,7 @@ class KssetteAccuracy extends Module {
         judgeLabels = []; judgeValues = [];
         if (state.scoreText != null) state.scoreText.visible = false;
 
-        uiText = new FlxText(0, state.healthBarBG.y + 36, FlxG.width, "", 18);
+        uiText = new FlxText(0, state.healthBarBG.y + 36, 0, "", 18);
         uiText.setFormat(cachedFont, 18, FlxColor.WHITE, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
         uiText.updateHitbox();
         uiText.zIndex = 1000; 
@@ -225,7 +229,7 @@ class KssetteAccuracy extends Module {
             }
         }
         
-        lastScore = -1; lastMisses = -1; lastMaxCombo = -1;
+        lastScore = -1; lastMisses = -1; lastMaxCombo = -1; lastNotesHit = -1;
         updateSettings();
         state.refresh();
     }
@@ -287,11 +291,13 @@ class KssetteAccuracy extends Module {
         if (timeText != null && timeText.exists) {
             var showT:Bool = showHUD && _cShowTime;
             timeText.visible = showT;
-            if (showT) {
-                var newTimeStr = api.getTimeRemaining();
-                if (newTimeStr != lastTimeString) {
-                    timeText.text = "[" + newTimeStr + "]";
-                    lastTimeString = newTimeStr;
+            if (showT && state.conductorInUse != null) {
+                var remainingSeconds:Int = Math.floor((state.currentSongLengthMs - state.conductorInUse.songPosition) / 1000);
+                if (remainingSeconds < 0) remainingSeconds = 0;
+                
+                if (remainingSeconds != lastTimeSeconds) {
+                    lastTimeSeconds = remainingSeconds;
+                    timeText.text = "[" + FlxStringUtil.formatTime(remainingSeconds, false) + "]";
                 }
             }
         }
@@ -337,14 +343,17 @@ class KssetteAccuracy extends Module {
 
         if (showHUD) {
             var m:Int = (Highscore.tallies != null) ? Highscore.tallies.missed : 0;
+            var h:Int = (Highscore.tallies != null) ? Highscore.tallies.totalNotesHit : 0;
             var c:Int = (Highscore.tallies != null) ? Highscore.tallies.maxCombo : 0;
+            var currentScoreInt:Int = Math.floor(state.songScore);
 
-            var scoreChanged:Bool = (state.songScore != lastScore || m != lastMisses || c != lastMaxCombo);
-            
-            var judgePos:String = _cJudgePos;
-            var judgesVisible:Bool = (judgePos != "Off" && judgePos != "false");
+            var majorChange:Bool = (m != lastMisses || h != lastNotesHit || c != lastMaxCombo);
+            var minorChange:Bool = (currentScoreInt != lastScore);
 
-            if (scoreChanged) {
+            if (majorChange) {
+                var judgePos:String = _cJudgePos;
+                var judgesVisible:Bool = (judgePos != "Off" && judgePos != "false");
+
                 if (judgesVisible && Highscore.tallies != null) {
                     var t = Highscore.tallies;
                     if (t.sick != lastSick) { judgeValues[0].text = Std.string(t.sick); lastSick = t.sick; }
@@ -355,11 +364,9 @@ class KssetteAccuracy extends Module {
                     if (t.maxCombo != lastMaxComboJudge) { judgeValues[5].text = Std.string(t.maxCombo); lastMaxComboJudge = t.maxCombo; }
                 }
 
-                lastScore = state.songScore; 
                 lastMisses = m; 
                 lastMaxCombo = c;
-                
-                cachedScoreStr = FlxStringUtil.formatMoney(lastScore, false, true);
+                lastNotesHit = h;
                 
                 if (_cShowRank) cachedRankStr = api.getRankID(state);
                 if (_cShowTier) cachedTierStr = api.getComboTier(state);
@@ -378,8 +385,8 @@ class KssetteAccuracy extends Module {
                         var totalPlayerNotes:Int = cachedTotalNotes;
                         
                         if (Reflect.hasField(t, "totalNotes")) {
-                            var realTotal:Dynamic = Reflect.field(t, "totalNotes");
-                            if (realTotal != null && realTotal > 0) totalPlayerNotes = Std.int(realTotal);
+                            var tn:Dynamic = Reflect.getProperty(t, "totalNotes");
+                            if (tn != null && tn > 0) totalPlayerNotes = Std.int(tn);
                         }
 
                         if (processed > totalPlayerNotes) totalPlayerNotes = processed;
@@ -408,6 +415,39 @@ class KssetteAccuracy extends Module {
                         }
                     }
                 }
+            }
+
+            if (_cAccMode != "Off" && _cAccMode != "null" && _cAccMode != "false") {
+                if (_cSmooth) {
+                    displayedAcc += (targetAcc - displayedAcc) * (event.elapsed * 8);
+                    if (Math.abs(targetAcc - displayedAcc) < 0.001) displayedAcc = targetAcc;
+                } else {
+                    displayedAcc = targetAcc;
+                }
+            }
+
+            var visualAcc:Float = Math.floor(displayedAcc * 100) / 100;
+            var accTextChanged:Bool = (visualAcc != lastVisualAcc);
+
+            uiUpdateTimer += event.elapsed;
+            
+            var forceUpdate:Bool = false;
+
+            if (majorChange) {
+                forceUpdate = true;
+            } else if (minorChange || accTextChanged) {
+                if (uiUpdateTimer >= 0.1) {
+                    forceUpdate = true;
+                }
+            }
+
+            if (forceUpdate) {
+                uiUpdateTimer = 0.0;
+                
+                lastScore = currentScoreInt;
+                lastVisualAcc = visualAcc;
+                
+                cachedScoreStr = FlxStringUtil.formatMoney(lastScore, false, true);
 
                 cachedPrefix = "";
                 var prefixNeedSep = false;
@@ -417,6 +457,9 @@ class KssetteAccuracy extends Module {
                     cachedPrefix += cachedScoreStr;
                     prefixNeedSep = true;
                 }
+
+                var judgePos:String = _cJudgePos;
+                var judgesVisible:Bool = (judgePos != "Off" && judgePos != "false");
 
                 if (_cShowMisses && !judgesVisible) {
                     if (prefixNeedSep) cachedPrefix += separator;
@@ -437,6 +480,7 @@ class KssetteAccuracy extends Module {
                     cachedSuffix += rankStr;
                     suffixNeedSep = true;
 
+                    // Asignación de colores basada en el rango
                     switch(cachedRankStr.toUpperCase()) {
                         case "PERFECT_GOLD": 
                             if (_fmtPerfectGold == null) _fmtPerfectGold = new FlxTextFormat(0xFFF9E859);
@@ -466,28 +510,7 @@ class KssetteAccuracy extends Module {
                     if (suffixNeedSep) cachedSuffix += separator;
                     cachedSuffix += cachedTierStr;
                 }
-            }
 
-            if (_cAccMode != "Off" && _cAccMode != "null" && _cAccMode != "false") {
-                if (_cSmooth) {
-                    displayedAcc += (targetAcc - displayedAcc) * (event.elapsed * 8);
-                    if (Math.abs(targetAcc - displayedAcc) < 0.001) displayedAcc = targetAcc;
-                } else {
-                    displayedAcc = targetAcc;
-                }
-            }
-
-            var visualAcc:Float = Math.floor(displayedAcc * 100) / 100;
-            var accTextChanged:Bool = (visualAcc != lastVisualAcc);
-
-            uiUpdateTimer += event.elapsed;
-            
-            var forceTextUpdate:Bool = scoreChanged || (accTextChanged && uiUpdateTimer >= 0.033);
-
-            if (forceTextUpdate) {
-                uiUpdateTimer = 0.0;
-                lastVisualAcc = visualAcc;
-                
                 var newText:String = "";
                 
                 if (cachedPrefix != "") {
@@ -504,7 +527,7 @@ class KssetteAccuracy extends Module {
                     newText += Std.string(visualAcc);
                     newText += "%";
                 }
-
+                
                 rIdx = newText.length;
                 
                 if (cachedSuffix != "") {
@@ -517,11 +540,14 @@ class KssetteAccuracy extends Module {
                 
                 if (uiText.text != newText) {
                     uiText.text = newText;
-
+                    
+                    // Aplicamos el color usando clearFormats para evitar fugas y addFormat de manera segura
                     if (_cShowRank && currentTargetFmt != null) {
                         uiText.clearFormats();
                         uiText.addFormat(currentTargetFmt, rIdx + 6, rIdx + 6 + cachedRankLen);
                     }
+
+                    uiText.screenCenter(0x01); 
                 }
             }
         }

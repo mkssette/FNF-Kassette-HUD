@@ -449,30 +449,29 @@ class KssetteApi extends Module {
 
     public function getAscendingAccuracy(state:PlayState, cachedTotalNotes:Int):Float {
         if (getKssValue("kssette_acc_mode") != "Ascending") return 0.0;
-        if (state == null) return 0.0;
+        if (state == null || Highscore.tallies == null) return 0.0;
 
-        var realAcc:Float = getAccuracy(state);
-        var totalPlayerNotes:Int = cachedTotalNotes;
-        var processed:Int = 0;
+        var t = Highscore.tallies;
+        var totalPlayerNotes:Int = t.totalNotes > 0 ? t.totalNotes : cachedTotalNotes;
         
-        if (Highscore.tallies != null) {
-            processed = Highscore.tallies.sick + Highscore.tallies.good + Highscore.tallies.bad + Highscore.tallies.shit + Highscore.tallies.missed;
-            if (Reflect.hasField(Highscore.tallies, "totalNotes")) {
-                var realTotal:Dynamic = Reflect.field(Highscore.tallies, "totalNotes");
-                if (realTotal != null && realTotal > 0) totalPlayerNotes = Std.int(realTotal);
-            }
+        if (totalPlayerNotes <= 0) return getAccuracy(state);
+        
+        var totalHits:Int = t.totalNotesHit + t.missed;
+        var currentAcc:Float = 0.0;
+        
+        if (totalHits > 0) {
+            currentAcc = ((t.sick + t.good - t.missed) / totalHits) * 100;
+            currentAcc = Math.max(0, currentAcc);
         }
-
-        if (processed > totalPlayerNotes) totalPlayerNotes = processed;
-
-        var noteProgress:Float = (totalPlayerNotes > 0) ? (processed / totalPlayerNotes) : 1.0;
+        
+        var noteProgress:Float = totalHits / totalPlayerNotes;
         if (noteProgress > 1.0) noteProgress = 1.0;
         
         var songProgress:Float = getSongProgress();
-        if (Math.isNaN(songProgress) || songProgress < 0) songProgress = 0;
         if (songProgress >= 0.995) noteProgress = 1.0;
-        
-        return realAcc * noteProgress;
+
+        var finalAcc:Float = currentAcc * noteProgress;
+        return Math.floor(finalAcc * 100) / 100;
     }
 
     public function getChallenge():String {
