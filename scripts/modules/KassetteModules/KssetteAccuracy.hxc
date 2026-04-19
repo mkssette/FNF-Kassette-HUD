@@ -119,6 +119,7 @@ class KssetteAccuracy extends Module {
         api.registerModule("KssetteAccuracy", this);
         cachedTotalNotes = api.getNoteCount();
         
+        updateSettings();
         cachedRankStr = "?";
         lastVisualAcc = -1;
         cachedTierStr = "N/A";
@@ -134,7 +135,7 @@ class KssetteAccuracy extends Module {
         prefixNeedsSepForAcc = false;
         uiUpdateTimer = 0.0;
         
-        cachedFont = Std.string(api.scriptCall("getCustomFont"));
+        cachedFont = Std.string(api.getCustomFont());
 
         if (cachedFont == "null" || cachedFont == "") {
             cachedFont = "VCR OSD Mono";
@@ -204,7 +205,7 @@ class KssetteAccuracy extends Module {
         if (state.camHUD != null) modeText.cameras = [state.camHUD];
         state.add(modeText);
 
-        var jPos:String = Std.string(api.getKssValue("kssette_judge_pos"));
+        var jPos:String = _cJudgePos;
         if (jPos != "Off" && jPos != "false") {
             var jMargin:Float = FlxG.onMobile ? 85 : 6;
             var tw = 200; var sy = 22; var sx = jMargin; var sY = (FlxG.height - judgeNames.length * sy) * 0.5;
@@ -224,9 +225,7 @@ class KssetteAccuracy extends Module {
                 state.add(val); judgeValues.push(val);
             }
         }
-        
         lastScore = -1; lastMisses = -1; lastMaxCombo = -1;
-        updateSettings();
         state.refresh();
     }
 
@@ -283,17 +282,23 @@ class KssetteAccuracy extends Module {
         if (state == null || api == null) return;
         
         var showHUD:Bool = _cShowHUD;
+        var judgePos:String = _cJudgePos;
+        var judgesVisible:Bool = (showHUD && judgePos != "Off" && judgePos != "false");
         
+        if (judgesVisible && Highscore.tallies != null) {
+            var t = Highscore.tallies;
+            if (t.sick != lastSick) { judgeValues[0].text = Std.string(t.sick); lastSick = t.sick; }
+            if (t.good != lastGood) { judgeValues[1].text = Std.string(t.good); lastGood = t.good; }
+            if (t.bad != lastBad) { judgeValues[2].text = Std.string(t.bad); lastBad = t.bad; }
+            if (t.shit != lastShit) { judgeValues[3].text = Std.string(t.shit); lastShit = t.shit; }
+            if (t.missed != lastMissesJudge) { judgeValues[4].text = Std.string(t.missed); lastMissesJudge = t.missed; }
+            if (t.maxCombo != lastMaxComboJudge) { judgeValues[5].text = Std.string(t.maxCombo); lastMaxComboJudge = t.maxCombo; }
+        }
+
         if (timeText != null && timeText.exists) {
-            var showT:Bool = showHUD && _cShowTime;
-            timeText.visible = showT;
-            if (showT) {
-                var newTimeStr = api.getTimeRemaining();
-                if (newTimeStr != lastTimeString) {
-                    timeText.text = "[" + newTimeStr + "]";
-                    lastTimeString = newTimeStr;
-                }
-            }
+            var show:Bool = showHUD && _cShowTime;
+            timeText.visible = show;
+            if (show) timeText.text = "[" + Std.string(api.getTimeRemaining()) + "]";
         }
 
         var msg:String = cachedModeMsg;
@@ -306,7 +311,9 @@ class KssetteAccuracy extends Module {
                 modeText.x -= 200 * event.elapsed;
                 if (modeText.x + modeText.width < 0) modeText.x = FlxG.width;
             } else {
-                if (modeText.visible) modeText.visible = false; 
+                modeText.text = ""; 
+                modeText.visible = false; 
+                modeText.x = FlxG.width; 
             }
         }
 
@@ -338,75 +345,52 @@ class KssetteAccuracy extends Module {
         if (showHUD) {
             var m:Int = (Highscore.tallies != null) ? Highscore.tallies.missed : 0;
             var c:Int = (Highscore.tallies != null) ? Highscore.tallies.maxCombo : 0;
-
-            var scoreChanged:Bool = (state.songScore != lastScore || m != lastMisses || c != lastMaxCombo);
             
-            var judgePos:String = _cJudgePos;
-            var judgesVisible:Bool = (judgePos != "Off" && judgePos != "false");
+            var currentScoreInt:Int = Math.floor(state.songScore);
+            var accMode:String = _cAccMode;
 
-            if (scoreChanged) {
-                if (judgesVisible && Highscore.tallies != null) {
-                    var t = Highscore.tallies;
-                    if (t.sick != lastSick) { judgeValues[0].text = Std.string(t.sick); lastSick = t.sick; }
-                    if (t.good != lastGood) { judgeValues[1].text = Std.string(t.good); lastGood = t.good; }
-                    if (t.bad != lastBad) { judgeValues[2].text = Std.string(t.bad); lastBad = t.bad; }
-                    if (t.shit != lastShit) { judgeValues[3].text = Std.string(t.shit); lastShit = t.shit; }
-                    if (t.missed != lastMissesJudge) { judgeValues[4].text = Std.string(t.missed); lastMissesJudge = t.missed; }
-                    if (t.maxCombo != lastMaxComboJudge) { judgeValues[5].text = Std.string(t.maxCombo); lastMaxComboJudge = t.maxCombo; }
+            var visualTarget:Float = 0.0;
+            
+            if (accMode == "Ascending") {
+                visualTarget = api.getAscendingAccuracy(state, cachedTotalNotes);
+            } else if (accMode == "Classic") {
+                visualTarget = api.getAccuracy(state);
+            }
+
+            var smoothDisplay:Bool = _cSmooth;
+            if (accMode != "Off" && accMode != "null" && accMode != "false") {
+                if (smoothDisplay) {
+                    displayedAcc += (visualTarget - displayedAcc) * (event.elapsed * 8);
+                    if (Math.abs(visualTarget - displayedAcc) < 0.001) displayedAcc = visualTarget;
+                } else {
+                    displayedAcc = visualTarget;
                 }
+            }
 
-                lastScore = state.songScore; 
-                lastMisses = m; 
-                lastMaxCombo = c;
+            var visualAcc:Float = Math.floor(displayedAcc * 100) / 100;
+            
+            var scoreChanged:Bool = (currentScoreInt != lastScore);
+            var comboChanged:Bool = (m != lastMisses || c != lastMaxCombo);
+            var accTextChanged:Bool = (visualAcc != lastVisualAcc);
+
+            uiUpdateTimer += event.elapsed;
+            
+            var instantUpdate:Bool = comboChanged;
+            var forceTextUpdate:Bool = instantUpdate || ((scoreChanged || accTextChanged) && uiUpdateTimer >= 0.033);
+
+            if (forceTextUpdate) {
+                uiUpdateTimer = 0.0;
+                lastVisualAcc = visualAcc;
                 
-                cachedScoreStr = FlxStringUtil.formatMoney(lastScore, false, true);
-                
-                if (_cShowRank) cachedRankStr = api.getRankID(state);
-                if (_cShowTier) cachedTierStr = api.getComboTier(state);
-
-                if (_cAccMode == "Ascending") {
-                    var t = Highscore.tallies;
-                    if (t != null) {
-                        var totalHits:Int = t.totalNotesHit + t.missed;
-                        var realAcc:Float = 0.0;
-                        if (totalHits > 0) {
-                            realAcc = ((t.sick + t.good - t.missed) / totalHits) * 100;
-                            realAcc = Math.floor(Math.max(0, realAcc) * 100) / 100;
-                        }
-
-                        var processed:Int = t.sick + t.good + t.bad + t.shit + t.missed;
-                        var totalPlayerNotes:Int = cachedTotalNotes;
-                        
-                        if (Reflect.hasField(t, "totalNotes")) {
-                            var realTotal:Dynamic = Reflect.field(t, "totalNotes");
-                            if (realTotal != null && realTotal > 0) totalPlayerNotes = Std.int(realTotal);
-                        }
-
-                        if (processed > totalPlayerNotes) totalPlayerNotes = processed;
-
-                        var noteProgress:Float = (totalPlayerNotes > 0) ? (processed / totalPlayerNotes) : 1.0;
-                        if (noteProgress > 1.0) noteProgress = 1.0;
-                        
-                        var songProgress:Float = 0.0;
-                        if (state.currentSongLengthMs > 0 && state.conductorInUse != null) {
-                            songProgress = state.conductorInUse.songPosition / state.currentSongLengthMs;
-                        }
-                        if (Math.isNaN(songProgress) || songProgress < 0) songProgress = 0;
-                        if (songProgress >= 0.995) noteProgress = 1.0;
-                        
-                        targetAcc = realAcc * noteProgress;
-                    }
-                } else if (_cAccMode == "Classic") {
-                    var t = Highscore.tallies;
-                    if (t != null) {
-                        var totalHits:Int = t.totalNotesHit + t.missed;
-                        if (totalHits > 0) {
-                            var raw:Float = ((t.sick + t.good - t.missed) / totalHits) * 100;
-                            targetAcc = Math.floor(Math.max(0, raw) * 100) / 100;
-                        } else {
-                            targetAcc = 0.0;
-                        }
-                    }
+                if (scoreChanged || comboChanged) {
+                    lastScore = currentScoreInt; 
+                    lastMisses = m; 
+                    lastMaxCombo = c;
+                    
+                    if (_cShowRank) cachedRankStr = api.getRankID(state);
+                    if (_cShowTier) cachedTierStr = api.getComboTier(state);
+                    
+                    cachedScoreStr = FlxStringUtil.formatMoney(currentScoreInt, false, true);
                 }
 
                 cachedPrefix = "";
@@ -466,28 +450,7 @@ class KssetteAccuracy extends Module {
                     if (suffixNeedSep) cachedSuffix += separator;
                     cachedSuffix += cachedTierStr;
                 }
-            }
 
-            if (_cAccMode != "Off" && _cAccMode != "null" && _cAccMode != "false") {
-                if (_cSmooth) {
-                    displayedAcc += (targetAcc - displayedAcc) * (event.elapsed * 8);
-                    if (Math.abs(targetAcc - displayedAcc) < 0.001) displayedAcc = targetAcc;
-                } else {
-                    displayedAcc = targetAcc;
-                }
-            }
-
-            var visualAcc:Float = Math.floor(displayedAcc * 100) / 100;
-            var accTextChanged:Bool = (visualAcc != lastVisualAcc);
-
-            uiUpdateTimer += event.elapsed;
-            
-            var forceTextUpdate:Bool = scoreChanged || (accTextChanged && uiUpdateTimer >= 0.033);
-
-            if (forceTextUpdate) {
-                uiUpdateTimer = 0.0;
-                lastVisualAcc = visualAcc;
-                
                 var newText:String = "";
                 
                 if (cachedPrefix != "") {
@@ -496,7 +459,7 @@ class KssetteAccuracy extends Module {
                 
                 var rIdx:Int = newText.length;
                 
-                if (_cAccMode != "Off" && _cAccMode != "null" && _cAccMode != "false") {
+                if (accMode != "Off" && accMode != "null" && accMode != "false") {
                     if (prefixNeedsSepForAcc) {
                         newText += separator;
                     }

@@ -3,239 +3,233 @@ package kassettehud.util;
 import funkin.modding.module.Module;
 import funkin.modding.module.ModuleHandler;
 import funkin.play.PlayState;
+import funkin.play.PauseSubState;
+import funkin.Conductor;
 import flixel.FlxG;
-import flixel.text.FlxText;
-import flixel.text.FlxTextBorderStyle;
+import flixel.FlxSprite;
+import flixel.FlxSubState;
 import flixel.tweens.FlxTween;
 import flixel.tweens.FlxEase;
-import flixel.FlxSprite;
 import funkin.Paths;
+import funkin.audio.FunkinSound;
+import flixel.util.FlxTimer;
 import Std;
+import Reflect;
+import funkin.modding.events.ScriptEvent;
 
-class KssetteShowTitle extends Module {
-    var titleTxt:FlxText;
-    var artistTxt:FlxText;
-    var albumSprite:FlxSprite;
+class KssetteResumeCount extends Module {
+    var cachedActive:Bool = false;
+    var isCounting:Bool = false;
+    var isResuming:Bool = false;
+    var currentTimer:FlxTimer;
+    var resumeTimer:FlxTimer;
+    var storedVolume:Float = 1.0;
+    var storedVocalsVolume:Float = 1.0;
+    var storedScore:Int = 0;
     var apiModule:Dynamic = null;
-    var isActive:Bool = false;
-    
-    var titleTargetX:Float = 0;
-    var albumTargetX:Float = 0;
-    var artistTargetX:Float = 0;
-    var hasAlbum:Bool = false;
-    var floatDist:Float = 60;
+
+    var cachedStyle:String = "funkin";
+    var cachedPixel:Bool = false;
+    var cachedScale:Float = 1.0;
 
     public function new() {
-        super("KssetteShowTitle");
+        super("KssetteResumeCount");
     }
 
-    function cleanUp() {
-        var state = PlayState.instance;
-        if (state == null) return;
-
-        if (titleTxt != null) {
-            FlxTween.cancelTweensOf(titleTxt);
-            state.remove(titleTxt);
-            titleTxt.destroy();
-            titleTxt = null;
-        }
-        if (artistTxt != null) {
-            FlxTween.cancelTweensOf(artistTxt);
-            state.remove(artistTxt);
-            artistTxt.destroy();
-            artistTxt = null;
-        }
-        if (albumSprite != null) {
-            FlxTween.cancelTweensOf(albumSprite);
-            state.remove(albumSprite);
-            albumSprite.destroy();
-            albumSprite = null;
-        }
-    }
-
-    override public function onSongRetry(event:Dynamic) {
-        super.onSongRetry(event);
-        cleanUp();
-    }
-
-    override public function onDestroy(event:Dynamic) {
-        super.onDestroy(event);
-        cleanUp();
-    }
-
-    override public function onCountdownStart(event:Dynamic) {
+    override public function onCountdownStart(event) {
         super.onCountdownStart(event);
-        cleanUp();
-
         apiModule = ModuleHandler.getModule("KssetteApi");
-        if (apiModule == null) return;
-
-        try {
-            isActive = apiModule.getKssValue("kssette_intro_text") == true;
-        } catch(e:Dynamic) {
-            isActive = false;
+        if (apiModule != null) {
+            apiModule.registerModule("KssetteResumeCount", this);
+            cachedActive = apiModule.getKssValue("kssette_resume_countdown") == true;
         }
-        
-        if (!isActive) return;
-
-        var state = PlayState.instance;
-        if (state == null || state.camHUD == null) return;
-
-        var titleStr = "Unknown";
-        var artistStr = "Unknown Artist";
-
-        try {
-            if (state.currentChart != null) {
-                if (state.currentChart.songName != null) {
-                    var cName = Std.string(state.currentChart.songName);
-                    if (cName != "") titleStr = cName;
-                }
-                if (state.currentChart.songArtist != null) {
-                    var cArt = Std.string(state.currentChart.songArtist);
-                    if (cArt != "") artistStr = cArt;
-                }
-            }
-        } catch(e:Dynamic) {}
-
-        if (titleStr == "Unknown" || titleStr == "null") {
-            try { titleStr = Std.string(apiModule.getSongTitle()); } catch(e:Dynamic) {}
-        }
-        if (artistStr == "Unknown Artist" || artistStr == "null") {
-            try { artistStr = Std.string(apiModule.getSongArtist()); } catch(e:Dynamic) {}
-        }
-
-        var titleFontKey = "vcr.ttf";
-        var artistFontKey = "vcr.ttf";
-        
-        try {
-            var tk = apiModule.getKssValue("kssette_intro_font_title");
-            if (tk != null) titleFontKey = Std.string(tk);
-            
-            var ak = apiModule.getKssValue("kssette_intro_font_artist");
-            if (ak != null) artistFontKey = Std.string(ak);
-        } catch(e:Dynamic) {}
-        
-        var titleFont = "VCR OSD Mono";
-        var artistFont = "VCR OSD Mono";
-        
-        try {
-            titleFont = Std.string(apiModule.resolveCustomFont(titleFontKey));
-            artistFont = Std.string(apiModule.resolveCustomFont(artistFontKey));
-        } catch(e:Dynamic) {}
-
-        var titleBaseSize = 44;
-        var artistBaseSize = 32;
-
-        try {
-            titleBaseSize = apiModule.getFontSize(44, "kssette_size_intro");
-            artistBaseSize = apiModule.getFontSize(32, "kssette_size_intro");
-        } catch(e:Dynamic) {}
-
-        var albumId:String = "";
-        try {
-            albumId = Std.string(apiModule.getSongAlbum());
-        } catch(e:Dynamic) {}
-
-        hasAlbum = false;
-        
-        if (albumId != "" && albumId != "null") {
-            try {
-                var imgPath = Paths.image('freeplay/albums/' + albumId);
-                if (imgPath == null) imgPath = Paths.image('freeplay/album/' + albumId);
-                
-                if (imgPath != null) {
-                    albumSprite = new FlxSprite();
-                    albumSprite.loadGraphic(imgPath);
-                    albumSprite.setGraphicSize(80, 80);
-                    albumSprite.updateHitbox();
-                    albumSprite.antialiasing = true;
-                    hasAlbum = true;
-                }
-            } catch(e:Dynamic) {}
-        }
-
-        var baseY = (FlxG.height / 2) - 150; 
-
-        titleTxt = new FlxText(0, baseY, 0, titleStr, titleBaseSize);
-        titleTxt.setFormat(titleFont, titleBaseSize, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
-        titleTxt.borderSize = 3;
-        titleTxt.updateHitbox();
-
-        artistTxt = new FlxText(0, baseY + 50, 0, artistStr, artistBaseSize);
-        artistTxt.setFormat(artistFont, artistBaseSize, 0xFFCCCCCC, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
-        artistTxt.borderSize = 2;
-        artistTxt.updateHitbox();
-
-        var albumOffset = hasAlbum ? 100 : 0; 
-        var totalTitleWidth = albumOffset + titleTxt.width;
-        
-        titleTargetX = (FlxG.width / 2) - (totalTitleWidth / 2) + albumOffset;
-        albumTargetX = titleTargetX - albumOffset;
-        artistTargetX = (FlxG.width / 2) - (artistTxt.width / 2);
-
-        titleTxt.x = -totalTitleWidth - 200;
-        titleTxt.alpha = 0; 
-        titleTxt.cameras = [state.camHUD]; 
-        titleTxt.zIndex = 1005;
-        state.add(titleTxt);
-
-        if (hasAlbum && albumSprite != null) {
-            albumSprite.x = titleTxt.x - albumOffset;
-            albumSprite.y = baseY - 10; 
-            albumSprite.alpha = 0; 
-            albumSprite.cameras = [state.camHUD]; 
-            albumSprite.zIndex = 1005;
-            state.add(albumSprite);
-        }
-
-        artistTxt.x = FlxG.width + 200;
-        artistTxt.alpha = 0; 
-        artistTxt.cameras = [state.camHUD]; 
-        artistTxt.zIndex = 1005;
-        state.add(artistTxt);
-
-        if (artistStr == "Unknown Artist" || artistStr == "null" || artistStr == "") {
-            artistTxt.visible = false;
-            titleTxt.y = baseY + 15; 
-            if (hasAlbum && albumSprite != null) albumSprite.y = baseY + 5;
-        }
-
-        state.refresh();
+        isCounting = false;
+        isResuming = false;
     }
 
-    override public function onSongStart(event:Dynamic) {
-        super.onSongStart(event);
+    override public function onUpdate(event) {
+        super.onUpdate(event);
+        if (isCounting) {
+            var state = PlayState.instance;
+            if (state == null || state.startingSong || state.isPlayerDying || (state.conductorInUse != null && state.conductorInUse.songPosition <= 0)) {
+                isCounting = false;
+                isResuming = false;
+                if (currentTimer != null) {
+                    currentTimer.cancel();
+                    currentTimer = null;
+                }
+                if (resumeTimer != null) {
+                    resumeTimer.cancel();
+                    resumeTimer = null;
+                }
+            } else {
+                state.songScore = storedScore;
+            }
+        }
+    }
 
-        if (!isActive) return;
+    override public function onNoteHit(event) {
+        if (isCounting || isResuming) event.cancel();
+    }
+
+    override public function onNoteMiss(event) {
+        if (isCounting || isResuming) event.cancel();
+    }
+
+    override public function onNoteGhostMiss(event) {
+        if (isCounting || isResuming) event.cancel();
+    }
+    
+    override public function onPause(event:ScriptEvent) {
+        if (isCounting || isResuming) event.cancel();
+    }
+
+    override public function onResume(event) {
+        super.onResume(event);
         var state = PlayState.instance;
-        if (state == null || state.camHUD == null || titleTxt == null) return;
 
-        FlxTween.tween(titleTxt, {x: titleTargetX - (floatDist/2), alpha: 1}, 1.0, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
-            FlxTween.tween(titleTxt, {x: titleTargetX + (floatDist/2)}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
-                FlxTween.tween(titleTxt, {x: FlxG.width + 200, alpha: 0}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
-                    if (titleTxt != null) { state.remove(titleTxt); titleTxt.destroy(); titleTxt = null; }
-                }});
-            }});
-        }});
+        if (!cachedActive || isCounting || isResuming || state == null) return;
+        if (state.startingSong || state.isPlayerDying || state.conductorInUse.songPosition <= 0) return;
 
-        if (hasAlbum && albumSprite != null) {
-            FlxTween.tween(albumSprite, {x: albumTargetX - (floatDist/2), alpha: 1}, 1.0, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
-                FlxTween.tween(albumSprite, {x: albumTargetX + (floatDist/2)}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
-                    FlxTween.tween(albumSprite, {x: FlxG.width + 200, alpha: 0}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
-                        if (albumSprite != null) { state.remove(albumSprite); albumSprite.destroy(); albumSprite = null; }
-                    }});
-                }});
+        isResuming = true;
+        storedScore = state.songScore;
+
+        if (FlxG.sound.music != null) {
+            storedVolume = FlxG.sound.music.volume;
+            FlxG.sound.music.volume = 0;
+        }
+        if (state.vocals != null) {
+            storedVocalsVolume = state.vocals.volume;
+            state.vocals.volume = 0;
+        }
+
+        var originalState = state;
+
+        resumeTimer = new FlxTimer().start(0.001, function(tmr:FlxTimer) {
+            var checkState = PlayState.instance;
+            var restoreAudio = function() {
+                if (FlxG.sound.music != null) FlxG.sound.music.volume = storedVolume;
+                if (checkState != null && checkState.vocals != null) checkState.vocals.volume = storedVocalsVolume;
+                isResuming = false;
+            };
+            
+            if (checkState != originalState) { restoreAudio(); return; }
+            if (checkState == null || !checkState.exists || !checkState.active) { isResuming = false; return; }
+            if (checkState.startingSong || checkState.isPlayerDying) { restoreAudio(); return; }
+            if (checkState.conductorInUse != null && checkState.conductorInUse.songPosition <= 0) { restoreAudio(); return; }
+            
+            if (Reflect.hasField(checkState, "_exiting") && Reflect.field(checkState, "_exiting") == true) { restoreAudio(); return; }
+            if (Reflect.hasField(checkState, "isEndingSong") && Reflect.field(checkState, "isEndingSong") == true) { restoreAudio(); return; }
+
+            startCustomCountdown();
+        });
+    }
+
+    function startCustomCountdown() {
+        var state = PlayState.instance;
+        if (state == null || isCounting) {
+             isResuming = false;
+             return;
+        }
+
+        isCounting = true; 
+        isResuming = false;
+        
+        if (FlxG.sound.music != null) {
+            FlxG.sound.music.pause();
+            FlxG.sound.music.volume = storedVolume;
+        }
+        if (state.vocals != null) {
+            state.vocals.pause();
+            state.vocals.volume = storedVocalsVolume;
+        }
+
+        cachedStyle = "funkin";
+        cachedPixel = false;
+        cachedScale = 1.0;
+
+        if (state.playerStrumline != null && state.playerStrumline.noteStyle != null) {
+            var ns = state.playerStrumline.noteStyle;
+            if (Reflect.hasField(ns, "id")) {
+                var rawId = Reflect.field(ns, "id");
+                if (rawId != null) cachedStyle = Std.string(rawId);
+            }
+        }
+
+        doCount(3);
+    }
+
+    function doCount(num:Int) {
+        var state = PlayState.instance;
+        if (state == null || !isCounting) return;
+        if (state.startingSong || state.isPlayerDying) return;
+
+        var beatTime:Float = (Conductor.instance != null) ? Conductor.instance.beatLengthMs / 1000 : 0.6;
+        
+        var soundNames:Array<String> = ["GO", "ONE", "TWO", "THREE"];
+        var soundNamesNum:Array<String> = ["Go", "1", "2", "3"];
+        var imageNames:Array<String> = ["go", "set", "ready", ""]; 
+        
+        var fallbackStyle:String = "funkin";
+        if (cachedStyle.indexOf("pixel") != -1) fallbackStyle = "pixel";
+
+        var soundAsset:Dynamic = Paths.sound('gameplay/countdown/' + fallbackStyle + '/intro' + soundNames[num]);
+        if (soundAsset == null) soundAsset = Paths.sound('gameplay/countdown/' + fallbackStyle + '/intro' + soundNamesNum[num]);
+        if (soundAsset == null && fallbackStyle != "funkin") soundAsset = Paths.sound('gameplay/countdown/funkin/intro' + soundNames[num]);
+
+        var imageAsset:Dynamic = null;
+        var usePixel:Bool = false;
+        var drawScale:Float = 1.0;
+
+        if (imageNames[num] != "") {
+            imageAsset = Paths.image('ui/countdown/' + fallbackStyle + '/' + imageNames[num]);
+            if (fallbackStyle == "pixel") {
+                usePixel = true;
+                drawScale = 6.0;
+            }
+            if (imageAsset == null && fallbackStyle != "funkin") {
+                imageAsset = Paths.image('ui/countdown/funkin/' + imageNames[num]);
+                usePixel = false;
+                drawScale = 1.0;
+            }
+        }
+
+        if (soundAsset != null) FunkinSound.playOnce(soundAsset, 1.0);
+
+        if (imageAsset != null) {
+            var sprite = new FlxSprite().loadGraphic(imageAsset);
+            sprite.scrollFactor.set(0, 0);
+
+            if (usePixel) sprite.antialiasing = false;
+            
+            sprite.setGraphicSize(Std.int(sprite.width * drawScale));
+            sprite.updateHitbox();
+            sprite.screenCenter();
+            if (state.camHUD != null) sprite.cameras = [state.camHUD];
+            state.add(sprite);
+
+            var tweenParams:Dynamic = {alpha: 0};
+            var tweenDuration:Float = beatTime * 0.8;
+            var tweenEase:Dynamic = FlxEase.cubeInOut;
+
+            if (num == 0) {
+                if (!usePixel) tweenParams = {alpha: 0, "scale.x": 1.4, "scale.y": 1.4};
+                tweenDuration = beatTime;
+                tweenEase = FlxEase.cubeOut;
+            }
+            
+            FlxTween.tween(sprite, tweenParams, tweenDuration, { ease: tweenEase, onComplete: function(t:FlxTween) { 
+                if (state != null) state.remove(sprite, true); 
+                sprite.destroy(); 
             }});
         }
 
-        if (artistTxt != null && artistTxt.visible) {
-            FlxTween.tween(artistTxt, {x: artistTargetX + (floatDist/2), alpha: 1}, 1.0, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
-                FlxTween.tween(artistTxt, {x: artistTargetX - (floatDist/2)}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
-                    FlxTween.tween(artistTxt, {x: -artistTxt.width - 200, alpha: 0}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
-                        if (artistTxt != null) { state.remove(artistTxt); artistTxt.destroy(); artistTxt = null; }
-                    }});
-                }});
-            }});
+        if (num > 0) {
+            currentTimer = new FlxTimer().start(beatTime, function(tmr:FlxTimer) { doCount(num - 1); });
+        } else {
+            if (FlxG.sound.music != null) FlxG.sound.music.play();
+            if (state.vocals != null) state.vocals.play();
+            isCounting = false;
         }
     }
 }

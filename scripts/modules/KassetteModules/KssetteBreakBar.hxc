@@ -35,9 +35,10 @@ class KssetteBreakBar extends Module {
         apiModule = ModuleHandler.getModule("KssetteApi");
         if (apiModule != null) {
             apiModule.registerModule("KssetteBreakBar", this);
-            cachedActive = apiModule.getKssValue("kssette_show_breakbar") == true;
-
-            cachedFont = Std.string(apiModule.getCustomFont());
+            try {
+                cachedActive = apiModule.getKssValue("kssette_show_breakbar") == true;
+                cachedFont = Std.string(apiModule.getCustomFont());
+            } catch(e:Dynamic) {}
             if (cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
         }
         
@@ -92,54 +93,28 @@ class KssetteBreakBar extends Module {
     
     override public function onUpdate(event) {
         super.onUpdate(event);
-        if (!cachedActive || apiModule == null || barFill == null || breakText == null) return;
-
-        var breakActive:Bool = false;
-        var breakProgress:Float = 0.0;
-        
         var state = PlayState.instance;
-        if (state != null && state.conductorInUse != null) {
-            var noteTimes:Array<Dynamic> = apiModule.playerNoteTimes;
-            
-            if (noteTimes != null && noteTimes.length > 0) {
-                var currentTime = state.conductorInUse.songPosition;
-                var noteIndex:Int = apiModule.currentNoteIndex;
+        
+        if (state == null || apiModule == null) return;
+        
+        var spritesReady = (barFill != null && breakText != null && borders != null);
 
-                while (noteIndex < noteTimes.length && noteTimes[noteIndex].start <= currentTime) {
-                    noteIndex++;
-                }
-                
-                apiModule.currentNoteIndex = noteIndex;
-
-                if (noteIndex < noteTimes.length) {
-                    var nextTime:Float = noteTimes[noteIndex].start;
-                    var prevTime:Float = 0;
-                    if (noteIndex > 0) prevTime = noteTimes[noteIndex - 1].end;
-                    
-                    var gap = nextTime - prevTime;
-                    if (gap >= 2500) {
-                        var timeSincePrev = currentTime - prevTime;
-                        var timeUntilNext = nextTime - currentTime;
-
-                        if (timeSincePrev > 400 && timeUntilNext > 400) {
-                            var totalVisibleTime = gap - 800; 
-                            var currentVisibleTime = timeSincePrev - 400;
-                            breakProgress = currentVisibleTime / totalVisibleTime;
-                            breakActive = true;
-                        }
-                    }
-                }
-            }
-        }
-
-        if (breakActive) {
-            alphaTarget = 1;
-            var prog = 1.0 - breakProgress; 
-            if (prog < 0) prog = 0;
-            if (prog > 1) prog = 1;
-            barFill.scale.x = prog;
-        } else {
+        if (!cachedActive || !spritesReady) {
             alphaTarget = 0;
+        } else {
+            var breakData:Dynamic = null;
+            try { breakData = apiModule.getBreakData(); } catch(e:Dynamic) {}
+
+            if (breakData != null && breakData.active) {
+                alphaTarget = 1;
+                
+                var prog = 1.0 - breakData.progress; 
+                if (prog < 0) prog = 0;
+                if (prog > 1) prog = 1;
+                barFill.scale.x = prog;
+            } else {
+                alphaTarget = 0;
+            }
         }
         
         if (currentAlpha == 0 && alphaTarget == 0) return;
@@ -147,13 +122,12 @@ class KssetteBreakBar extends Module {
         currentAlpha += (alphaTarget - currentAlpha) * (event.elapsed * 10);
         if (Math.abs(alphaTarget - currentAlpha) < 0.01) currentAlpha = alphaTarget;
         
-        var borderAlpha = currentAlpha * 0.6;
-        borders[0].alpha = borderAlpha;
-        borders[1].alpha = borderAlpha;
-        borders[2].alpha = borderAlpha;
-        borders[3].alpha = borderAlpha;
-        
-        barFill.alpha = currentAlpha * 0.4;
-        breakText.alpha = currentAlpha * 0.8;
+        if (spritesReady) {
+            for (b in borders) {
+                if (b != null) b.alpha = currentAlpha * 0.6;
+            }
+            barFill.alpha = currentAlpha * 0.4;
+            breakText.alpha = currentAlpha * 0.8;
+        }
     }
 }
