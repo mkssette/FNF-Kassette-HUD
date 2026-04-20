@@ -141,8 +141,8 @@ class KssetteAccuracy extends Module {
             uiUpdateTimer = 0.0;
             pendingTextUpdate = false;
             
-            cachedFont = Std.string(api.scriptCall("getCustomFont"));
-            if (cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
+            cachedFont = api.getHudFont();
+            if (cachedFont == null || cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
 
             securityTriggered = false;
             displayedAcc = 0;

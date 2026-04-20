@@ -73,8 +73,8 @@ class KssetteSubtitles extends Module {
         
         apiModule = ModuleHandler.getModule("KssetteApi");
         if (apiModule != null) {
-            cachedFont = Std.string(apiModule.getCustomFont());
-            if (cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
+            cachedFont = apiModule.getHudFont();
+            if (cachedFont == null || cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
             animType = Std.string(apiModule.getKssValue("kssette_subtitles_anim"));
             
             if (animType == "Karaoke") animType = "Fade"; 

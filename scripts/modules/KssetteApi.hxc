@@ -26,10 +26,11 @@ import funkin.mobile.input.ControlsHandler;
 import StringTools;
 import funkin.util.FileUtil;
 import funkin.modding.PolymodHandler;
+import funkin.data.notestyle.NoteStyleRegistry;
 
 class KssetteApi extends Module {
     final optionsID:String = "kassette-hud";
-    public var hudVersion:String = "0.1.7.b";
+    public var hudVersion:String = "0.1.7.b3";
     public var missesCount:Int = 0;
     public var isMobileMode:Bool = false;
     public var isCompromised:Bool = false;
@@ -71,6 +72,8 @@ class KssetteApi extends Module {
     public var cachedFontMap:Map<String, String> = null;
     public var cachedCustomFontPath:String = "";
     public var lastFontKey:String = "";
+    public var cachedCustomPixelFontPath:String = "";
+    public var lastPixelFontKey:String = "";
 
     var previewGroup:Array<Dynamic> = [];
     var pScore:FlxText;
@@ -98,6 +101,7 @@ class KssetteApi extends Module {
             "kssette_show_song_time", "kssette_judge_pos", "kssette_mobile_keyboard",
             "kssette_timebar_pos", "kssette_show_breakbar", "kssette_resume_countdown",
             "kssette_smooth_display", "kssette_hide_splashes", "kssette_custom_font",
+            "kssette_custom_pixel_font",
             "kssette_intro_text", "kssette_intro_font_title", "kssette_intro_font_artist",
             "kssette_subtitles_anim", "kssette_subtitles_pos", "kssette_smart_karaoke"
         ];
@@ -116,6 +120,7 @@ class KssetteApi extends Module {
                 if (opt == "kssette_timebar_pos") defaultVal = "Bottom";
                 if (opt == "kssette_hide_splashes") defaultVal = "Off";
                 if (opt == "kssette_custom_font") defaultVal = "vcr.ttf";
+                if (opt == "kssette_custom_pixel_font") defaultVal = "pixel.otf";
                 if (opt == "kssette_intro_text") defaultVal = "On";
                 if (opt == "kssette_intro_font_title") defaultVal = "vcr.ttf";
                 if (opt == "kssette_intro_font_artist") defaultVal = "vcr.ttf";
@@ -546,7 +551,10 @@ class KssetteApi extends Module {
     public function getAvailableFonts():Map<String, String> {
         if (cachedFontMap != null) return cachedFontMap;
         
-        var fonts:Map<String, String> = ["VCR (Default)" => "vcr.ttf"]; 
+        var fonts:Map<String, String> = [
+            "VCR (Default)" => "vcr.ttf",
+            "Senpai Pixel (Default)" => "pixel.otf"
+        ]; 
         var blacklist = ["vcr.ttf", "pixel.otf", "ds_digii.ttf", "ds_digib.ttf", "ds_digi.ttf", "nokiafc22.ttf", "arial.ttf", "5by7_b.ttf", "consolas.ttf", "quantico_bolditalic.ttf", "quantico_bold.ttf", "quantico_regular.ttf", "inconsolata_semibold.ttf", "inconsolata_bold.ttf", "inconsolata_medium.ttf", "vcr_italic.ttf", "inconsolata_extralight.ttf", "insolata_regular.ttf", "5by7.ttf", "quantico_italic.ttf", "monsterrat.ttf", "vcr_bold.ttf", "vcr_bolditalic.ttf", "incosolata_black.ttf"];
 
         try {
@@ -606,6 +614,7 @@ class KssetteApi extends Module {
 
     public function resolveCustomFont(fontKey:String):String {
         if (fontKey == "vcr.ttf" || fontKey == "VCR OSD Mono" || fontKey == "null" || fontKey == "") return "VCR OSD Mono";
+        if (fontKey == "pixel.otf" || fontKey == "Pixel Arial 11" || fontKey == "Senpai Pixel (Default)") return Paths.font("pixel.otf");
         
         var foundPath:String = ""; 
         try {
@@ -668,6 +677,89 @@ class KssetteApi extends Module {
         lastFontKey = fontKey;
         cachedCustomFontPath = resolved;
         return resolved;
+    }
+
+    public function getCustomPixelFont():String {
+        var fontKey:String = Std.string(getKssValue("kssette_custom_pixel_font"));
+        if (fontKey == lastPixelFontKey && cachedCustomPixelFontPath != "") return cachedCustomPixelFontPath;
+        var resolved = resolveCustomFont(fontKey);
+        lastPixelFontKey = fontKey;
+        cachedCustomPixelFontPath = resolved;
+        return resolved;
+    }
+
+    public function getHudFont():String 
+    {
+        var styleId:String = "funkin";
+        
+        if (PlayState.instance != null) {
+            try {
+                if (PlayState.instance.currentChart != null) {
+                    var pData = Reflect.getProperty(PlayState.instance.currentChart, "playData");
+                    if (pData != null) {
+                        var nStyle = Reflect.getProperty(pData, "noteStyle");
+                        if (nStyle != null) styleId = Std.string(nStyle);
+                    } else {
+                        var nStyle = Reflect.getProperty(PlayState.instance.currentChart, "noteStyle");
+                        if (nStyle != null) styleId = Std.string(nStyle);
+                    }
+                }
+            } catch(e:Dynamic) {
+            }
+        }
+
+        var currentStyleId:String = styleId;
+        var depth:Int = 0;
+        var maxDepth:Int = 5;
+        
+        while (currentStyleId != null && depth < maxDepth) {
+            try {
+                var styleEntry = NoteStyleRegistry.instance.fetchEntry(currentStyleId);
+                if (styleEntry == null) {
+                    break;
+                }
+                
+                var data = Reflect.getProperty(styleEntry, "_data");
+                if (data == null) data = Reflect.field(styleEntry, "_data");
+
+                if (data != null) {
+                    var assets = Reflect.getProperty(data, "assets");
+                    if (assets == null) assets = Reflect.field(data, "assets");
+
+                    if (assets != null) {
+                        var note = Reflect.getProperty(assets, "note");
+                        if (note == null) note = Reflect.field(assets, "note");
+
+                        if (note != null) {
+                            var isPixelVal:Dynamic = Reflect.getProperty(note, "isPixel");
+                            if (isPixelVal == null) isPixelVal = Reflect.field(note, "isPixel");
+                            
+                            if (isPixelVal == true || isPixelVal == "true") {
+                                return getCustomPixelFont();
+                            } else if (isPixelVal == false || isPixelVal == "false") {
+                                break;
+                            }
+                        }
+                    }
+                    
+                    var fallbackStyle = Reflect.getProperty(data, "fallback");
+                    if (fallbackStyle == null) fallbackStyle = Reflect.field(data, "fallback");
+
+                    if (fallbackStyle != null && Std.string(fallbackStyle) != "" && Std.string(fallbackStyle) != "null") {
+                        currentStyleId = Std.string(fallbackStyle);
+                    } else {
+                        currentStyleId = null;
+                    }
+                } else {
+                    currentStyleId = null;
+                }
+            } catch(e:Dynamic) {
+                break;
+            }
+            depth++;
+        }
+        
+        return getCustomFont();
     }
 
     override public function onUpdate(event:UpdateScriptEvent) {
@@ -799,6 +891,9 @@ class KssetteApi extends Module {
         var currFont = Std.string(Save.instance.modOptions.get("kssette_custom_font"));
         page.createPrefItemEnum("Font", "Choose a font from the 'fonts' folder of this mod, base game fonts or any font from another installed mod.", getAvailableFonts(), function(v) { updateAndSave("kssette_custom_font", v); }, currFont);
         
+        var currPixelFont = Std.string(Save.instance.modOptions.get("kssette_custom_pixel_font"));
+        page.createPrefItemEnum("Pixel Font", "Choose the font specifically for pixel stages.", getAvailableFonts(), function(v) { updateAndSave("kssette_custom_pixel_font", v); }, currPixelFont);
+
         createSeparator("-- Performance --");
         page.createPrefItemEnum("Smooth Display", "Makes the score and accuracy numbers scroll smoothly.", onOffMap, function(v) { updateAndSave("kssette_smooth_display", v); }, Save.instance.modOptions.get("kssette_smooth_display"));
         page.createPrefItemEnum("Hide Splashes", "Removes the particles when hitting 'Sick!'. Helps with lag.", onOffMap, function(v) { updateAndSave("kssette_hide_splashes", v); }, Save.instance.modOptions.get("kssette_hide_splashes"));
@@ -913,7 +1008,7 @@ class KssetteApi extends Module {
         var downscroll = Preferences.downscroll;
         if (isMobileMode && !isMobileLikePC()) downscroll = true;
         
-        var font = getCustomFont();
+        var font = getHudFont();
 
         if (pScore != null) {
             pScore.setFormat(font, 18, FlxColor.WHITE, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);

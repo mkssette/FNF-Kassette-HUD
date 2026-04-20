@@ -40,8 +40,8 @@ class KssetteBreakBar extends Module {
             apiModule.registerModule("KssetteBreakBar", this);
             cachedActive = apiModule.getKssValue("kssette_show_breakbar") == true;
 
-            cachedFont = Std.string(apiModule.getCustomFont());
-            if (cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
+            cachedFont = apiModule.getHudFont();
+            if (cachedFont == null || cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
             
             cachedNoteTimes = apiModule.playerNoteTimes;
         }
