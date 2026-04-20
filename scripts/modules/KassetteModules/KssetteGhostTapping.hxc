@@ -3,15 +3,11 @@ package kassettehud.util;
 import funkin.modding.module.Module;
 import funkin.modding.module.ModuleHandler;
 import funkin.play.PlayState;
-import flixel.FlxG;
-import Reflect;
 import Std;
 
 class KssGhostTapping extends Module {
-    var cachedGhostTapping:Bool = false;
-    var cachedGhostSing:Bool = false;
-    var hasGhostTimer:Bool = false;
-    var gtTimer:Float = 0.0;
+    var _cGhostTapping:Bool = false;
+    var _cGhostSing:Bool = false;
 
     public function new() {
         super('KssGhostTapping', 1); 
@@ -23,76 +19,36 @@ class KssGhostTapping extends Module {
         var api = ModuleHandler.getModule("KssetteApi");
         if (api != null) {
             try {
-                cachedGhostTapping = api.getKssValue("kssette_ghost_tapping") == true;
-                cachedGhostSing = api.getKssValue("kssette_ghost_sing") == true;
+                _cGhostTapping = api.getKssValue("kssette_ghost_tapping") == true;
+                _cGhostSing = api.getKssValue("kssette_ghost_sing") == true;
             } catch(e:Dynamic) {
-                cachedGhostTapping = false;
-                cachedGhostSing = false;
-            }
-        }
-        
-        var state = PlayState.instance;
-        if (state != null && state.playerStrumline != null) {
-            try {
-                Reflect.setProperty(state.playerStrumline, "ghostTapTimer", 1000);
-                hasGhostTimer = true;
-            } catch(e:Dynamic) {
-                hasGhostTimer = false;
-            }
-        }
-        gtTimer = 0.0;
-    }
-
-    override public function onUpdate(event) {
-        super.onUpdate(event);
-        
-        if (hasGhostTimer && cachedGhostTapping) {
-            gtTimer += event.elapsed;
-            if (gtTimer >= 0.5) {
-                gtTimer = 0.0;
-                var state = PlayState.instance;
-                if (state != null && state.playerStrumline != null) {
-                    try {
-                        Reflect.setProperty(state.playerStrumline, "ghostTapTimer", 1000);
-                    } catch(e:Dynamic) {}
-                }
+                _cGhostTapping = false;
+                _cGhostSing = false;
             }
         }
     }
 
     override function onNoteGhostMiss(event) {
-        if (!cachedGhostTapping) return;
+        if (!_cGhostTapping) return;
 
         event.cancel();
 
-        if (cachedGhostSing) {
+        if (_cGhostSing) {
             var state = PlayState.instance;
-            if (state != null && !state.isPlayerDying) {
-                var player = (state.currentStage != null) ? state.currentStage.getBoyfriend() : null;
+            if (state != null && !state.isPlayerDying && state.currentStage != null) {
+                var player = state.currentStage.getBoyfriend();
                 if (player != null) {
-                    var dir:Int = -1;
+                    var targetDir:Int = -1;
                     
-                    try {
-                        if (Reflect.hasField(event, "noteData")) dir = Reflect.field(event, "noteData");
-                        else if (Reflect.hasField(event, "direction")) dir = Reflect.field(event, "direction");
-                        else if (Reflect.hasField(event, "dir")) dir = Reflect.field(event, "dir");
-                    } catch(e:Dynamic) {}
+                    try { targetDir = event.dir; } catch(e:Dynamic) {}
+                    if (targetDir == -1) try { targetDir = event.direction; } catch(e:Dynamic) {}
+                    if (targetDir == -1) try { targetDir = event.noteData; } catch(e:Dynamic) {}
 
-                    if (dir == -1) {
-                        var controls = FlxG.state.controls;
-                        dir = controls.NOTE_LEFT_P ? 0 : (controls.NOTE_DOWN_P ? 1 : (controls.NOTE_UP_P ? 2 : (controls.NOTE_RIGHT_P ? 3 : -1)));
-                    }
-                    
-                    if (dir != -1 && dir <= 3) {
-                        var animations = ["singLEFT", "singDOWN", "singUP", "singRIGHT"];
+                    if (targetDir != -1 && targetDir <= 3) {
                         try {
-                            player.playAnimation(animations[dir], true, false, false);
-                        } catch(e:Dynamic) {
-                            try {
-                                player.playAnimation(animations[dir], true, false);
-                            } catch(e2:Dynamic) {}
-                        }
-                        player.holdTimer = 0;
+                            player.playSingAnimation(targetDir, false);
+                            player.holdTimer = 0;
+                        } catch(e:Dynamic) {}
                     }
                 }
             }

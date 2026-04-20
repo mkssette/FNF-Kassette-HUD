@@ -20,6 +20,7 @@ import funkin.mobile.input.ControlsHandler;
 
 class KssetteAccuracy extends Module {
     var separator:String = " / ";
+    
     public var uiText:FlxText;
     public var infoText:FlxText; 
     public var timeText:FlxText; 
@@ -32,9 +33,8 @@ class KssetteAccuracy extends Module {
     var lastMisses:Int = -1;
     var lastMaxCombo:Int = -1;
     var lastNotesHit:Int = -1;
-    var lastVisualAcc:Float = -1;
-    var lastTimeString:String = "";
     var lastTimeSeconds:Int = -1;
+    var lastVisualAcc:Float = -1;
     
     var lastSick:Int = -1;
     var lastGood:Int = -1;
@@ -42,22 +42,22 @@ class KssetteAccuracy extends Module {
     var lastShit:Int = -1;
     var lastMissesJudge:Int = -1;
     var lastMaxComboJudge:Int = -1;
-    var cachedScoreStr:String = "0";
 
-    var cachedPrefix:String = "";
-    var cachedSuffix:String = "";
-    var targetAcc:Float = 0.0;
-    var prefixNeedsSepForAcc:Bool = false;
-    
     var securityTriggered:Bool = false; 
-    var displayedAcc:Float = 0;
     var cachedTotalNotes:Int = -1;
-    
+    var cachedActualTotal:Int = -1;
+    var displayedAcc:Float = 0;
     var uiUpdateTimer:Float = 0.0;
+    var pendingTextUpdate:Bool = false;
+    
     public var cachedFont:String = "";
 
     var currentTargetFmt:FlxTextFormat = null;
     var cachedRankLen:Int = 0;
+    var cachedPrefix:String = "";
+    var cachedSuffix:String = "";
+    var prefixNeedsSepForAcc:Bool = false;
+    var targetAcc:Float = 0.0;
 
     var _fmtPerfectGold:FlxTextFormat;
     var _fmtPerfect:FlxTextFormat;
@@ -75,15 +75,17 @@ class KssetteAccuracy extends Module {
     var _cShowTier:Bool = true;
     var _cAccMode:String = "Classic";
     var _cJudgePos:String = "Off";
-    var _cSmooth:Bool = false;
     var _cShowTime:Bool = true;
     var _cShowTitle:Bool = true;
     var _cShowDiff:Bool = true;
+    var _cSmooth:Bool = false;
+    var _cIsBotplay:Bool = false;
+    var _cJudgesVisible:Bool = false;
 
     var cachedRankStr:String = "?";
     var cachedTierStr:String = "N/A";
     var cachedModeMsg:String = "";
-    
+
     public function new() {
         super("KssetteAccuracy"); 
     }
@@ -114,124 +116,131 @@ class KssetteAccuracy extends Module {
     }
 
     override function onCountdownStart(event) {
-        api = ModuleHandler.getModule("KssetteApi");
-        if (api == null) return;
-        var state = PlayState.instance;
-        if (state == null) return;
-        
-        api.registerModule("KssetteAccuracy", this);
-        cachedTotalNotes = api.getNoteCount();
-        
-        cachedRankStr = "?";
-        lastVisualAcc = -1;
-        cachedTierStr = "N/A";
-        lastTimeString = "";
-        lastTimeSeconds = -1;
-        
-        lastSick = -1;
-        lastGood = -1;
-        lastBad = -1;
-        lastShit = -1;
-        lastMissesJudge = -1;
-        lastMaxComboJudge = -1;
-        cachedScoreStr = "0";
-        prefixNeedsSepForAcc = false;
-        uiUpdateTimer = 0.0;
-        
-        cachedFont = Std.string(api.scriptCall("getCustomFont"));
-
-        if (cachedFont == "null" || cachedFont == "") {
-            cachedFont = "VCR OSD Mono";
-        }
-
-        securityTriggered = false;
-        displayedAcc = 0;
-        if (uiText != null) uiText.destroy();
-        if (infoText != null) infoText.destroy();
-        if (timeText != null) timeText.destroy();
-        if (modeText != null) modeText.destroy();
-        for (t in judgeLabels) t.destroy();
-        for (t in judgeValues) t.destroy();
-        judgeLabels = []; judgeValues = [];
-        if (state.scoreText != null) state.scoreText.visible = false;
-
-        uiText = new FlxText(0, state.healthBarBG.y + 36, 0, "", 18);
-        uiText.setFormat(cachedFont, 18, FlxColor.WHITE, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
-        uiText.updateHitbox();
-        uiText.zIndex = 1000; 
-        if (state.camHUD != null) uiText.cameras = [state.camHUD];
-        state.add(uiText);
-
-        var infoPos:String = Std.string(api.getKssValue("kssette_info_pos"));
-        var timeBarPos:String = Std.string(api.getKssValue("kssette_timebar_pos"));
-        var showTimeBar:Bool = api.getKssValue("kssette_show_timebar") == true;
-
-        var safeX:Float = FlxG.onMobile ? 85 : 18;
-        var tX:Float = 0; var tY:Float = 0; var tW:Float = FlxG.width; var tA:String = "center";
-        var iX:Float = 0; var iY:Float = 0; var iW:Float = FlxG.width; var iA:String = "center";
-        
-        var forceDownscrollLook:Bool = false;
-        if (FlxG.onMobile && !api.isMobileLikePC()) forceDownscrollLook = true;
-
-        if (infoPos == "Bottom Left") {
-            var yOffset:Float = 0;
-            if (showTimeBar == true && timeBarPos == "Bottom Left") {
-                yOffset = 25;
-            }
-            tX = safeX; tY = FlxG.height - 85 - yOffset; tA = "left";
-            iX = safeX; iY = FlxG.height - 50 - yOffset; iA = "left";
-        } else {
-            if (!Preferences.downscroll && !forceDownscrollLook) {
-                tY = 15; iY = 24; tX = 0; tW = (FlxG.width / 2) - 10; tA = "right";
-                iX = (FlxG.width / 2) + 10; iW = (FlxG.width / 2) - 10; iA = "left";
-            } else {
-                tY = uiText.y + 24; 
-                iY = tY + 32;
-            }
-        }
-        
-        timeText = new FlxText(tX, tY, tW, "", 28);
-        timeText.setFormat(cachedFont, 28, FlxColor.WHITE, tA, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
-        timeText.zIndex = 1000; 
-        if (state.camHUD != null) timeText.cameras = [state.camHUD];
-        state.add(timeText);
-        
-        infoText = new FlxText(iX, iY, iW, "", 16);
-        infoText.setFormat(cachedFont, 16, FlxColor.WHITE, iA, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
-        infoText.zIndex = 1000; 
-        if (state.camHUD != null) infoText.cameras = [state.camHUD];
-        state.add(infoText);
-        
-        modeText = new FlxText(FlxG.width, 200, 0, "", 24);
-        modeText.setFormat(cachedFont, 24, FlxColor.WHITE, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
-        modeText.zIndex = 1000;
-        if (state.camHUD != null) modeText.cameras = [state.camHUD];
-        state.add(modeText);
-
-        var jPos:String = Std.string(api.getKssValue("kssette_judge_pos"));
-        if (jPos != "Off" && jPos != "false") {
-            var jMargin:Float = FlxG.onMobile ? 85 : 6;
-            var tw = 200; var sy = 22; var sx = jMargin; var sY = (FlxG.height - judgeNames.length * sy) * 0.5;
-            if (jPos == "Right") sx = FlxG.width - tw - jMargin;
-            if (jPos == "Top Left") sY = 100;
-            if (jPos == "Top Right") { sx = FlxG.width - tw - jMargin; sY = 100; }
+        try {
+            api = ModuleHandler.getModule("KssetteApi");
+            if (api == null) return;
+            var state = PlayState.instance;
+            if (state == null) return;
             
-            for (i in 0...judgeNames.length) {
-                var label = new FlxText(sx, sY + (i * sy), tw, getJudgeName(judgeNames[i]), 20);
-                label.setFormat(cachedFont, 20, FlxColor.WHITE, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
-                label.zIndex = 1000; label.cameras = [state.camHUD];
-                state.add(label); judgeLabels.push(label);
-                
-                var val = new FlxText(sx, label.y, tw, "0", 20);
-                val.setFormat(cachedFont, 20, FlxColor.WHITE, "right", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
-                val.zIndex = 1000; val.cameras = [state.camHUD];
-                state.add(val); judgeValues.push(val);
+            api.registerModule("KssetteAccuracy", this);
+            cachedTotalNotes = api.getNoteCount();
+            cachedActualTotal = -1;
+            
+            cachedRankStr = "?";
+            cachedTierStr = "N/A";
+            lastTimeSeconds = -1;
+            lastVisualAcc = -1;
+            
+            lastSick = -1;
+            lastGood = -1;
+            lastBad = -1;
+            lastShit = -1;
+            lastMissesJudge = -1;
+            lastMaxComboJudge = -1;
+            
+            uiUpdateTimer = 0.0;
+            pendingTextUpdate = false;
+            
+            cachedFont = Std.string(api.scriptCall("getCustomFont"));
+            if (cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
+
+            securityTriggered = false;
+            displayedAcc = 0;
+            
+            if (uiText != null) uiText.destroy();
+            if (infoText != null) infoText.destroy();
+            if (timeText != null) timeText.destroy();
+            if (modeText != null) modeText.destroy();
+            for (t in judgeLabels) {
+                if (t != null) t.destroy();
             }
-        }
-        
-        lastScore = -1; lastMisses = -1; lastMaxCombo = -1; lastNotesHit = -1;
-        updateSettings();
-        state.refresh();
+            for (t in judgeValues) {
+                if (t != null) t.destroy();
+            }
+            judgeLabels = []; 
+            judgeValues = [];
+            
+            if (state.scoreText != null) state.scoreText.visible = false;
+
+            var hudY = state.healthBarBG.y + 36;
+
+            uiText = new FlxText(0, hudY, 0, "", 18);
+            uiText.setFormat(cachedFont, 18, FlxColor.WHITE, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+            uiText.updateHitbox();
+            uiText.zIndex = 1000; 
+            if (state.camHUD != null) uiText.cameras = [state.camHUD];
+            state.add(uiText);
+
+            var infoPos:String = Std.string(api.getKssValue("kssette_info_pos"));
+            var timeBarPos:String = Std.string(api.getKssValue("kssette_timebar_pos"));
+            var showTimeBar:Bool = api.getKssValue("kssette_show_timebar") == true;
+
+            var safeX:Float = FlxG.onMobile ? 85 : 18;
+            var tX:Float = 0; var tY:Float = 0; var tW:Float = FlxG.width; var tA:String = "center";
+            var iX:Float = 0; var iY:Float = 0; var iW:Float = FlxG.width; var iA:String = "center";
+            
+            var forceDownscrollLook:Bool = false;
+            if (FlxG.onMobile && !api.isMobileLikePC()) forceDownscrollLook = true;
+
+            if (infoPos == "Bottom Left") {
+                var yOffset:Float = 0;
+                if (showTimeBar == true && timeBarPos == "Bottom Left") {
+                    yOffset = 25;
+                }
+                tX = safeX; tY = FlxG.height - 85 - yOffset; tA = "left";
+                iX = safeX; iY = FlxG.height - 50 - yOffset; iA = "left";
+            } else {
+                if (!Preferences.downscroll && !forceDownscrollLook) {
+                    tY = 15; iY = 24; tX = 0; tW = (FlxG.width / 2) - 10; tA = "right";
+                    iX = (FlxG.width / 2) + 10; iW = (FlxG.width / 2) - 10; iA = "left";
+                } else {
+                    tY = uiText.y + 24; 
+                    iY = tY + 32;
+                }
+            }
+            
+            timeText = new FlxText(tX, tY, tW, "", 28);
+            timeText.setFormat(cachedFont, 28, FlxColor.WHITE, tA, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+            timeText.zIndex = 1000; 
+            if (state.camHUD != null) timeText.cameras = [state.camHUD];
+            state.add(timeText);
+            
+            infoText = new FlxText(iX, iY, iW, "", 16);
+            infoText.setFormat(cachedFont, 16, FlxColor.WHITE, iA, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+            infoText.zIndex = 1000; 
+            if (state.camHUD != null) infoText.cameras = [state.camHUD];
+            state.add(infoText);
+            
+            modeText = new FlxText(FlxG.width, 200, 0, "", 24);
+            modeText.setFormat(cachedFont, 24, FlxColor.WHITE, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+            modeText.zIndex = 1000;
+            if (state.camHUD != null) modeText.cameras = [state.camHUD];
+            state.add(modeText);
+
+            var jPos:String = Std.string(api.getKssValue("kssette_judge_pos"));
+            if (jPos != "Off" && jPos != "false") {
+                var jMargin:Float = FlxG.onMobile ? 85 : 6;
+                var tw = 200; var sy = 22; var sx = jMargin; var sY = (FlxG.height - judgeNames.length * sy) * 0.5;
+                if (jPos == "Right") sx = FlxG.width - tw - jMargin;
+                if (jPos == "Top Left") sY = 100;
+                if (jPos == "Top Right") { sx = FlxG.width - tw - jMargin; sY = 100; }
+                
+                for (i in 0...judgeNames.length) {
+                    var label = new FlxText(sx, sY + (i * sy), tw, getJudgeName(judgeNames[i]), 20);
+                    label.setFormat(cachedFont, 20, FlxColor.WHITE, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+                    label.zIndex = 1000; label.cameras = [state.camHUD];
+                    state.add(label); judgeLabels.push(label);
+                    
+                    var val = new FlxText(sx, label.y, tw, "0", 20);
+                    val.setFormat(cachedFont, 20, FlxColor.WHITE, "right", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+                    val.zIndex = 1000; val.cameras = [state.camHUD];
+                    state.add(val); judgeValues.push(val);
+                }
+            }
+            
+            lastScore = -1; lastMisses = -1; lastMaxCombo = -1; lastNotesHit = -1;
+            updateSettings();
+        } catch(e:Dynamic) {}
     }
 
     override public function onResume(event) {
@@ -239,123 +248,135 @@ class KssetteAccuracy extends Module {
     }
 
     function updateSettings() {
-        if (api == null) return;
-        _cShowHUD = api.getKssValue("kssette_show_hud") == true;
-        _cShowScore = api.getKssValue("kssette_show_score") == true;
-        _cShowMisses = api.getKssValue("kssette_show_misses") == true;
-        _cShowRank = api.getKssValue("kssette_show_rank") == true;
-        _cShowTier = api.getKssValue("kssette_show_tier") == true;
-        _cAccMode = Std.string(api.getKssValue("kssette_acc_mode"));
-        _cJudgePos = Std.string(api.getKssValue("kssette_judge_pos"));
-        _cSmooth = api.getKssValue("kssette_smooth_display") == true;
-        _cShowTime = api.getKssValue("kssette_show_song_time") == true;
-        _cShowTitle = api.getKssValue("kssette_show_song_title") == true;
-        _cShowDiff = api.getKssValue("kssette_show_song_diff") == true;
-        cachedModeMsg = Std.string(api.getModeMessage());
+        try {
+            if (api == null) return;
+            _cShowHUD = api.getKssValue("kssette_show_hud") == true;
+            _cShowScore = api.getKssValue("kssette_show_score") == true;
+            _cShowMisses = api.getKssValue("kssette_show_misses") == true;
+            _cShowRank = api.getKssValue("kssette_show_rank") == true;
+            _cShowTier = api.getKssValue("kssette_show_tier") == true;
+            _cAccMode = Std.string(api.getKssValue("kssette_acc_mode"));
+            _cJudgePos = Std.string(api.getKssValue("kssette_judge_pos"));
+            _cSmooth = api.getKssValue("kssette_smooth_display") == true;
+            _cShowTime = api.getKssValue("kssette_show_song_time") == true;
+            _cShowTitle = api.getKssValue("kssette_show_song_title") == true;
+            _cShowDiff = api.getKssValue("kssette_show_song_diff") == true;
+            
+            cachedModeMsg = Std.string(api.getModeMessage());
+            
+            _cIsBotplay = (cachedModeMsg != null && cachedModeMsg.indexOf("Botplay") != -1);
+            _cJudgesVisible = (_cJudgePos != "Off" && _cJudgePos != "false");
 
-        if (infoText != null && infoText.exists) {
-            infoText.visible = (_cShowHUD && (_cShowTitle || _cShowDiff));
-            if (infoText.visible) {
-                var infoTextStr:String = "";
-                if (_cShowTitle) infoTextStr += Std.string(api.getSongTitle());
-                if (_cShowDiff) {
-                    if (infoTextStr != "") infoTextStr += " - ";
-                    infoTextStr += Std.string(api.getDifficulty());
+            if (infoText != null && infoText.exists) {
+                infoText.visible = (_cShowHUD && (_cShowTitle || _cShowDiff));
+                if (infoText.visible) {
+                    var infoTextStr:String = "";
+                    if (_cShowTitle) infoTextStr += Std.string(api.getSongTitle());
+                    if (_cShowDiff) {
+                        if (infoTextStr != "") infoTextStr += " - ";
+                        infoTextStr += Std.string(api.getDifficulty());
+                    }
+                    infoText.text = infoTextStr;
                 }
-                infoText.text = infoTextStr;
             }
-        }
 
-        var judgesVisible:Bool = (_cShowHUD && _cJudgePos != "Off" && _cJudgePos != "false");
-        for (i in 0...judgeLabels.length) {
-            if (judgeLabels[i] != null) judgeLabels[i].visible = judgesVisible;
-            if (judgeValues[i] != null) judgeValues[i].visible = judgesVisible;
-        }
+            for (i in 0...judgeLabels.length) {
+                if (judgeLabels[i] != null) judgeLabels[i].visible = (_cShowHUD && _cJudgesVisible);
+                if (judgeValues[i] != null) judgeValues[i].visible = (_cShowHUD && _cJudgesVisible);
+            }
+
+            if (uiText != null) uiText.visible = _cShowHUD;
+        } catch(e:Dynamic) {}
     }
 
     override function onNoteHit(event) {
         super.onNoteHit(event);
-        if (securityTriggered) {
-            event.cancel();
-            if (PlayState.instance != null) PlayState.instance.noteMiss(event.note);
-        }
+        try {
+            if (securityTriggered) {
+                event.cancel();
+                if (PlayState.instance != null) PlayState.instance.noteMiss(event.note);
+            }
+        } catch(e:Dynamic) {}
     }
 
     override public function onUpdate(event) {
         super.onUpdate(event);
-        var state = PlayState.instance;
-        if (state == null || api == null) return;
-        
-        var showHUD:Bool = _cShowHUD;
-        
-        if (timeText != null && timeText.exists) {
-            var showT:Bool = showHUD && _cShowTime;
-            timeText.visible = showT;
-            if (showT && state.conductorInUse != null) {
-                var remainingSeconds:Int = Math.floor((state.currentSongLengthMs - state.conductorInUse.songPosition) / 1000);
-                if (remainingSeconds < 0) remainingSeconds = 0;
-                
-                if (remainingSeconds != lastTimeSeconds) {
-                    lastTimeSeconds = remainingSeconds;
-                    timeText.text = "[" + FlxStringUtil.formatTime(remainingSeconds, false) + "]";
-                }
-            }
-        }
-
-        var msg:String = cachedModeMsg;
-        if (modeText != null && modeText.exists) {
-            if (msg != "" && msg != "null") {
-                if (modeText.text != msg) modeText.text = msg;
-                if (!modeText.visible) modeText.visible = true;
-                if (modeText.alpha != 1) modeText.alpha = 1;
-                
-                modeText.x -= 200 * event.elapsed;
-                if (modeText.x + modeText.width < 0) modeText.x = FlxG.width;
-            } else {
-                if (modeText.visible) modeText.visible = false; 
-            }
-        }
-
-        if (msg.indexOf("Botplay") != -1) {
-            if (!state.startingSong && !state.isEndingSong && uiText != null && uiText.exists) {
-                if (modeText == null || !modeText.exists || !modeText.visible || modeText.alpha <= 0 || modeText.text != msg) {
-                    securityTriggered = true;
-                }
-            }
-        }
-
-        if (securityTriggered) {
-            if (state.playerStrumline != null) {
-                state.playerStrumline.visible = false;
-                var targets = state.playerStrumline.getNotesMayHit();
-                for (note in targets) {
-                    if (note != null && note.alive && !note.hasBeenHit) {
-                        note.hasBeenHit = true;
-                        state.noteMiss(note);
+        try {
+            var state = PlayState.instance;
+            if (state == null || api == null) return;
+            
+            if (timeText != null && timeText.exists) {
+                var showT:Bool = _cShowHUD && _cShowTime;
+                timeText.visible = showT;
+                if (showT && state.conductorInUse != null) {
+                    var remainingSeconds:Int = Math.floor((state.currentSongLengthMs - state.conductorInUse.songPosition) / 1000);
+                    if (remainingSeconds < 0) remainingSeconds = 0;
+                    
+                    if (remainingSeconds != lastTimeSeconds) {
+                        lastTimeSeconds = remainingSeconds;
+                        timeText.text = "[" + FlxStringUtil.formatTime(remainingSeconds, false) + "]";
                     }
                 }
             }
-            if (state.health > 0) state.health -= 0.005;
-        }
 
-        if (uiText == null || !uiText.exists) return;
-        uiText.visible = showHUD;
+            if (modeText != null && modeText.exists) {
+                if (cachedModeMsg != "" && cachedModeMsg != "null") {
+                    if (modeText.text != cachedModeMsg) modeText.text = cachedModeMsg;
+                    if (!modeText.visible) modeText.visible = true;
+                    if (modeText.alpha != 1) modeText.alpha = 1;
+                    
+                    modeText.x -= 200 * event.elapsed;
+                    if (modeText.x + modeText.width < 0) modeText.x = FlxG.width;
+                } else {
+                    if (modeText.visible) modeText.visible = false; 
+                }
+            }
 
-        if (showHUD) {
-            var m:Int = (Highscore.tallies != null) ? Highscore.tallies.missed : 0;
-            var h:Int = (Highscore.tallies != null) ? Highscore.tallies.totalNotesHit : 0;
-            var c:Int = (Highscore.tallies != null) ? Highscore.tallies.maxCombo : 0;
+            if (_cIsBotplay) {
+                if (!state.startingSong && !state.isEndingSong && uiText != null && uiText.exists) {
+                    if (modeText == null || !modeText.exists || !modeText.visible || modeText.alpha <= 0 || modeText.text != cachedModeMsg) {
+                        securityTriggered = true;
+                    }
+                }
+            }
+
+            if (securityTriggered) {
+                if (state.playerStrumline != null) {
+                    state.playerStrumline.visible = false;
+                    var targets = state.playerStrumline.getNotesMayHit();
+                    if (targets != null) {
+                        for (note in targets) {
+                            if (note != null && note.alive && !note.hasBeenHit) {
+                                note.hasBeenHit = true;
+                                state.noteMiss(note);
+                            }
+                        }
+                    }
+                }
+                if (state.health > 0) state.health -= 0.005;
+            }
+
+            if (uiText == null || !uiText.exists || !_cShowHUD) return;
+
+            var t = Highscore.tallies;
+            var m:Int = (t != null) ? t.missed : 0;
+            var h:Int = (t != null) ? t.totalNotesHit : 0;
+            var c:Int = (t != null) ? t.maxCombo : 0;
             var currentScoreInt:Int = Math.floor(state.songScore);
 
             var majorChange:Bool = (m != lastMisses || h != lastNotesHit || c != lastMaxCombo);
             var minorChange:Bool = (currentScoreInt != lastScore);
 
-            if (majorChange) {
-                var judgePos:String = _cJudgePos;
-                var judgesVisible:Bool = (judgePos != "Off" && judgePos != "false");
+            if (cachedActualTotal == -1 && t != null) {
+                try {
+                    var tn:Dynamic = Reflect.getProperty(t, "totalNotes");
+                    if (tn != null && tn > 0) cachedActualTotal = Std.int(tn);
+                } catch(e:Dynamic) {}
+                if (cachedActualTotal <= 0) cachedActualTotal = cachedTotalNotes;
+            }
 
-                if (judgesVisible && Highscore.tallies != null) {
-                    var t = Highscore.tallies;
+            if (majorChange) {
+                if (_cJudgesVisible && t != null) {
                     if (t.sick != lastSick) { judgeValues[0].text = Std.string(t.sick); lastSick = t.sick; }
                     if (t.good != lastGood) { judgeValues[1].text = Std.string(t.good); lastGood = t.good; }
                     if (t.bad != lastBad) { judgeValues[2].text = Std.string(t.bad); lastBad = t.bad; }
@@ -371,104 +392,115 @@ class KssetteAccuracy extends Module {
                 if (_cShowRank) cachedRankStr = api.getRankID(state);
                 if (_cShowTier) cachedTierStr = api.getComboTier(state);
 
+                targetAcc = 0.0;
                 if (_cAccMode == "Ascending") {
-                    var t = Highscore.tallies;
                     if (t != null) {
                         var totalHits:Int = t.totalNotesHit + t.missed;
-                        var realAcc:Float = 0.0;
                         if (totalHits > 0) {
-                            realAcc = ((t.sick + t.good - t.missed) / totalHits) * 100;
-                            realAcc = Math.floor(Math.max(0, realAcc) * 100) / 100;
-                        }
+                            var rawAcc:Float = ((t.sick + t.good - t.missed) / totalHits) * 100;
+                            var realAcc:Float = Math.floor(Math.max(0, rawAcc) * 100) / 100;
 
-                        var processed:Int = t.sick + t.good + t.bad + t.shit + t.missed;
-                        var totalPlayerNotes:Int = cachedTotalNotes;
-                        
-                        if (Reflect.hasField(t, "totalNotes")) {
-                            var tn:Dynamic = Reflect.getProperty(t, "totalNotes");
-                            if (tn != null && tn > 0) totalPlayerNotes = Std.int(tn);
-                        }
+                            var processed:Int = t.sick + t.good + t.bad + t.shit + t.missed;
+                            var totalPlayerNotes:Int = cachedActualTotal;
+                            
+                            if (processed > totalPlayerNotes) totalPlayerNotes = processed;
 
-                        if (processed > totalPlayerNotes) totalPlayerNotes = processed;
-
-                        var noteProgress:Float = (totalPlayerNotes > 0) ? (processed / totalPlayerNotes) : 1.0;
-                        if (noteProgress > 1.0) noteProgress = 1.0;
-                        
-                        var songProgress:Float = 0.0;
-                        if (state.currentSongLengthMs > 0 && state.conductorInUse != null) {
-                            songProgress = state.conductorInUse.songPosition / state.currentSongLengthMs;
+                            var noteProgress:Float = (totalPlayerNotes > 0) ? (processed / totalPlayerNotes) : 1.0;
+                            if (noteProgress > 1.0) noteProgress = 1.0;
+                            
+                            var songProgress:Float = 0.0;
+                            if (state.currentSongLengthMs > 0 && state.conductorInUse != null) {
+                                songProgress = state.conductorInUse.songPosition / state.currentSongLengthMs;
+                            }
+                            if (Math.isNaN(songProgress) || songProgress < 0) songProgress = 0;
+                            if (songProgress >= 0.995) noteProgress = 1.0;
+                            
+                            targetAcc = realAcc * noteProgress;
                         }
-                        if (Math.isNaN(songProgress) || songProgress < 0) songProgress = 0;
-                        if (songProgress >= 0.995) noteProgress = 1.0;
-                        
-                        targetAcc = realAcc * noteProgress;
                     }
                 } else if (_cAccMode == "Classic") {
-                    var t = Highscore.tallies;
                     if (t != null) {
                         var totalHits:Int = t.totalNotesHit + t.missed;
                         if (totalHits > 0) {
                             var raw:Float = ((t.sick + t.good - t.missed) / totalHits) * 100;
                             targetAcc = Math.floor(Math.max(0, raw) * 100) / 100;
-                        } else {
-                            targetAcc = 0.0;
                         }
                     }
                 }
+
+                if (!_cSmooth) displayedAcc = targetAcc;
             }
 
             if (_cAccMode != "Off" && _cAccMode != "null" && _cAccMode != "false") {
                 if (_cSmooth) {
-                    displayedAcc += (targetAcc - displayedAcc) * (event.elapsed * 8);
-                    if (Math.abs(targetAcc - displayedAcc) < 0.001) displayedAcc = targetAcc;
-                } else {
-                    displayedAcc = targetAcc;
+                    var tAcc = displayedAcc;
+                    if (majorChange) {
+                        tAcc = targetAcc; 
+                    } else if (_cAccMode == "Ascending" && t != null) {
+                        var totalHits:Int = t.totalNotesHit + t.missed;
+                        if (totalHits > 0) {
+                            var rawAcc:Float = ((t.sick + t.good - t.missed) / totalHits) * 100;
+                            var realAcc:Float = Math.floor(Math.max(0, rawAcc) * 100) / 100;
+                            
+                            var processed:Int = t.sick + t.good + t.bad + t.shit + t.missed;
+                            var totalPlayerNotes:Int = cachedActualTotal;
+                            
+                            if (processed > totalPlayerNotes) totalPlayerNotes = processed;
+                            var noteProgress:Float = (totalPlayerNotes > 0) ? (processed / totalPlayerNotes) : 1.0;
+                            if (noteProgress > 1.0) noteProgress = 1.0;
+                            
+                            var songProgress:Float = 0.0;
+                            if (state.currentSongLengthMs > 0 && state.conductorInUse != null) {
+                                songProgress = state.conductorInUse.songPosition / state.currentSongLengthMs;
+                            }
+                            if (songProgress >= 0.995) noteProgress = 1.0;
+                            tAcc = realAcc * noteProgress;
+                        }
+                    } else if (_cAccMode == "Classic") {
+                        tAcc = targetAcc;
+                    }
+                    
+                    displayedAcc += (tAcc - displayedAcc) * (event.elapsed * 8);
+                    if (Math.abs(tAcc - displayedAcc) < 0.001) displayedAcc = tAcc;
                 }
             }
 
             var visualAcc:Float = Math.floor(displayedAcc * 100) / 100;
             var accTextChanged:Bool = (visualAcc != lastVisualAcc);
 
-            uiUpdateTimer += event.elapsed;
-            
-            var forceUpdate:Bool = false;
-
-            if (majorChange) {
-                forceUpdate = true;
-            } else if (minorChange || accTextChanged) {
-                if (uiUpdateTimer >= 0.1) {
-                    forceUpdate = true;
-                }
+            if (majorChange || minorChange || accTextChanged) {
+                pendingTextUpdate = true;
             }
 
-            if (forceUpdate) {
+            uiUpdateTimer += event.elapsed;
+            
+            if (pendingTextUpdate && (majorChange || uiUpdateTimer >= 0.033)) {
                 uiUpdateTimer = 0.0;
+                pendingTextUpdate = false;
                 
                 lastScore = currentScoreInt;
                 lastVisualAcc = visualAcc;
                 
-                cachedScoreStr = FlxStringUtil.formatMoney(lastScore, false, true);
-
-                cachedPrefix = "";
-                var prefixNeedSep = false;
+                var scoreStr = FlxStringUtil.formatMoney(lastScore, false, true);
+                var strMain = "";
+                var needSep = false;
 
                 if (_cShowScore) {
-                    cachedPrefix += "Score: ";
-                    cachedPrefix += cachedScoreStr;
-                    prefixNeedSep = true;
+                    strMain += "Score: " + scoreStr;
+                    needSep = true;
                 }
 
-                var judgePos:String = _cJudgePos;
-                var judgesVisible:Bool = (judgePos != "Off" && judgePos != "false");
-
-                if (_cShowMisses && !judgesVisible) {
-                    if (prefixNeedSep) cachedPrefix += separator;
-                    cachedPrefix += "Misses: ";
-                    cachedPrefix += Std.string(m);
-                    prefixNeedSep = true;
+                if (_cShowMisses && !_cJudgesVisible) {
+                    if (needSep) strMain += separator;
+                    strMain += "Misses: " + m;
+                    needSep = true;
                 }
 
-                prefixNeedsSepForAcc = prefixNeedSep;
+                if (_cAccMode != "Off" && _cAccMode != "null" && _cAccMode != "false") {
+                    if (needSep) strMain += separator;
+                    strMain += "Acc: " + visualAcc + "%";
+                    needSep = true;
+                }
 
                 cachedSuffix = "";
                 var suffixNeedSep = false;
@@ -480,7 +512,6 @@ class KssetteAccuracy extends Module {
                     cachedSuffix += rankStr;
                     suffixNeedSep = true;
 
-                    // Asignación de colores basada en el rango
                     switch(cachedRankStr.toUpperCase()) {
                         case "PERFECT_GOLD": 
                             if (_fmtPerfectGold == null) _fmtPerfectGold = new FlxTextFormat(0xFFF9E859);
@@ -512,23 +543,9 @@ class KssetteAccuracy extends Module {
                 }
 
                 var newText:String = "";
-                
-                if (cachedPrefix != "") {
-                    newText += cachedPrefix;
-                }
+                if (strMain != "") newText += strMain;
                 
                 var rIdx:Int = newText.length;
-                
-                if (_cAccMode != "Off" && _cAccMode != "null" && _cAccMode != "false") {
-                    if (prefixNeedsSepForAcc) {
-                        newText += separator;
-                    }
-                    newText += "Acc: ";
-                    newText += Std.string(visualAcc);
-                    newText += "%";
-                }
-                
-                rIdx = newText.length;
                 
                 if (cachedSuffix != "") {
                     if (newText != "") {
@@ -541,15 +558,25 @@ class KssetteAccuracy extends Module {
                 if (uiText.text != newText) {
                     uiText.text = newText;
                     
-                    // Aplicamos el color usando clearFormats para evitar fugas y addFormat de manera segura
-                    if (_cShowRank && currentTargetFmt != null) {
+                    try {
+                        Reflect.setProperty(uiText, "_formatRanges", []);
+                    } catch(e:Dynamic) {}
+
+                    try {
                         uiText.clearFormats();
-                        uiText.addFormat(currentTargetFmt, rIdx + 6, rIdx + 6 + cachedRankLen);
+                    } catch(e:Dynamic) {}
+
+                    if (_cShowRank && currentTargetFmt != null) {
+                        try {
+                            uiText.addFormat(currentTargetFmt, rIdx + 6, rIdx + 6 + cachedRankLen);
+                        } catch(e:Dynamic) {}
                     }
 
-                    uiText.screenCenter(0x01); 
+                    try {
+                        uiText.screenCenter(0x01);
+                    } catch(e:Dynamic) {}
                 }
             }
-        }
+        } catch(e:Dynamic) {}
     }
 }
