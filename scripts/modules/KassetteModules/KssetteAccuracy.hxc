@@ -81,10 +81,16 @@ class KssetteAccuracy extends Module {
     var _cSmooth:Bool = false;
     var _cIsBotplay:Bool = false;
     var _cJudgesVisible:Bool = false;
+    var _cColoredHB:Bool = false;
 
     var cachedRankStr:String = "?";
     var cachedTierStr:String = "N/A";
     var cachedModeMsg:String = "";
+
+    var _lastP1Id:String = "";
+    var _lastP2Id:String = "";
+    var _p1Color:Int = 0xFF66FF33;
+    var _p2Color:Int = 0xFFFF0000;
 
     public function new() {
         super("KssetteAccuracy"); 
@@ -146,6 +152,8 @@ class KssetteAccuracy extends Module {
 
             securityTriggered = false;
             displayedAcc = 0;
+            _lastP1Id = "";
+            _lastP2Id = "";
             
             if (uiText != null) uiText.destroy();
             if (infoText != null) infoText.destroy();
@@ -261,6 +269,7 @@ class KssetteAccuracy extends Module {
             _cShowTime = api.getKssValue("kssette_show_song_time") == true;
             _cShowTitle = api.getKssValue("kssette_show_song_title") == true;
             _cShowDiff = api.getKssValue("kssette_show_song_diff") == true;
+            _cColoredHB = api.getKssValue("kssette_colored_healthbar") == true;
             
             cachedModeMsg = Std.string(api.getModeMessage());
             
@@ -305,6 +314,45 @@ class KssetteAccuracy extends Module {
             var state = PlayState.instance;
             if (state == null || api == null) return;
             
+            if (_cColoredHB) {
+                var hb = state.healthBar;
+                if (hb != null) {
+                    var p1 = state.iconP1;
+                    var p2 = state.iconP2;
+                    
+                    var curP1:String = "none1";
+                    if (p1 != null) {
+                        try { if (p1.characterId != null) curP1 = Std.string(p1.characterId); } catch(e:Dynamic) {}
+                    }
+                    
+                    var curP2:String = "none2";
+                    if (p2 != null) {
+                        try { if (p2.characterId != null) curP2 = Std.string(p2.characterId); } catch(e:Dynamic) {}
+                    }
+                    
+                    if (curP1 != _lastP1Id || curP2 != _lastP2Id) {
+                        _lastP1Id = curP1;
+                        _lastP2Id = curP2;
+                        
+                        try {
+                            _p1Color = api.extractIconColor(p1);
+                            _p2Color = api.extractIconColor(p2);
+                            hb.createFilledBar(_p2Color, _p1Color);
+                            hb.updateBar();
+                        } catch(e:Dynamic) {
+                            try { hb.createFilledBar(0xFFFF0000, 0xFF66FF33); hb.updateBar(); } catch(e:Dynamic) {}
+                        }
+                    }
+                }
+            } else if (_lastP1Id != "") {
+                _lastP1Id = "";
+                _lastP2Id = "";
+                var hb = state.healthBar;
+                if (hb != null) {
+                    try { hb.createFilledBar(0xFFFF0000, 0xFF66FF33); hb.updateBar(); } catch(e:Dynamic) {}
+                }
+            }
+
             if (timeText != null && timeText.exists) {
                 var showT:Bool = _cShowHUD && _cShowTime;
                 timeText.visible = showT;
