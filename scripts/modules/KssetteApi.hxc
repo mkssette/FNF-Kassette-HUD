@@ -31,7 +31,7 @@ import funkin.play.components.HealthIcon;
 
 class KssetteApi extends Module {
     final optionsID:String = "kassette-hud";
-    public var hudVersion:String = "0.1.7.rc1";
+    public var hudVersion:String = "0.1.7.rc2";
     public var missesCount:Int = 0;
     public var isMobileMode:Bool = false;
     public var isCompromised:Bool = false;
@@ -148,6 +148,77 @@ class KssetteApi extends Module {
     }
 
     public function registerModule(name:String, module:Dynamic) {}
+    
+    public function preCacheIconColor(iconId:String):Void {
+        if (iconId == null || iconId == "" || iconId == "generic_p1" || iconId == "generic_p2") return;
+        try {
+            if (Reflect.hasField(_iconColorCache, iconId)) return;
+
+            var graphic = null;
+            try { graphic = funkin.Paths.image('icons/' + iconId); } catch(e:Dynamic) {}
+            if (graphic == null) {
+                try { graphic = funkin.Paths.image('icons/icon-' + iconId); } catch(e:Dynamic) {}
+            }
+
+            if (graphic != null && graphic.bitmap != null) {
+                var bitmap = graphic.bitmap;
+                var bWidth:Int = 150;
+                var bHeight:Int = 150;
+                try { bWidth = Std.int(bitmap.width); } catch(e:Dynamic) {}
+                try { bHeight = Std.int(bitmap.height); } catch(e:Dynamic) {}
+                
+                var w:Int = bWidth > 150 ? 150 : bWidth;
+                var h:Int = bHeight > 150 ? 150 : bHeight;
+                
+                var detail:Int = 4; 
+                var colorArray:Array<Int> = [];
+                
+                var x:Int = 0;
+                while (x < w) {
+                    var y:Int = 0;
+                    while (y < h) {
+                        var pixel32:Int = bitmap.getPixel32(x, y);
+                        var alpha:Int = (pixel32 >> 24) & 0xFF;
+                        
+                        if (alpha > 200) {
+                            var rgb:Int = pixel32 & 0xFFFFFF;
+                            if (rgb != 0x000000 && rgb != 0xFFFFFF && rgb != 0x000001) {
+                                colorArray.push(rgb);
+                            }
+                        }
+                        y += detail;
+                    }
+                    x += detail;
+                }
+
+                if (colorArray.length > 0) {
+                    var frequencyArray:Array<Dynamic> = [];
+                    for (i in 0...colorArray.length) {
+                        var c:Int = colorArray[i];
+                        var found:Bool = false;
+                        for (item in frequencyArray) {
+                            if (item[0] == c) {
+                                item[1] += 1;
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (!found) frequencyArray.push([c, 1]);
+                    }
+                    
+                    var bestColor:Int = 0xFFAAAAAA;
+                    var maxFreq:Int = 0;
+                    for (item in frequencyArray) {
+                        if (item[1] > maxFreq) {
+                            maxFreq = item[1];
+                            bestColor = item[0];
+                        }
+                    }
+                    Reflect.setField(_iconColorCache, iconId, 0xFF000000 | bestColor);
+                }
+            }
+        } catch(e:Dynamic) {}
+    }
 
     override public function onCountdownStart(event) {
         super.onCountdownStart(event);
@@ -212,6 +283,7 @@ class KssetteApi extends Module {
             
             if (state != null && state.currentChart != null) {
                 
+                // 1. Escaneo de Eventos para precargar iconos
                 if (getKssValue("kssette_colored_healthbar") == true && Reflect.hasField(state.currentChart, "events")) {
                     var events:Array<Dynamic> = Reflect.field(state.currentChart, "events");
                     if (events != null) {
@@ -232,17 +304,7 @@ class KssetteApi extends Module {
                                     else if (Reflect.hasField(val, "character")) iconId = Std.string(Reflect.field(val, "character"));
                                     
                                     if (iconId != "" && iconId != "null" && iconId != "generic_p1" && iconId != "generic_p2") {
-                                        if (!Reflect.hasField(_iconColorCache, iconId)) {
-                                            try {
-                                                var tempIcon = new HealthIcon(iconId);
-                                                if (tempIcon != null) {
-                                                    extractIconColor(tempIcon, "Pre-cache Event", iconId);
-                                                    tempIcon.destroy();
-                                                }
-                                            } catch(e:Dynamic) {
-                                                Reflect.setField(_iconColorCache, iconId, 0xFFAAAAAA);
-                                            }
-                                        }
+                                        preCacheIconColor(iconId);
                                     }
                                 }
                             }
@@ -250,6 +312,7 @@ class KssetteApi extends Module {
                     }
                 }
 
+                // 2. Escaneo original seguro de Notas para la BreakBar
                 if (getKssValue("kssette_show_breakbar") == true && state.currentChart.notes != null) {
                     var notesArray:Array<Dynamic> = state.currentChart.notes;
                     var len:Int = notesArray.length;
@@ -259,30 +322,21 @@ class KssetteApi extends Module {
                         var isPlayer = false;
                         var noteTime:Float = -1;
 
-                        if (Reflect.hasField(note, "getMustHitNote")) {
-                            var fn:Dynamic = Reflect.field(note, "getMustHitNote");
-                            if (fn != null && fn() == true) isPlayer = true;
-                        } else {
-                            var d = null;
-                            if (Reflect.hasField(note, "data")) d = Reflect.field(note, "data");
-                            else if (Reflect.hasField(note, "d")) d = Reflect.field(note, "d");
-                            
+                        try {
+                            if (note.getMustHitNote() == true) isPlayer = true;
+                        } catch(e:Dynamic) {
+                            var d = Reflect.getProperty(note, "data");
+                            if (d == null) d = Reflect.getProperty(note, "d");
                             if (d != null && Std.parseInt(Std.string(d)) >= 4) isPlayer = true;
-                            
-                            if (!isPlayer && Reflect.hasField(note, "mustHitNote")) {
-                                if (Reflect.field(note, "mustHitNote") == true) isPlayer = true;
-                            }
+                            if (Reflect.getProperty(note, "mustHitNote") == true) isPlayer = true;
                         }
                         
                         if (isPlayer) {
-                            var t = null;
-                            if (Reflect.hasField(note, "time")) t = Reflect.field(note, "time");
-                            else if (Reflect.hasField(note, "t")) t = Reflect.field(note, "t");
-
-                            var l = null;
-                            if (Reflect.hasField(note, "length")) l = Reflect.field(note, "length");
-                            else if (Reflect.hasField(note, "l")) l = Reflect.field(note, "l");
-                            else if (Reflect.hasField(note, "sustainLength")) l = Reflect.field(note, "sustainLength");
+                            var t:Dynamic = Reflect.getProperty(note, "time");
+                            if (t == null) t = Reflect.getProperty(note, "t");
+                            var l:Dynamic = Reflect.getProperty(note, "length");
+                            if (l == null) l = Reflect.getProperty(note, "l");
+                            if (l == null) l = Reflect.getProperty(note, "sustainLength");
 
                             if (t != null) noteTime = Std.parseFloat(Std.string(t));
                             var noteLen:Float = (l != null) ? Std.parseFloat(Std.string(l)) : 0;
@@ -314,11 +368,7 @@ class KssetteApi extends Module {
             } catch(e:Dynamic) {}
         }
 
-        
-        if (icon == null) {
-            if (isCacheable) Reflect.setField(_iconColorCache, iconId, 0xFFAAAAAA);
-            return 0xFFAAAAAA;
-        }
+        if (icon == null) return 0xFFAAAAAA;
         
         try {
             var bitmap = null;
@@ -326,10 +376,7 @@ class KssetteApi extends Module {
             if (bitmap == null) {
                 try { bitmap = icon.pixels; } catch(e:Dynamic) {}
             }
-            if (bitmap == null) {
-                if (isCacheable) Reflect.setField(_iconColorCache, iconId, 0xFFAAAAAA);
-                return 0xFFAAAAAA;
-            }
+            if (bitmap == null) return 0xFFAAAAAA;
             
             var bWidth:Int = 150;
             var bHeight:Int = 150;
@@ -339,7 +386,7 @@ class KssetteApi extends Module {
             var w:Int = bWidth > 150 ? 150 : bWidth;
             var h:Int = bHeight > 150 ? 150 : bHeight;
             
-            var detail:Int = 8; 
+            var detail:Int = 4; 
             var colorArray:Array<Int> = [];
             
             var x:Int = 0;
@@ -360,40 +407,31 @@ class KssetteApi extends Module {
                 x += detail;
             }
             
-            if (colorArray.length == 0) {
-                if (isCacheable) Reflect.setField(_iconColorCache, iconId, 0xFFAAAAAA);
-                return 0xFFAAAAAA;
-            }
+            if (colorArray.length == 0) return 0xFFAAAAAA;
             
-            var uniqueColors:Array<Int> = [];
-            var colorCounts:Array<Int> = [];
-            
+            var frequencyArray:Array<Dynamic> = [];
             for (i in 0...colorArray.length) {
                 var c:Int = colorArray[i];
-                var foundIdx:Int = -1;
-                
-                for (j in 0...uniqueColors.length) {
-                    if (uniqueColors[j] == c) {
-                        foundIdx = j;
+                var found:Bool = false;
+                for (item in frequencyArray) {
+                    if (item[0] == c) {
+                        item[1] += 1;
+                        found = true;
                         break;
                     }
                 }
-                
-                if (foundIdx != -1) {
-                    colorCounts[foundIdx]++;
-                } else {
-                    uniqueColors.push(c);
-                    colorCounts.push(1);
+                if (!found) {
+                    frequencyArray.push([c, 1]);
                 }
             }
             
             var bestColor:Int = 0xFFAAAAAA;
             var maxFreq:Int = 0;
             
-            for (i in 0...uniqueColors.length) {
-                if (colorCounts[i] > maxFreq) {
-                    maxFreq = colorCounts[i];
-                    bestColor = uniqueColors[i];
+            for (item in frequencyArray) {
+                if (item[1] > maxFreq) {
+                    maxFreq = item[1];
+                    bestColor = item[0];
                 }
             }
             
@@ -406,7 +444,6 @@ class KssetteApi extends Module {
             return finalColor;
             
         } catch(e:Dynamic) {
-            if (isCacheable) Reflect.setField(_iconColorCache, iconId, 0xFFAAAAAA);
             return 0xFFAAAAAA;
         }
     }
