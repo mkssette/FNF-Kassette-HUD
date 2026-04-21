@@ -65,7 +65,6 @@ class KssetteShowTitle extends Module {
 
     override public function onCountdownStart(event:Dynamic) {
         super.onCountdownStart(event);
-
         cleanUp();
 
         apiModule = ModuleHandler.getModule("KssetteApi");
@@ -87,11 +86,13 @@ class KssetteShowTitle extends Module {
 
         try {
             if (state.currentChart != null) {
-                if (state.currentChart.songName != null && Std.string(state.currentChart.songName) != "") {
-                    titleStr = Std.string(state.currentChart.songName);
+                if (state.currentChart.songName != null) {
+                    var cName = Std.string(state.currentChart.songName);
+                    if (cName != "") titleStr = cName;
                 }
-                if (state.currentChart.songArtist != null && Std.string(state.currentChart.songArtist) != "") {
-                    artistStr = Std.string(state.currentChart.songArtist);
+                if (state.currentChart.songArtist != null) {
+                    var cArt = Std.string(state.currentChart.songArtist);
+                    if (cArt != "") artistStr = cArt;
                 }
             }
         } catch(e:Dynamic) {}
@@ -105,30 +106,45 @@ class KssetteShowTitle extends Module {
 
         var titleFontKey = "vcr.ttf";
         var artistFontKey = "vcr.ttf";
-        try { titleFontKey = Std.string(apiModule.getKssValue("kssette_intro_font_title")); } catch(e:Dynamic) {}
-        try { artistFontKey = Std.string(apiModule.getKssValue("kssette_intro_font_artist")); } catch(e:Dynamic) {}
+        
+        try {
+            var tk = apiModule.getKssValue("kssette_intro_font_title");
+            if (tk != null) titleFontKey = Std.string(tk);
+            
+            var ak = apiModule.getKssValue("kssette_intro_font_artist");
+            if (ak != null) artistFontKey = Std.string(ak);
+        } catch(e:Dynamic) {}
         
         var titleFont = "VCR OSD Mono";
         var artistFont = "VCR OSD Mono";
-        try { titleFont = Std.string(apiModule.resolveCustomFont(titleFontKey)); } catch(e:Dynamic) {}
-        try { artistFont = Std.string(apiModule.resolveCustomFont(artistFontKey)); } catch(e:Dynamic) {}
+        
+        try {
+            titleFont = Std.string(apiModule.resolveCustomFont(titleFontKey));
+            artistFont = Std.string(apiModule.resolveCustomFont(artistFontKey));
+        } catch(e:Dynamic) {}
 
         var titleBaseSize = 44;
         var artistBaseSize = 32;
-        try { titleBaseSize = apiModule.getFontSize(44, "kssette_size_intro"); } catch(e:Dynamic) {}
-        try { artistBaseSize = apiModule.getFontSize(32, "kssette_size_intro"); } catch(e:Dynamic) {}
+
+        try {
+            titleBaseSize = apiModule.getFontSize(44, "kssette_size_intro");
+            artistBaseSize = apiModule.getFontSize(32, "kssette_size_intro");
+        } catch(e:Dynamic) {}
 
         var albumId:String = "";
-        try { albumId = Std.string(apiModule.getSongAlbum()); } catch(e:Dynamic) {}
+        try {
+            albumId = Std.string(apiModule.getSongAlbum());
+        } catch(e:Dynamic) {}
 
         hasAlbum = false;
-        albumSprite = new FlxSprite();
+        
         if (albumId != "" && albumId != "null") {
             try {
                 var imgPath = Paths.image('freeplay/albums/' + albumId);
                 if (imgPath == null) imgPath = Paths.image('freeplay/album/' + albumId);
                 
                 if (imgPath != null) {
+                    albumSprite = new FlxSprite();
                     albumSprite.loadGraphic(imgPath);
                     albumSprite.setGraphicSize(80, 80);
                     albumSprite.updateHitbox();
@@ -163,7 +179,7 @@ class KssetteShowTitle extends Module {
         titleTxt.zIndex = 1005;
         state.add(titleTxt);
 
-        if (hasAlbum) {
+        if (hasAlbum && albumSprite != null) {
             albumSprite.x = titleTxt.x - albumOffset;
             albumSprite.y = baseY - 10; 
             albumSprite.alpha = 0; 
@@ -181,7 +197,7 @@ class KssetteShowTitle extends Module {
         if (artistStr == "Unknown Artist" || artistStr == "null" || artistStr == "") {
             artistTxt.visible = false;
             titleTxt.y = baseY + 15; 
-            if (hasAlbum) albumSprite.y = baseY + 5;
+            if (hasAlbum && albumSprite != null) albumSprite.y = baseY + 5;
         }
 
         state.refresh();
@@ -197,7 +213,7 @@ class KssetteShowTitle extends Module {
         FlxTween.tween(titleTxt, {x: titleTargetX - (floatDist/2), alpha: 1}, 1.0, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
             FlxTween.tween(titleTxt, {x: titleTargetX + (floatDist/2)}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
                 FlxTween.tween(titleTxt, {x: FlxG.width + 200, alpha: 0}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
-                    if (titleTxt != null) { state.remove(titleTxt); titleTxt.destroy(); }
+                    if (titleTxt != null) { state.remove(titleTxt); titleTxt.destroy(); titleTxt = null; }
                 }});
             }});
         }});
@@ -206,7 +222,7 @@ class KssetteShowTitle extends Module {
             FlxTween.tween(albumSprite, {x: albumTargetX - (floatDist/2), alpha: 1}, 1.0, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
                 FlxTween.tween(albumSprite, {x: albumTargetX + (floatDist/2)}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
                     FlxTween.tween(albumSprite, {x: FlxG.width + 200, alpha: 0}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
-                        if (albumSprite != null) { state.remove(albumSprite); albumSprite.destroy(); }
+                        if (albumSprite != null) { state.remove(albumSprite); albumSprite.destroy(); albumSprite = null; }
                     }});
                 }});
             }});
@@ -216,7 +232,7 @@ class KssetteShowTitle extends Module {
             FlxTween.tween(artistTxt, {x: artistTargetX + (floatDist/2), alpha: 1}, 1.0, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
                 FlxTween.tween(artistTxt, {x: artistTargetX - (floatDist/2)}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
                     FlxTween.tween(artistTxt, {x: -artistTxt.width - 200, alpha: 0}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
-                        if (artistTxt != null) { state.remove(artistTxt); artistTxt.destroy(); }
+                        if (artistTxt != null) { state.remove(artistTxt); artistTxt.destroy(); artistTxt = null; }
                     }});
                 }});
             }});

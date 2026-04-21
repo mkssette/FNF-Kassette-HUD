@@ -22,6 +22,9 @@ class KssetteBreakBar extends Module {
     var cachedActive:Bool = false;
     var cachedFont:String = "VCR OSD Mono";
     
+    var cachedNoteTimes:Array<Dynamic> = [];
+    var localNoteIndex:Int = 0;
+    
     public function new() {
         super("KssetteBreakBar");
     }
@@ -32,15 +35,18 @@ class KssetteBreakBar extends Module {
         var state = PlayState.instance;
         if (state == null) return;
         
-        apiModule = ModuleHandler.getModule("kassettehud.util.KssetteApi");
         apiModule = ModuleHandler.getModule("KssetteApi");
         if (apiModule != null) {
-            apiModule.scriptCall("registerModule", ["KssetteBreakBar", this]);
-            cachedActive = apiModule.scriptCall("getKssValue", ["kssette_show_breakbar"]) == true;
+            apiModule.registerModule("KssetteBreakBar", this);
+            cachedActive = apiModule.getKssValue("kssette_show_breakbar") == true;
 
-            cachedFont = Std.string(apiModule.scriptCall("getCustomFont"));
-            if (cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
+            cachedFont = apiModule.getHudFont();
+            if (cachedFont == null || cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
+            
+            cachedNoteTimes = apiModule.playerNoteTimes;
         }
+        
+        localNoteIndex = 0;
         
         if (borders != null) {
             for (b in borders) {
@@ -93,37 +99,66 @@ class KssetteBreakBar extends Module {
     
     override public function onUpdate(event) {
         super.onUpdate(event);
-        var state = PlayState.instance;
-        
-        if (state == null || apiModule == null) return;
-        
-        var spritesReady = (barFill != null && breakText != null && borders != null);
+        if (!cachedActive || barFill == null || breakText == null) return;
 
-        if (!cachedActive || !spritesReady) {
-            alphaTarget = 0;
-        } else {
-            var breakData:Dynamic = apiModule.scriptCall("getBreakData");
-            if (breakData != null && breakData.active) {
-                alphaTarget = 1;
+        var breakActive:Bool = false;
+        var breakProgress:Float = 0.0;
+        
+        var state = PlayState.instance;
+        if (state != null && state.conductorInUse != null) {
+            if (cachedNoteTimes != null && cachedNoteTimes.length > 0) {
+                var currentTime = state.conductorInUse.songPosition;
+                var noteIndex:Int = localNoteIndex;
+
+                while (noteIndex < cachedNoteTimes.length && cachedNoteTimes[noteIndex].start <= currentTime) {
+                    noteIndex++;
+                }
                 
-                var prog = 1.0 - breakData.progress; 
-                if (prog < 0) prog = 0;
-                if (prog > 1) prog = 1;
-                barFill.scale.x = prog;
-            } else {
-                alphaTarget = 0;
+                localNoteIndex = noteIndex;
+
+                if (noteIndex < cachedNoteTimes.length) {
+                    var nextTime:Float = cachedNoteTimes[noteIndex].start;
+                    var prevTime:Float = 0;
+                    if (noteIndex > 0) prevTime = cachedNoteTimes[noteIndex - 1].end;
+                    
+                    var gap = nextTime - prevTime;
+                    if (gap >= 2500) {
+                        var timeSincePrev = currentTime - prevTime;
+                        var timeUntilNext = nextTime - currentTime;
+
+                        if (timeSincePrev > 400 && timeUntilNext > 400) {
+                            var totalVisibleTime = gap - 800; 
+                            var currentVisibleTime = timeSincePrev - 400;
+                            breakProgress = currentVisibleTime / totalVisibleTime;
+                            breakActive = true;
+                        }
+                    }
+                }
             }
         }
+
+        if (breakActive) {
+            alphaTarget = 1;
+            var prog = 1.0 - breakProgress; 
+            if (prog < 0) prog = 0;
+            if (prog > 1) prog = 1;
+            barFill.scale.x = prog;
+        } else {
+            alphaTarget = 0;
+        }
         
+        if (currentAlpha == 0 && alphaTarget == 0) return;
+
         currentAlpha += (alphaTarget - currentAlpha) * (event.elapsed * 10);
         if (Math.abs(alphaTarget - currentAlpha) < 0.01) currentAlpha = alphaTarget;
         
-        if (spritesReady) {
-            for (b in borders) {
-                if (b != null) b.alpha = currentAlpha * 0.6;
-            }
-            barFill.alpha = currentAlpha * 0.4;
-            breakText.alpha = currentAlpha * 0.8;
-        }
+        var borderAlpha = currentAlpha * 0.6;
+        borders[0].alpha = borderAlpha;
+        borders[1].alpha = borderAlpha;
+        borders[2].alpha = borderAlpha;
+        borders[3].alpha = borderAlpha;
+        
+        barFill.alpha = currentAlpha * 0.4;
+        breakText.alpha = currentAlpha * 0.8;
     }
 }

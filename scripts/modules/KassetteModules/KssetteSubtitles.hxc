@@ -10,9 +10,9 @@ import flixel.tweens.FlxTween;
 import flixel.tweens.FlxEase;
 import funkin.Conductor;
 import funkin.Paths;
-import Reflect;
 import Math;
 import Std;
+import Reflect;
 
 class KssetteSubtitles extends Module {
     var apiModule:Dynamic = null;
@@ -33,6 +33,11 @@ class KssetteSubtitles extends Module {
     var _nativeBg:Dynamic = null;
     var _nativeTextObj:Dynamic = null;
     var _cachedEntries:Dynamic = null;
+    
+    var kssttlModule:Dynamic = null;
+    var checkedKssttl:Bool = false;
+    var localSubIndex:Int = 0;
+    var lastTargetCam:Dynamic = null;
     
     public function new() {
         super("KssetteSubtitles");
@@ -61,6 +66,7 @@ class KssetteSubtitles extends Module {
         lastText = "";
         lastRawText = "";
         isShowing = false;
+        localSubIndex = 0;
     }
     
     override public function onCountdownStart(event:Dynamic) {
@@ -68,8 +74,8 @@ class KssetteSubtitles extends Module {
         
         apiModule = ModuleHandler.getModule("KssetteApi");
         if (apiModule != null) {
-            cachedFont = Std.string(apiModule.getCustomFont());
-            if (cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
+            cachedFont = apiModule.getHudFont();
+            if (cachedFont == null || cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
             animType = Std.string(apiModule.getKssValue("kssette_subtitles_anim"));
             
             if (animType == "Karaoke") animType = "Fade"; 
@@ -111,16 +117,25 @@ class KssetteSubtitles extends Module {
         _nativeBg = null;
         _nativeTextObj = null;
         _cachedEntries = null;
+        lastTargetCam = null;
+        
+        checkedKssttl = false;
+        kssttlModule = null;
+        localSubIndex = 0;
     }
     
     override public function onUpdate(event:Dynamic) {
         super.onUpdate(event);
         var state = PlayState.instance;
         if (state == null || subText == null) return;
-        
-        var kssttl:Dynamic = ModuleHandler.getModule("KssttLSubtitles");
-        if (kssttl != null && kssttl.activeForSong && kssttl.disableKassetteSubs) {
-            subText.visible = false;
+
+        if (!checkedKssttl) {
+            kssttlModule = ModuleHandler.getModule("KssttLSubtitles");
+            checkedKssttl = true;
+        }
+
+        if (kssttlModule != null && kssttlModule.activeForSong && kssttlModule.disableKassetteSubs) {
+            if (subText.visible) subText.visible = false;
             return;
         }
 
@@ -131,45 +146,121 @@ class KssetteSubtitles extends Module {
                 _nativeTextObj = getFieldSafe(_nativeSubs, "subtitleText");
             }
         }
-        
-        if (_nativeSubs == null) return;
-        
-        _nativeSubs.visible = false;
-        _nativeSubs.alpha = 0;
-        if (_nativeBg != null) { _nativeBg.visible = false; _nativeBg.alpha = 0; }
-        if (_nativeTextObj != null) { _nativeTextObj.visible = false; _nativeTextObj.alpha = 0; }
 
-        if (_cachedEntries == null) {
-            _cachedEntries = getFieldSafe(_nativeSubs, "subtitlesData");
+        if (_nativeSubs != null) {
+            var nCams:Dynamic = getFieldSafe(_nativeSubs, "cameras");
+            var targetCam:Dynamic = null;
+            
+            if (nCams != null && nCams.length > 0) {
+                targetCam = nCams[0];
+            } else {
+                var cOth = getFieldSafe(state, "camOther");
+                if (cOth != null) targetCam = cOth;
+                else targetCam = getFieldSafe(state, "camHUD");
+            }
+
+            if (targetCam != null && lastTargetCam != targetCam) {
+                lastTargetCam = targetCam;
+                subText.cameras = [targetCam];
+            }
+
+            try { _nativeSubs.visible = false; _nativeSubs.alpha = 0; } catch(e:Dynamic) {}
+            
+            if (_nativeBg != null) {
+                try { _nativeBg.visible = false; _nativeBg.alpha = 0; } catch(e:Dynamic) {}
+            }
+            
+            if (_nativeTextObj != null) {
+                try { _nativeTextObj.visible = false; _nativeTextObj.alpha = 0; } catch(e:Dynamic) {}
+            }
+
+            var newData = getFieldSafe(_nativeSubs, "subtitlesData");
+            if (_cachedEntries != newData) {
+                _cachedEntries = newData;
+                localSubIndex = 0;
+                lastRawText = "";
+                lastText = "";
+            }
         }
-
+        
         var rawTargetText:String = "";
         var activeEntry:Dynamic = null;
+        var isCutscene:Bool = false;
+        var currentSubsTime:Float = -1000;
+        var sLengthMs:Float = state.currentSongLengthMs;
 
-        if (_cachedEntries != null) {
-            var currentPos:Float = 0;
-            if (Conductor.instance != null) {
-                currentPos = Conductor.instance.songPosition;
-            }
-
-            var len:Int = _cachedEntries.length;
-            var isFirst:Bool = true;
-            for (i in 0...len) {
-                var entry = _cachedEntries[i];
-                if (entry != null && currentPos >= entry.start && currentPos <= entry.end) {
-                    if (isFirst) {
-                        rawTargetText = entry.text;
-                        activeEntry = entry;
-                        isFirst = false;
-                    } else {
-                        rawTargetText = entry.text + "\n" + rawTargetText;
+        if (sLengthMs <= 0) isCutscene = true;
+        
+        if (_nativeSubs != null) {
+            var snd = getFieldSafe(_nativeSubs, "assignedSound");
+            if (snd != null) {
+                var sTime = getFieldSafe(snd, "time");
+                if (sTime != null) currentSubsTime = sTime;
+                
+                var sndLen = getFieldSafe(snd, "length");
+                if (sndLen != null && sLengthMs > 0) {
+                    var diffVal = Math.abs(Std.parseFloat(Std.string(sndLen)) - sLengthMs);
+                    if (diffVal > 5000) {
+                        isCutscene = true;
                     }
                 }
+            } else if (Conductor.instance != null) {
+                currentSubsTime = Conductor.instance.songPosition;
             }
-        } else {
-            if (_nativeTextObj != null) {
-                var fallback = Std.string(getFieldSafe(_nativeTextObj, "text"));
-                if (fallback != "null" && fallback != "") rawTargetText = fallback;
+        } else if (Conductor.instance != null) {
+            currentSubsTime = Conductor.instance.songPosition;
+        }
+
+        if (currentSubsTime < 0) isCutscene = true;
+
+        if (_cachedEntries != null) {
+            var len:Int = 0;
+            try { len = _cachedEntries.length; } catch(e:Dynamic) {}
+            
+            if (len > 0) {
+                if (localSubIndex > 0) {
+                    try {
+                        if (currentSubsTime < getFieldSafe(_cachedEntries[localSubIndex - 1], "end")) {
+                            localSubIndex = 0;
+                        }
+                    } catch(e:Dynamic) { localSubIndex = 0; }
+                }
+
+                try {
+                    while (localSubIndex < len && getFieldSafe(_cachedEntries[localSubIndex], "end") < currentSubsTime) {
+                        localSubIndex++;
+                    }
+                } catch(e:Dynamic) {}
+
+                var tempIdx = localSubIndex;
+                var texts:Array<String> = [];
+                
+                try {
+                    while (tempIdx < len && getFieldSafe(_cachedEntries[tempIdx], "start") <= currentSubsTime) {
+                        var entry = _cachedEntries[tempIdx];
+                        if (currentSubsTime <= getFieldSafe(entry, "end")) {
+                            var eText = getFieldSafe(entry, "text");
+                            if (eText != null) texts.push(Std.string(eText));
+                            if (activeEntry == null) activeEntry = entry;
+                        }
+                        tempIdx++;
+                    }
+                } catch(e:Dynamic) {}
+                
+                if (texts.length > 0) {
+                    rawTargetText = texts.join("\n");
+                }
+            }
+        } 
+        
+        if (rawTargetText == "" && _nativeTextObj != null) {
+            var fallbackText = getFieldSafe(_nativeTextObj, "text");
+            var fallbackHtml = getFieldSafe(_nativeTextObj, "htmlText");
+            
+            if (fallbackText != null && Std.string(fallbackText) != "" && Std.string(fallbackText) != "null") {
+                rawTargetText = Std.string(fallbackText);
+            } else if (fallbackHtml != null && Std.string(fallbackHtml) != "" && Std.string(fallbackHtml) != "null") {
+                rawTargetText = Std.string(fallbackHtml);
             }
         }
 
@@ -259,22 +350,26 @@ class KssetteSubtitles extends Module {
             var targetX:Float = 0; 
             var targetY:Float = (posType == "Top") ? 220 : (FlxG.height - subText.height - 220);
             
-            if (smartKaraoke) {
+            var useKaraoke:Bool = smartKaraoke && !isCutscene;
+
+            if (useKaraoke) {
                 var startIdx:Int = isAppend ? prevLen : 0;
                 var endIdx:Int = cleanedText.length;
                 var durK:Float = 0.35;
                 var hasExactTiming:Bool = false;
 
                 if (activeEntry != null) {
-                    var exactEnd:Float = activeEntry.end;
-                    var currentPosSnd:Float = 0;
-                    if (Conductor.instance != null) {
-                        currentPosSnd = Conductor.instance.songPosition;
-                    }
-                    var timeRemaining:Float = (exactEnd - currentPosSnd) / 1000.0;
-                    if (timeRemaining > 0.05) {
-                        durK = timeRemaining;
-                        hasExactTiming = true;
+                    var exactEnd:Dynamic = getFieldSafe(activeEntry, "end");
+                    if (exactEnd != null) {
+                        var currentPosSnd:Float = 0;
+                        if (Conductor.instance != null) {
+                            currentPosSnd = Conductor.instance.songPosition;
+                        }
+                        var timeRemaining:Float = (Std.parseFloat(Std.string(exactEnd)) - currentPosSnd) / 1000.0;
+                        if (timeRemaining > 0.05) {
+                            durK = timeRemaining;
+                            hasExactTiming = true;
+                        }
                     }
                 }
 

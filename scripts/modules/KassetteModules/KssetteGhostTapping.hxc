@@ -3,79 +3,55 @@ package kassettehud.util;
 import funkin.modding.module.Module;
 import funkin.modding.module.ModuleHandler;
 import funkin.play.PlayState;
-import flixel.FlxG;
-import Reflect;
 import Std;
 
-// this module handles ghost tapping and character singing when missing notes
 class KssGhostTapping extends Module {
-    var cachedGhostTapping:Bool = false;
-    var cachedGhostSing:Bool = false;
-    var hasGhostTimer:Bool = false;
+    var _cGhostTapping:Bool = false;
+    var _cGhostSing:Bool = false;
 
     public function new() {
         super('KssGhostTapping', 1); 
     }
 
-    function getApi():Dynamic {
-        return ModuleHandler.getModule("KssetteApi");
-    }
-
     override public function onCountdownStart(event) {
         super.onCountdownStart(event);
         
-        var api = getApi();
+        var api = ModuleHandler.getModule("KssetteApi");
         if (api != null) {
-            cachedGhostTapping = api.scriptCall("getKssValue", ["kssette_ghost_tapping"]) == true;
-            cachedGhostSing = api.scriptCall("getKssValue", ["kssette_ghost_sing"]) == true;
-        }
-        
-        var state = PlayState.instance;
-        if (state != null && state.playerStrumline != null) {
-            hasGhostTimer = Reflect.hasField(state.playerStrumline, "ghostTapTimer");
-        }
-    }
-
-    override public function onUpdate(event) {
-        super.onUpdate(event);
-        
-        var state = PlayState.instance;
-        if (hasGhostTimer && state != null && state.playerStrumline != null) {
-            Reflect.setProperty(state.playerStrumline, "ghostTapTimer", 1000);
+            try {
+                _cGhostTapping = api.getKssValue("kssette_ghost_tapping") == true;
+                _cGhostSing = api.getKssValue("kssette_ghost_sing") == true;
+            } catch(e:Dynamic) {
+                _cGhostTapping = false;
+                _cGhostSing = false;
+            }
         }
     }
 
     override function onNoteGhostMiss(event) {
-        if (!cachedGhostTapping) return;
+        if (!_cGhostTapping) return;
 
         event.cancel();
 
-        if (cachedGhostSing) {
+        if (_cGhostSing) {
             var state = PlayState.instance;
-            if (state != null && !state.isPlayerDying) {
-                var player = (state.currentStage != null) ? state.currentStage.getBoyfriend() : null;
+            if (state != null && !state.isPlayerDying && state.currentStage != null) {
+                var player = state.currentStage.getBoyfriend();
                 if (player != null) {
-                    var dir:Int = -1;
+                    var targetDir:Int = -1;
                     
-                    if (Reflect.hasField(event, "noteData")) {
-                        dir = event.noteData; 
-                    } else {
-                        var controls = FlxG.state.controls;
-                        dir = controls.NOTE_LEFT_P ? 0 : (controls.NOTE_DOWN_P ? 1 : (controls.NOTE_UP_P ? 2 : (controls.NOTE_RIGHT_P ? 3 : -1)));
-                    }
-                    
-                    if (dir != -1 && dir <= 3) {
-                        var animations = ["singLEFT", "singDOWN", "singUP", "singRIGHT"];
+                    try { targetDir = event.dir; } catch(e:Dynamic) {}
+                    if (targetDir == -1) try { targetDir = event.direction; } catch(e:Dynamic) {}
+                    if (targetDir == -1) try { targetDir = event.noteData; } catch(e:Dynamic) {}
+
+                    if (targetDir != -1 && targetDir <= 3) {
                         try {
-                            player.playAnimation(animations[dir], true, false, false);
-                        } catch(e:Dynamic) {
-                            try {
-                                player.playAnimation(animations[dir], true, false);
-                            } catch(e2:Dynamic) {}
-                        }
-                        player.holdTimer = 0;
+                            player.playSingAnimation(targetDir, false);
+                            player.holdTimer = 0;
+                        } catch(e:Dynamic) {}
                     }
                 }
             }
-}   }
+        }
+    }
 }
