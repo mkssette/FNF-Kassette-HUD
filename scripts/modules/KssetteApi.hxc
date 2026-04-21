@@ -31,7 +31,7 @@ import funkin.play.components.HealthIcon;
 
 class KssetteApi extends Module {
     final optionsID:String = "kassette-hud";
-    public var hudVersion:String = "0.1.7.rc2";
+    public var hudVersion:String = "0.1.7.rc3";
     public var missesCount:Int = 0;
     public var isMobileMode:Bool = false;
     public var isCompromised:Bool = false;
@@ -149,7 +149,7 @@ class KssetteApi extends Module {
 
     public function registerModule(name:String, module:Dynamic) {}
     
-    public function preCacheIconColor(iconId:String):Void {
+    public function preCacheIconColor(iconId:String, isPlayer:Bool = false):Void {
         if (iconId == null || iconId == "" || iconId == "generic_p1" || iconId == "generic_p2") return;
         try {
             if (Reflect.hasField(_iconColorCache, iconId)) return;
@@ -160,62 +160,10 @@ class KssetteApi extends Module {
                 try { graphic = funkin.Paths.image('icons/icon-' + iconId); } catch(e:Dynamic) {}
             }
 
-            if (graphic != null && graphic.bitmap != null) {
-                var bitmap = graphic.bitmap;
-                var bWidth:Int = 150;
-                var bHeight:Int = 150;
-                try { bWidth = Std.int(bitmap.width); } catch(e:Dynamic) {}
-                try { bHeight = Std.int(bitmap.height); } catch(e:Dynamic) {}
-                
-                var w:Int = bWidth > 150 ? 150 : bWidth;
-                var h:Int = bHeight > 150 ? 150 : bHeight;
-                
-                var detail:Int = 4; 
-                var colorArray:Array<Int> = [];
-                
-                var x:Int = 0;
-                while (x < w) {
-                    var y:Int = 0;
-                    while (y < h) {
-                        var pixel32:Int = bitmap.getPixel32(x, y);
-                        var alpha:Int = (pixel32 >> 24) & 0xFF;
-                        
-                        if (alpha > 200) {
-                            var rgb:Int = pixel32 & 0xFFFFFF;
-                            if (rgb != 0x000000 && rgb != 0xFFFFFF && rgb != 0x000001) {
-                                colorArray.push(rgb);
-                            }
-                        }
-                        y += detail;
-                    }
-                    x += detail;
-                }
-
-                if (colorArray.length > 0) {
-                    var frequencyArray:Array<Dynamic> = [];
-                    for (i in 0...colorArray.length) {
-                        var c:Int = colorArray[i];
-                        var found:Bool = false;
-                        for (item in frequencyArray) {
-                            if (item[0] == c) {
-                                item[1] += 1;
-                                found = true;
-                                break;
-                            }
-                        }
-                        if (!found) frequencyArray.push([c, 1]);
-                    }
-                    
-                    var bestColor:Int = 0xFFAAAAAA;
-                    var maxFreq:Int = 0;
-                    for (item in frequencyArray) {
-                        if (item[1] > maxFreq) {
-                            maxFreq = item[1];
-                            bestColor = item[0];
-                        }
-                    }
-                    Reflect.setField(_iconColorCache, iconId, 0xFF000000 | bestColor);
-                }
+            if (graphic != null) {
+                var tempIcon = new flixel.FlxSprite().loadGraphic(graphic);
+                extractIconColor(tempIcon, isPlayer, iconId);
+                tempIcon.destroy();
             }
         } catch(e:Dynamic) {}
     }
@@ -266,13 +214,13 @@ class KssetteApi extends Module {
             if (state.iconP1 != null) {
                 var p1Id = "generic_p1";
                 try { if (state.iconP1.characterId != null) p1Id = Std.string(state.iconP1.characterId); } catch(e:Dynamic) {}
-                if (!Reflect.hasField(_iconColorCache, p1Id)) extractIconColor(state.iconP1, "Pre-cache P1", p1Id);
+                if (!Reflect.hasField(_iconColorCache, p1Id)) extractIconColor(state.iconP1, true, p1Id);
             }
             
             if (state.iconP2 != null) {
                 var p2Id = "generic_p2";
                 try { if (state.iconP2.characterId != null) p2Id = Std.string(state.iconP2.characterId); } catch(e:Dynamic) {}
-                if (!Reflect.hasField(_iconColorCache, p2Id)) extractIconColor(state.iconP2, "Pre-cache P2", p2Id);
+                if (!Reflect.hasField(_iconColorCache, p2Id)) extractIconColor(state.iconP2, false, p2Id);
             }
         }
         
@@ -283,7 +231,6 @@ class KssetteApi extends Module {
             
             if (state != null && state.currentChart != null) {
                 
-                // 1. Escaneo de Eventos para precargar iconos
                 if (getKssValue("kssette_colored_healthbar") == true && Reflect.hasField(state.currentChart, "events")) {
                     var events:Array<Dynamic> = Reflect.field(state.currentChart, "events");
                     if (events != null) {
@@ -303,8 +250,16 @@ class KssetteApi extends Module {
                                     if (Reflect.hasField(val, "id")) iconId = Std.string(Reflect.field(val, "id"));
                                     else if (Reflect.hasField(val, "character")) iconId = Std.string(Reflect.field(val, "character"));
                                     
+                                    var isPlayerEvent = false;
+                                    try {
+                                        if (Reflect.hasField(val, "char")) {
+                                            var charVal = Std.parseInt(Std.string(Reflect.field(val, "char")));
+                                            if (charVal == 0) isPlayerEvent = true; 
+                                        }
+                                    } catch(e:Dynamic) {}
+
                                     if (iconId != "" && iconId != "null" && iconId != "generic_p1" && iconId != "generic_p2") {
-                                        preCacheIconColor(iconId);
+                                        preCacheIconColor(iconId, isPlayerEvent);
                                     }
                                 }
                             }
@@ -312,7 +267,6 @@ class KssetteApi extends Module {
                     }
                 }
 
-                // 2. Escaneo original seguro de Notas para la BreakBar
                 if (getKssValue("kssette_show_breakbar") == true && state.currentChart.notes != null) {
                     var notesArray:Array<Dynamic> = state.currentChart.notes;
                     var len:Int = notesArray.length;
@@ -357,8 +311,9 @@ class KssetteApi extends Module {
         if (getKssValue("kssette_hide_splashes") == true) event.cancel();
     }
 
-    public function extractIconColor(icon:Dynamic, label:String, iconId:String):Int {
+    public function extractIconColor(icon:Dynamic, isPlayer:Bool, iconId:String):Int {
         var isCacheable = (iconId != null && iconId != "" && iconId != "generic_p1" && iconId != "generic_p2");
+        var fallbackColor:Int = isPlayer ? 0xFF66FF33 : 0xFFFF0000;
 
         if (isCacheable) {
             try {
@@ -368,15 +323,22 @@ class KssetteApi extends Module {
             } catch(e:Dynamic) {}
         }
 
-        if (icon == null) return 0xFFAAAAAA;
+        if (icon == null) {
+            if (isCacheable) Reflect.setField(_iconColorCache, iconId, fallbackColor);
+            return fallbackColor;
+        }
         
         try {
             var bitmap = null;
-            try { bitmap = icon.graphic.bitmap; } catch(e:Dynamic) {}
+            try { if (icon.pixels != null) bitmap = icon.pixels; } catch(e:Dynamic) {}
             if (bitmap == null) {
-                try { bitmap = icon.pixels; } catch(e:Dynamic) {}
+                try { if (icon.graphic != null && icon.graphic.bitmap != null) bitmap = icon.graphic.bitmap; } catch(e:Dynamic) {}
             }
-            if (bitmap == null) return 0xFFAAAAAA;
+            
+            if (bitmap == null) {
+                if (isCacheable) Reflect.setField(_iconColorCache, iconId, fallbackColor);
+                return fallbackColor;
+            }
             
             var bWidth:Int = 150;
             var bHeight:Int = 150;
@@ -407,7 +369,10 @@ class KssetteApi extends Module {
                 x += detail;
             }
             
-            if (colorArray.length == 0) return 0xFFAAAAAA;
+            if (colorArray.length == 0) {
+                if (isCacheable) Reflect.setField(_iconColorCache, iconId, fallbackColor);
+                return fallbackColor;
+            }
             
             var frequencyArray:Array<Dynamic> = [];
             for (i in 0...colorArray.length) {
@@ -425,7 +390,7 @@ class KssetteApi extends Module {
                 }
             }
             
-            var bestColor:Int = 0xFFAAAAAA;
+            var bestColor:Int = fallbackColor;
             var maxFreq:Int = 0;
             
             for (item in frequencyArray) {
@@ -444,7 +409,8 @@ class KssetteApi extends Module {
             return finalColor;
             
         } catch(e:Dynamic) {
-            return 0xFFAAAAAA;
+            if (isCacheable) Reflect.setField(_iconColorCache, iconId, fallbackColor);
+            return fallbackColor;
         }
     }
 
@@ -1029,8 +995,8 @@ class KssetteApi extends Module {
                         _lastP1Id = curP1;
                         _lastP2Id = curP2;
                         
-                        _p1Color = extractIconColor(p1, "P1", curP1);
-                        _p2Color = extractIconColor(p2, "P2", curP2);
+                        _p1Color = extractIconColor(p1, true, curP1);
+                        _p2Color = extractIconColor(p2, false, curP2);
                         
                         try {
                             hb.createFilledBar(_p2Color, _p1Color);
