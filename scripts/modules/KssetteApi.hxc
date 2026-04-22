@@ -31,7 +31,7 @@ import funkin.play.components.HealthIcon;
 
 class KssetteApi extends Module {
     final optionsID:String = "kassette-hud";
-    public var hudVersion:String = "0.1.7.rc3";
+    public var hudVersion:String = "0.1.7.1";
     public var missesCount:Int = 0;
     public var isMobileMode:Bool = false;
     public var isCompromised:Bool = false;
@@ -66,6 +66,7 @@ class KssetteApi extends Module {
     var _cachedSongId:String = null;
     var _checkedSongId:Bool = false;
     
+    var _lastSongId:String = "";
     var _qtModule:Dynamic = null;
     var _cachedBotplay:Bool = false;
     var _cachedModeMsg:String = null;
@@ -452,7 +453,30 @@ class KssetteApi extends Module {
         return (val == "On");
     }
 
+    function checkCache() {
+        var state = PlayState.instance;
+        if (state == null) return;
+        var currentId = "";
+        try {
+            if (state.currentSong != null && state.currentSong.id != null) {
+                currentId = Std.string(state.currentSong.id);
+            } else if (state.currentChart != null && state.currentChart.songName != null) {
+                currentId = Std.string(state.currentChart.songName);
+            }
+        } catch(e:Dynamic) {}
+
+        if (currentId != _lastSongId) {
+            _lastSongId = currentId;
+            _checkedSongName = false;
+            _checkedSongArtist = false;
+            _checkedSongAlbum = false;
+            _checkedSongId = false;
+            _cachedModeMsg = null;
+        }
+    }
+
     public function getSongTitle():String {
+        checkCache();
         if (_checkedSongName) return _cachedSongName;
         
         _checkedSongName = true;
@@ -486,6 +510,7 @@ class KssetteApi extends Module {
     }
 
     public function getSongArtist():String {
+        checkCache();
         if (_checkedSongArtist) return _cachedSongArtist;
         
         _checkedSongArtist = true;
@@ -529,6 +554,7 @@ class KssetteApi extends Module {
     }
 
     public function getSongAlbum():String {
+        checkCache();
         if (_checkedSongAlbum) return _cachedSongAlbum;
         
         _checkedSongAlbum = true;
@@ -710,6 +736,7 @@ class KssetteApi extends Module {
     }
 
     public function getModeMessage():String {
+        checkCache();
         var state = PlayState.instance;
         if (state == null) return "";
         var botplay:Bool = state.isBotPlayMode || (Save.instance.modOptions.get("BotMode") == true);
