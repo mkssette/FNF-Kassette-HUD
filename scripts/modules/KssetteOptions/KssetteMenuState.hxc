@@ -1,0 +1,279 @@
+import flixel.FlxG;
+import flixel.FlxCamera;
+import flixel.FlxSprite;
+import flixel.text.FlxText;
+import flixel.text.FlxTextBorderStyle;
+import flixel.group.FlxSpriteGroup;
+import funkin.save.Save;
+import funkin.modding.module.ModuleHandler;
+import funkin.ui.options.OptionsState;
+import funkin.Paths;
+import flixel.util.FlxColor;
+import funkin.ui.ScriptedMusicBeatState;
+import funkin.play.stage.Stage;
+import Math;
+import Std;
+import flixel.math.FlxPoint;
+
+class KssetteMenuState extends ScriptedMusicBeatState {
+    var apiRef:Dynamic;
+    var panelWidth:Int = 450;
+    var uiCamera:FlxCamera;
+    var gameCamera:FlxCamera;
+
+    var itemsGroup:FlxSpriteGroup;
+    var optionItems:Array<Dynamic> = [];
+    var selectedIndex:Int = 0;
+
+    var targetScrollY:Float = 0;
+    var maxScroll:Float = 0;
+    var isDragging:Bool = false;
+    var touchStart:Float = 0;
+    var holdTimer:Float = 0;
+
+    var previewScore:FlxText;
+    var previewTimeBg:FlxSprite;
+    var previewTimeBar:FlxSprite;
+
+    override public function create():Void {
+        super.create();
+        apiRef = ModuleHandler.getModule("KssetteApi");
+
+        gameCamera = new FlxCamera(0, 0, FlxG.width - panelWidth, FlxG.height);
+        FlxG.cameras.reset(gameCamera);
+
+        uiCamera = new FlxCamera(FlxG.width - panelWidth, 0, panelWidth, FlxG.height);
+        uiCamera.bgColor = 0x00000000;
+        FlxG.cameras.add(uiCamera, false);
+
+        var bgStage = new Stage("mainStage");
+        add(bgStage);
+
+        buildPreviewHUD();
+        buildSidePanel();
+
+        if (FlxG.sound.music != null) FlxG.sound.music.stop();
+        FlxG.sound.playMusic(Paths.music('offsetsLoop/offsetsLoop'), 1.0, true);
+
+        FlxG.camera.fade(FlxColor.BLACK, 0.4, true);
+        
+        changeSelection(0);
+    }
+
+    function buildPreviewHUD() {
+        previewScore = new FlxText(0, FlxG.height - 50, FlxG.width - panelWidth, "Score: 123450 / Acc: 98.5% / Rank: S / FC", 18);
+        previewScore.setFormat("VCR OSD Mono", 18, FlxColor.WHITE, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        previewScore.scrollFactor.set(0, 0);
+        previewScore.cameras = [gameCamera];
+        add(previewScore);
+
+        previewTimeBg = new FlxSprite(0, FlxG.height - 15).makeGraphic(FlxG.width - panelWidth, 15, 0xFF000000);
+        previewTimeBg.scrollFactor.set(0, 0);
+        previewTimeBg.cameras = [gameCamera];
+        add(previewTimeBg);
+
+        previewTimeBar = new FlxSprite(0, FlxG.height - 13).makeGraphic(Std.int((FlxG.width - panelWidth) * 0.5), 11, FlxColor.WHITE);
+        previewTimeBar.scrollFactor.set(0, 0);
+        previewTimeBar.cameras = [gameCamera];
+        add(previewTimeBar);
+    }
+
+    function buildSidePanel() {
+        var panelGroup = new FlxSpriteGroup();
+        panelGroup.cameras = [uiCamera];
+        add(panelGroup);
+
+        var panelBg = new FlxSprite(0, 0).makeGraphic(panelWidth, FlxG.height, 0xFF0A0A0A);
+        panelBg.scrollFactor.set(0, 0);
+        panelGroup.add(panelBg);
+
+        var titleBar = new FlxSprite(0, 0).makeGraphic(panelWidth, 60, 0xFF000000);
+        titleBar.scrollFactor.set(0, 0);
+        panelGroup.add(titleBar);
+
+        var titleText = new FlxText(10, 18, panelWidth - 20, "Kssette Editor v0.2.a1", 24);
+        titleText.setFormat("VCR OSD Mono", 24, FlxColor.WHITE, "center");
+        titleText.scrollFactor.set(0, 0);
+        panelGroup.add(titleText);
+
+        itemsGroup = new FlxSpriteGroup(0, 70);
+        itemsGroup.cameras = [uiCamera];
+        add(itemsGroup);
+
+        var curY:Float = 0;
+        var step:Float = 50;
+
+        addHeader("Gameplay Settings", curY); curY += 40;
+        
+        createToggle(curY, "Middle Scroll", "kssette_middlescroll", ["Off", "On", "P Style", "Hidden Notes"]); curY += step;
+        createToggle(curY, "Ghost Tapping", "kssette_ghost_tapping", ["On", "Off"]); curY += step;
+        createToggle(curY, "Ghost Sing", "kssette_ghost_sing", ["On", "Off"]); curY += step;
+        createToggle(curY, "Resume Countdown", "kssette_resume_countdown", ["On", "Off"]); curY += step;
+        
+        curY += 20;
+        addHeader("HUD Visuals", curY); curY += 40;
+        
+        createToggle(curY, "Show HUD", "kssette_show_hud", ["On", "Off"]); curY += step;
+        createToggle(curY, "Show Score", "kssette_show_score", ["On", "Off"]); curY += step;
+        createToggle(curY, "Show Misses", "kssette_show_misses", ["On", "Off"]); curY += step;
+        createToggle(curY, "Accuracy Mode", "kssette_acc_mode", ["Classic", "Ascending", "Off"]); curY += step;
+        createToggle(curY, "Show Rank", "kssette_show_rank", ["On", "Off"]); curY += step;
+        createToggle(curY, "Show FC Tier", "kssette_show_tier", ["On", "Off"]); curY += step;
+        createToggle(curY, "Show Time Bar", "kssette_show_timebar", ["On", "Off"]); curY += step;
+        createToggle(curY, "Show Break Bar", "kssette_show_breakbar", ["On", "Off"]); curY += step;
+        createToggle(curY, "Show Song Title", "kssette_show_song_title", ["On", "Off"]); curY += step;
+        createToggle(curY, "Show Difficulty", "kssette_show_song_diff", ["On", "Off"]); curY += step;
+        createToggle(curY, "Show Time Left", "kssette_show_song_time", ["On", "Off"]); curY += step;
+        
+        curY += 20;
+        addHeader("Positions", curY); curY += 40;
+        
+        createToggle(curY, "Opponent Pos", "kssette_opponent_pos", ["Left", "Right"]); curY += step;
+        createToggle(curY, "Time Bar Pos", "kssette_timebar_pos", ["Bottom", "Top", "Bottom Left", "Bottom Right", "Top Left", "Top Right"]); curY += step;
+        createToggle(curY, "Info Text Pos", "kssette_info_pos", ["Below Score", "Above Arrows", "Bottom Left"]); curY += step;
+        createToggle(curY, "Judge Pos", "kssette_judge_pos", ["Off", "Left", "Right", "Top Left", "Top Right"]); curY += step;
+        
+        curY += 20;
+        addHeader("Performance", curY); curY += 40;
+        
+        createToggle(curY, "Smooth Display", "kssette_smooth_display", ["On", "Off"]); curY += step;
+        createToggle(curY, "Hide Splashes", "kssette_hide_splashes", ["Off", "On"]); curY += step;
+        createToggle(curY, "Colored HUD", "kssette_colorize_hud", ["On", "Off"]); curY += step;
+        createToggle(curY, "Colored Health", "kssette_colored_healthbar", ["On", "Off"]); curY += step;
+
+        maxScroll = Math.max(0, curY - (FlxG.height - 150));
+    }
+
+    function addHeader(text:String, y:Float) {
+        var header = new FlxText(20, y, panelWidth - 40, text.toUpperCase(), 18);
+        header.setFormat("VCR OSD Mono", 18, 0xFF7D7D7D, "left");
+        itemsGroup.add(header);
+    }
+
+    function createToggle(yPos:Float, labelText:String, saveKey:String, options:Array<String>) {
+        var grp = new FlxSpriteGroup(20, yPos);
+        var bg = new FlxSprite(0, 0).makeGraphic(panelWidth - 40, 42, 0xFF1A1A1A);
+        grp.add(bg);
+
+        var label = new FlxText(10, 11, panelWidth - 200, labelText, 18);
+        label.setFormat("VCR OSD Mono", 18, FlxColor.WHITE, "left");
+        grp.add(label);
+
+        var curVal:String = Std.string(Save.instance.modOptions.get(saveKey));
+        var valueText = new FlxText(panelWidth - 180, 11, 130, curVal, 18);
+        valueText.setFormat("VCR OSD Mono", 18, 0xFF00FF00, "right");
+        grp.add(valueText);
+
+        itemsGroup.add(grp);
+
+        optionItems.push({
+            bg: bg,
+            textDisplay: valueText,
+            key: saveKey,
+            options: options,
+            y: yPos,
+            currentIndex: Math.max(0, options.indexOf(curVal)),
+            fire: function(self:Dynamic) {
+                self.currentIndex = (self.currentIndex + 1) % self.options.length;
+                var newVal = self.options[self.currentIndex];
+                Save.instance.modOptions.set(self.key, newVal);
+                self.textDisplay.text = newVal;
+            }
+        });
+    }
+
+    override public function update(elapsed:Float):Void {
+        super.update(elapsed);
+        handleInput(elapsed);
+
+        if (holdTimer > 0) holdTimer -= elapsed;
+
+        if (controls.UI_UP_P && holdTimer <= 0) {
+            changeSelection(-1);
+            holdTimer = 0.1;
+        }
+        if (controls.UI_DOWN_P && holdTimer <= 0) {
+            changeSelection(1);
+            holdTimer = 0.1;
+        }
+        
+        if (controls.ACCEPT && holdTimer <= 0) {
+            var item = optionItems[selectedIndex];
+            item.fire(item);
+            holdTimer = 0.15;
+            FlxG.sound.play(Paths.sound('confirmMenu'), 0.7);
+        }
+
+        if (FlxG.keys.justPressed.ESCAPE) {
+            Save.instance.flush();
+            FlxG.camera.fade(FlxColor.BLACK, 0.4, false, function() {
+                FlxG.cameras.reset(new FlxCamera());
+                FlxG.switchState(new OptionsState());
+                FlxG.sound.playMusic(Paths.music('freakyMenu'), 1.0, true);
+            });
+        }
+    }
+
+    function changeSelection(change:Int = 0) {
+        selectedIndex += change;
+        if (selectedIndex < 0) selectedIndex = optionItems.length - 1;
+        if (selectedIndex >= optionItems.length) selectedIndex = 0;
+
+        for (i in 0...optionItems.length) {
+            var item = optionItems[i];
+            item.bg.color = (i == selectedIndex) ? 0xFF505050 : 0xFF1A1A1A;
+            item.bg.alpha = (i == selectedIndex) ? 1.0 : 0.6;
+        }
+
+        if (change != 0) FlxG.sound.play(Paths.sound('scrollMenu'), 0.4);
+
+        targetScrollY = Math.max(0, optionItems[selectedIndex].y - 200);
+    }
+
+    function handleInput(elapsed:Float) {
+        if (FlxG.onMobile) {
+            if (FlxG.touches.list.length > 0) {
+                var touch = FlxG.touches.list[0];
+                if (touch.screenX >= FlxG.width - panelWidth) {
+                    if (touch.justPressed) {
+                        touchStart = touch.screenY;
+                        isDragging = false;
+                    }
+                    if (touch.pressed) {
+                        if (Math.abs(touch.screenY - touchStart) > 15) isDragging = true;
+                        if (isDragging) targetScrollY -= touch.deltaY;
+                    }
+                    if (touch.justReleased && !isDragging && holdTimer <= 0) {
+                        fireClickAt(touch.getWorldPosition(uiCamera));
+                    }
+                }
+            }
+        } else {
+            if (FlxG.mouse.wheel != 0) {
+                targetScrollY -= FlxG.mouse.wheel * 70;
+            }
+            if (FlxG.mouse.justPressed && FlxG.mouse.screenX >= FlxG.width - panelWidth && holdTimer <= 0) {
+                fireClickAt(FlxG.mouse.getWorldPosition(uiCamera));
+            }
+        }
+
+        if (targetScrollY < 0) targetScrollY = 0;
+        if (targetScrollY > maxScroll) targetScrollY = maxScroll;
+
+        uiCamera.scroll.y += (targetScrollY - uiCamera.scroll.y) * 0.25;
+    }
+
+    function fireClickAt(pos:FlxPoint) {
+        for (i in 0...optionItems.length) {
+            var item = optionItems[i];
+            if (item.bg.overlapsPoint(pos, true, uiCamera)) {
+                selectedIndex = i;
+                changeSelection(0);
+                item.fire(item);
+                holdTimer = 0.15;
+                try { FlxG.sound.play(Paths.sound('scrollMenu'), 0.5); } catch(e:Dynamic) {}
+                break;
+            }
+        }
+    }
+}
