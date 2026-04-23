@@ -11,19 +11,49 @@ import funkin.Paths;
 import flixel.util.FlxColor;
 import funkin.ui.ScriptedMusicBeatState;
 import funkin.play.stage.Stage;
+import funkin.play.character.BaseCharacter;
+import funkin.play.character.SparrowCharacter;
+import funkin.play.character.AnimateAtlasCharacter;
+import funkin.play.character.MultiSparrowCharacter;
+import funkin.play.character.MultiAnimateAtlasCharacter;
+import funkin.play.character.PackerCharacter;
+import funkin.modding.events.ScriptEvent;
+import funkin.Conductor;
+import flixel.math.FlxMath;
+import funkin.graphics.FunkinCamera;
 import Math;
 import Std;
+import Reflect;
 import flixel.math.FlxPoint;
 
 class KssetteMenuState extends ScriptedMusicBeatState {
     var apiRef:Dynamic;
     var panelWidth:Int = 450;
-    var uiCamera:FlxCamera;
-    var gameCamera:FlxCamera;
+    
+    var optionCam:FlxCamera;
+    var stageCam:FunkinCamera;
+
+    var panelBg:FlxSprite;
+    var titleBar:FlxSprite;
+    var titleText:FlxText;
+    var hintText:FlxText;
+
+    var descBg:FlxSprite;
+    var descTextDisplay:FlxText;
 
     var itemsGroup:FlxSpriteGroup;
     var optionItems:Array<Dynamic> = [];
     var selectedIndex:Int = 0;
+
+    var fontBgGroup:FlxSpriteGroup;
+    var fontItemsGroup:FlxSpriteGroup;
+    var fontItems:Array<Dynamic> = [];
+    var fontSelectedIndex:Int = 0;
+    var isFontMenuOpen:Bool = false;
+    var currentFontSaveKey:String = "";
+    var currentFontTextRef:FlxText = null;
+    var fontTargetScrollY:Float = 0;
+    var fontMaxScroll:Float = 0;
 
     var targetScrollY:Float = 0;
     var maxScroll:Float = 0;
@@ -31,136 +61,315 @@ class KssetteMenuState extends ScriptedMusicBeatState {
     var touchStart:Float = 0;
     var holdTimer:Float = 0;
 
-    var previewScore:FlxText;
-    var previewTimeBg:FlxSprite;
-    var previewTimeBar:FlxSprite;
+    var panelHidden:Bool = false;
+    var panelOnLeft:Bool = false;
+    var uiX:Float = 0;
+
+    var stage:Stage;
+    var bf:BaseCharacter;
+    var dad:BaseCharacter;
+    var gf:BaseCharacter;
 
     override public function create():Void {
+        trace("[KSSETTE] Initializing create()...");
         super.create();
+        
+        trace("[KSSETTE] Fetching API Module...");
         apiRef = ModuleHandler.getModule("KssetteApi");
+        
+        trace("[KSSETTE] Setting up cameras...");
+        stageCam = new FunkinCamera('stageCam', 0, 0, FlxG.width, FlxG.height);
+        stageCam.bgColor = FlxColor.BLACK;
+        stageCam.zoom = 0.7;
+        FlxG.cameras.reset(stageCam);
 
-        gameCamera = new FlxCamera(0, 0, FlxG.width - panelWidth, FlxG.height);
-        FlxG.cameras.reset(gameCamera);
+        optionCam = new FlxCamera(0, 0, FlxG.width, FlxG.height);
+        optionCam.bgColor = FlxColor.TRANSPARENT;
+        FlxG.cameras.add(optionCam, false);
+        trace("[KSSETTE] Cameras setup complete.");
 
-        uiCamera = new FlxCamera(FlxG.width - panelWidth, 0, panelWidth, FlxG.height);
-        uiCamera.bgColor = 0x00000000;
-        FlxG.cameras.add(uiCamera, false);
+        try {
+            Reflect.setProperty(Conductor.instance, "bpm", 100);
+        } catch(e:Dynamic) {
+            try {
+                if (Reflect.hasField(Conductor.instance, "forceBPM")) {
+                    Conductor.instance.forceBPM(100);
+                }
+            } catch(e2:Dynamic) {
+                trace("[KSSETTE] Warning: Could not set predefined BPM - " + e2);
+            }
+        }
 
-        var bgStage = new Stage("mainStage");
-        add(bgStage);
+        var initEvent:ScriptEvent = null;
+        try { initEvent = new ScriptEvent("onCreate"); } catch(e:Dynamic) {}
 
-        buildPreviewHUD();
+        trace("[KSSETTE] Spawning Stage...");
+        try {
+            stage = new Stage("mainStage");
+            try { stage.onCreate(initEvent); } catch(e2:Dynamic) {}
+            stage.cameras = [stageCam];
+            add(stage);
+        } catch(e:Dynamic) { trace("[KSSETTE] CRASH AT STAGE SPAWN: " + e); }
+
+        trace("[KSSETTE] Spawning Characters...");
+        gf = spawnCharacter("gf", initEvent);
+        dad = spawnCharacter("dad", initEvent);
+        bf = spawnCharacter("bf", initEvent);
+
+        try {
+            var sData = stage._data;
+            
+            var placeChar = function(char:BaseCharacter, cData:Dynamic, isPlayer:Bool) {
+                if (char == null) return;
+                
+                try { char.resetCharacter(true); } catch(e:Dynamic) {}
+
+                if (cData != null) {
+                    try {
+                        char.x = cData.position[0] - char.characterOrigin.x;
+                        char.y = cData.position[1] - char.characterOrigin.y;
+                    } catch(e:Dynamic) {
+                        char.x = cData.position[0];
+                        char.y = cData.position[1];
+                    }
+                    
+                    var cScale:Float = 1.0;
+                    if (cData.scale != null) cScale = cData.scale;
+                    try { char.setScale(char.getBaseScale() * cScale); } catch(e:Dynamic) {}
+                    
+                    try {
+                        var dataFlip = char.getDataFlipX();
+                        char.flipX = isPlayer ? !dataFlip : dataFlip;
+                    } catch(e:Dynamic) {}
+
+                    try { char.originalPosition.set(char.x, char.y); } catch(e:Dynamic) {}
+                    try { char.resetCameraFocusPoint(); } catch(e:Dynamic) {}
+                    
+                    if (cData.cameraOffsets != null) {
+                        try {
+                            char.cameraFocusPoint.x += cData.cameraOffsets[0];
+                            char.cameraFocusPoint.y += cData.cameraOffsets[1];
+                        } catch(e:Dynamic) {}
+                    }
+                    
+                    if (cData.scroll != null) {
+                        try { char.scrollFactor.set(cData.scroll[0], cData.scroll[1]); } catch(e:Dynamic) {}
+                    }
+                }
+            };
+
+            var gfData = null;
+            var dadData = null;
+            var bfData = null;
+
+            if (sData != null && sData.characters != null) {
+                gfData = sData.characters.gf;
+                dadData = sData.characters.dad;
+                bfData = sData.characters.bf;
+            }
+
+            placeChar(gf, gfData, false);
+            placeChar(dad, dadData, false);
+            placeChar(bf, bfData, true);
+
+        } catch(e:Dynamic) { trace("[KSSETTE] Error setting positions: " + e); }
+
+        if (gf != null) { add(gf); gf.cameras = [stageCam]; }
+        if (dad != null) { add(dad); dad.cameras = [stageCam]; }
+        if (bf != null) { add(bf); bf.cameras = [stageCam]; }
+
+        if (gf != null && gf.cameraFocusPoint != null) {
+            stageCam.focusOn(gf.cameraFocusPoint);
+        } else {
+            stageCam.scroll.set(0, 0);
+        }
+
+        trace("[KSSETTE] Building Panel...");
+        uiX = FlxG.width - panelWidth;
         buildSidePanel();
 
-        if (FlxG.sound.music != null) FlxG.sound.music.stop();
-        FlxG.sound.playMusic(Paths.music('offsetsLoop/offsetsLoop'), 1.0, true);
+        trace("[KSSETTE] Starting music...");
+        try {
+            if (FlxG.sound.music != null) FlxG.sound.music.stop();
+            FlxG.sound.playMusic(Paths.music('offsetsLoop/offsetsLoop'), 1.0, true);
+        } catch(e:Dynamic) {}
 
         FlxG.camera.fade(FlxColor.BLACK, 0.4, true);
         
         changeSelection(0);
+        trace("[KSSETTE] create() finished completely!");
     }
 
-    function buildPreviewHUD() {
-        previewScore = new FlxText(0, FlxG.height - 50, FlxG.width - panelWidth, "Score: 123450 / Acc: 98.5% / Rank: S / FC", 18);
-        previewScore.setFormat("VCR OSD Mono", 18, FlxColor.WHITE, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
-        previewScore.scrollFactor.set(0, 0);
-        previewScore.cameras = [gameCamera];
-        add(previewScore);
+    function spawnCharacter(id:String, initEvent:ScriptEvent):BaseCharacter {
+        var char:BaseCharacter = null;
+        var rType:String = "";
 
-        previewTimeBg = new FlxSprite(0, FlxG.height - 15).makeGraphic(FlxG.width - panelWidth, 15, 0xFF000000);
-        previewTimeBg.scrollFactor.set(0, 0);
-        previewTimeBg.cameras = [gameCamera];
-        add(previewTimeBg);
+        try {
+            var entry = funkin.data.character.CharacterRegistry.instance.fetchEntry(id);
+            if (entry != null) {
+                var rawType = Reflect.getProperty(entry, "renderType");
+                if (rawType != null) rType = Std.string(rawType).toLowerCase();
+            }
+        } catch(e:Dynamic) {
+            trace("[KSSETTE] Could not fetch registry for " + id + ": " + e);
+        }
 
-        previewTimeBar = new FlxSprite(0, FlxG.height - 13).makeGraphic(Std.int((FlxG.width - panelWidth) * 0.5), 11, FlxColor.WHITE);
-        previewTimeBar.scrollFactor.set(0, 0);
-        previewTimeBar.cameras = [gameCamera];
-        add(previewTimeBar);
+        if (rType == "") {
+            var types = ["sparrow", "animateatlas", "multisparrow", "multianimateatlas", "packer"];
+            for (type in types) {
+                try {
+                    if (type == "animateatlas") char = new AnimateAtlasCharacter(id);
+                    else if (type == "sparrow") char = new SparrowCharacter(id);
+                    else if (type == "multisparrow") char = new MultiSparrowCharacter(id);
+                    else if (type == "multianimateatlas") char = new MultiAnimateAtlasCharacter(id);
+                    else if (type == "packer") char = new PackerCharacter(id);
+
+                    if (char != null) {
+                        try { char.onCreate(initEvent); } catch(e2:Dynamic) {}
+                        trace("[KSSETTE] Fallback spawned " + id + " as " + type);
+                        return char;
+                    }
+                } catch(e:Dynamic) {}
+            }
+            return null;
+        }
+
+        trace("[KSSETTE] Spawning " + id + " as " + rType);
+        try {
+            if (rType == "animateatlas") char = new AnimateAtlasCharacter(id);
+            else if (rType == "multisparrow") char = new MultiSparrowCharacter(id);
+            else if (rType == "multianimateatlas") char = new MultiAnimateAtlasCharacter(id);
+            else if (rType == "packer") char = new PackerCharacter(id);
+            else char = new SparrowCharacter(id);
+            
+            try { char.onCreate(initEvent); } catch(e2:Dynamic) {}
+        } catch(e:Dynamic) {
+            trace("[KSSETTE] Failed spawning " + id + ": " + e);
+        }
+        return char;
     }
 
     function buildSidePanel() {
-        var panelGroup = new FlxSpriteGroup();
-        panelGroup.cameras = [uiCamera];
-        add(panelGroup);
-
-        var panelBg = new FlxSprite(0, 0).makeGraphic(panelWidth, FlxG.height, 0xFF0A0A0A);
+        panelBg = new FlxSprite(uiX, 0).makeGraphic(panelWidth, FlxG.height, 0xFF000000);
         panelBg.scrollFactor.set(0, 0);
-        panelGroup.add(panelBg);
+        panelBg.alpha = 0.6;
+        panelBg.cameras = [optionCam];
+        add(panelBg);
 
-        var titleBar = new FlxSprite(0, 0).makeGraphic(panelWidth, 60, 0xFF000000);
+        itemsGroup = new FlxSpriteGroup(uiX, 80);
+        itemsGroup.cameras = [optionCam];
+        add(itemsGroup);
+
+        titleBar = new FlxSprite(uiX, 0).makeGraphic(panelWidth, 70, 0xFF000000);
         titleBar.scrollFactor.set(0, 0);
-        panelGroup.add(titleBar);
+        titleBar.alpha = 0.9;
+        titleBar.cameras = [optionCam];
+        add(titleBar);
 
-        var titleText = new FlxText(10, 18, panelWidth - 20, "Kssette Editor v0.2.a1", 24);
+        var apiVer = "0.2.a1";
+        try { if (apiRef != null) apiVer = Std.string(apiRef.hudVersion); } catch(e:Dynamic) {}
+
+        titleText = new FlxText(uiX + 10, 10, panelWidth - 20, "Kassette HUD Options " + apiVer, 24);
         titleText.setFormat("VCR OSD Mono", 24, FlxColor.WHITE, "center");
         titleText.scrollFactor.set(0, 0);
-        panelGroup.add(titleText);
+        titleText.cameras = [optionCam];
+        add(titleText);
 
-        itemsGroup = new FlxSpriteGroup(0, 70);
-        itemsGroup.cameras = [uiCamera];
-        add(itemsGroup);
+        hintText = new FlxText(uiX + 10, 40, panelWidth - 20, "TAB: Hide UI | SHIFT: Move UI | ESC: Exit", 16);
+        hintText.setFormat("VCR OSD Mono", 16, 0xFFAAAAAA, "center");
+        hintText.scrollFactor.set(0, 0);
+        hintText.cameras = [optionCam];
+        add(hintText);
 
         var curY:Float = 0;
         var step:Float = 50;
 
         addHeader("Gameplay Settings", curY); curY += 40;
-        
-        createToggle(curY, "Middle Scroll", "kssette_middlescroll", ["Off", "On", "P Style", "Hidden Notes"]); curY += step;
-        createToggle(curY, "Ghost Tapping", "kssette_ghost_tapping", ["On", "Off"]); curY += step;
-        createToggle(curY, "Ghost Sing", "kssette_ghost_sing", ["On", "Off"]); curY += step;
-        createToggle(curY, "Resume Countdown", "kssette_resume_countdown", ["On", "Off"]); curY += step;
+        createToggle(curY, "Middle Scroll", "kssette_middlescroll", ["Off", "On", "P Style", "Hidden Notes"], "Moves your notes to the center of the screen for better focus."); curY += step;
+        createToggle(curY, "Ghost Tapping", "kssette_ghost_tapping", ["On", "Off"], "Press keys anytime without penalty. You won't miss if there's no note."); curY += step;
+        createToggle(curY, "Ghost Sing", "kssette_ghost_sing", ["On", "Off"], "Your character will play singing animations when you press empty keys."); curY += step;
+        createToggle(curY, "Resume Countdown", "kssette_resume_countdown", ["On", "Off"], "Adds a 'Ready, Set, Go!' countdown when you unpause the game."); curY += step;
         
         curY += 20;
         addHeader("HUD Visuals", curY); curY += 40;
-        
-        createToggle(curY, "Show HUD", "kssette_show_hud", ["On", "Off"]); curY += step;
-        createToggle(curY, "Show Score", "kssette_show_score", ["On", "Off"]); curY += step;
-        createToggle(curY, "Show Misses", "kssette_show_misses", ["On", "Off"]); curY += step;
-        createToggle(curY, "Accuracy Mode", "kssette_acc_mode", ["Classic", "Ascending", "Off"]); curY += step;
-        createToggle(curY, "Show Rank", "kssette_show_rank", ["On", "Off"]); curY += step;
-        createToggle(curY, "Show FC Tier", "kssette_show_tier", ["On", "Off"]); curY += step;
-        createToggle(curY, "Show Time Bar", "kssette_show_timebar", ["On", "Off"]); curY += step;
-        createToggle(curY, "Show Break Bar", "kssette_show_breakbar", ["On", "Off"]); curY += step;
-        createToggle(curY, "Show Song Title", "kssette_show_song_title", ["On", "Off"]); curY += step;
-        createToggle(curY, "Show Difficulty", "kssette_show_song_diff", ["On", "Off"]); curY += step;
-        createToggle(curY, "Show Time Left", "kssette_show_song_time", ["On", "Off"]); curY += step;
+        createToggle(curY, "Show HUD", "kssette_show_hud", ["On", "Off"], "Toggles the visibility of the entire HUD."); curY += step;
+        createToggle(curY, "Show Score", "kssette_show_score", ["On", "Off"], "Show your current score."); curY += step;
+        createToggle(curY, "Show Misses", "kssette_show_misses", ["On", "Off"], "Show a counter for how many notes you've missed."); curY += step;
+        createToggle(curY, "Accuracy Mode", "kssette_acc_mode", ["Classic", "Ascending", "Off"], "How accuracy is calculated. 'Ascending' starts at 0% and climbs up."); curY += step;
+        createToggle(curY, "Show Rank", "kssette_show_rank", ["On", "Off"], "Show your current Rank (P, E, G) based on performance."); curY += step;
+        createToggle(curY, "Show FC Tier", "kssette_show_tier", ["On", "Off"], "Show your Combo Status (SFC, GFC, FC, Clear)."); curY += step;
+        createToggle(curY, "Show Time Bar", "kssette_show_timebar", ["On", "Off"], "Show a bar indicating progress."); curY += step;
+        createToggle(curY, "Show Break Bar", "kssette_show_breakbar", ["On", "Off"], "Show a specific timer during long breaks in the song."); curY += step;
+        createToggle(curY, "Show Song Title", "kssette_show_song_title", ["On", "Off"], "Show the name of the song on the HUD."); curY += step;
+        createToggle(curY, "Show Difficulty", "kssette_show_song_diff", ["On", "Off"], "Show the difficulty level on the HUD."); curY += step;
+        createToggle(curY, "Show Time Left", "kssette_show_song_time", ["On", "Off"], "Show a digital timer counting down the song."); curY += step;
         
         curY += 20;
         addHeader("Positions", curY); curY += 40;
-        
-        createToggle(curY, "Opponent Pos", "kssette_opponent_pos", ["Left", "Right"]); curY += step;
-        createToggle(curY, "Time Bar Pos", "kssette_timebar_pos", ["Bottom", "Top", "Bottom Left", "Bottom Right", "Top Left", "Top Right"]); curY += step;
-        createToggle(curY, "Info Text Pos", "kssette_info_pos", ["Below Score", "Above Arrows", "Bottom Left"]); curY += step;
-        createToggle(curY, "Judge Pos", "kssette_judge_pos", ["Off", "Left", "Right", "Top Left", "Top Right"]); curY += step;
+        createToggle(curY, "Opponent Pos", "kssette_opponent_pos", ["Left", "Right"], "Where to put the opponent's notes when Middle Scroll is ON."); curY += step;
+        createToggle(curY, "Time Bar Pos", "kssette_timebar_pos", ["Bottom", "Top", "Bottom Left", "Bottom Right", "Top Left", "Top Right"], "Choose where the Song Progress Bar is placed on screen."); curY += step;
+        createToggle(curY, "Info Text Pos", "kssette_info_pos", ["Below Score", "Above Arrows", "Bottom Left"], "Where to show the Song Name and Difficulty."); curY += step;
+        createToggle(curY, "Judge Pos", "kssette_judge_pos", ["Off", "Left", "Right", "Top Left", "Top Right"], "Shows a counter for Sicks, Goods, Bads, etc. Choose where to place it."); curY += step;
         
         curY += 20;
         addHeader("Performance", curY); curY += 40;
-        
-        createToggle(curY, "Smooth Display", "kssette_smooth_display", ["On", "Off"]); curY += step;
-        createToggle(curY, "Hide Splashes", "kssette_hide_splashes", ["Off", "On"]); curY += step;
-        createToggle(curY, "Colored HUD", "kssette_colorize_hud", ["On", "Off"]); curY += step;
-        createToggle(curY, "Colored Health", "kssette_colored_healthbar", ["On", "Off"]); curY += step;
+        createToggle(curY, "Smooth Display", "kssette_smooth_display", ["On", "Off"], "Makes the score and accuracy numbers scroll smoothly."); curY += step;
+        createToggle(curY, "Hide Splashes", "kssette_hide_splashes", ["Off", "On"], "Removes the particles when hitting 'Sick!'. Helps with lag."); curY += step;
+        createToggle(curY, "Colored HUD", "kssette_colorize_hud", ["On", "Off"], "Changes the HUD colors to match the characters."); curY += step;
+        createToggle(curY, "Colored Health", "kssette_colored_healthbar", ["On", "Off"], "Changes the health bar colors to match the character icons."); curY += step;
 
-        maxScroll = Math.max(0, curY - (FlxG.height - 150));
+        curY += 20;
+        addHeader("Intro Text", curY); curY += 40;
+        createToggle(curY, "Show Song Intro", "kssette_intro_text", ["On", "Off"], "Displays the song title and artist when the song starts."); curY += step;
+        
+        curY += 20;
+        addHeader("Fonts", curY); curY += 40;
+        createFontOption(curY, "HUD Font", "kssette_custom_font", "Choose the font for the HUD."); curY += step;
+        createFontOption(curY, "Pixel Font", "kssette_custom_pixel_font", "Choose the font for pixel stages."); curY += step;
+        createFontOption(curY, "Intro Title Font", "kssette_intro_font_title", "Choose the font for the intro title."); curY += step;
+        createFontOption(curY, "Intro Artist Font", "kssette_intro_font_artist", "Choose the font for the intro artist."); curY += step;
+
+        maxScroll = Math.max(0, curY - FlxG.height + 150);
+
+        descBg = new FlxSprite(20, FlxG.height).makeGraphic(1, 1, FlxColor.BLACK);
+        descBg.setGraphicSize(Std.int(FlxG.width - panelWidth - 40), 60);
+        descBg.updateHitbox();
+        descBg.alpha = 0.6;
+        descBg.scrollFactor.set(0, 0);
+        descBg.cameras = [optionCam];
+        add(descBg);
+
+        descTextDisplay = new FlxText(20, FlxG.height + 20, Std.int(FlxG.width - panelWidth - 40), "", 20);
+        descTextDisplay.setFormat("VCR OSD Mono", 20, FlxColor.WHITE, "center");
+        descTextDisplay.scrollFactor.set(0, 0);
+        descTextDisplay.cameras = [optionCam];
+        add(descTextDisplay);
     }
 
     function addHeader(text:String, y:Float) {
         var header = new FlxText(20, y, panelWidth - 40, text.toUpperCase(), 18);
-        header.setFormat("VCR OSD Mono", 18, 0xFF7D7D7D, "left");
+        header.setFormat("VCR OSD Mono", 18, 0xFFFFFFFF, "left");
+        header.alpha = 0.8;
         itemsGroup.add(header);
     }
 
-    function createToggle(yPos:Float, labelText:String, saveKey:String, options:Array<String>) {
+    function createToggle(yPos:Float, labelText:String, saveKey:String, options:Array<String>, descStr:String) {
         var grp = new FlxSpriteGroup(20, yPos);
-        var bg = new FlxSprite(0, 0).makeGraphic(panelWidth - 40, 42, 0xFF1A1A1A);
+        var bg = new FlxSprite(0, 0).makeGraphic(panelWidth - 40, 44, 0xFF000000);
+        bg.alpha = 0.5;
         grp.add(bg);
 
-        var label = new FlxText(10, 11, panelWidth - 200, labelText, 18);
+        var label = new FlxText(15, 12, panelWidth - 210, labelText, 18);
         label.setFormat("VCR OSD Mono", 18, FlxColor.WHITE, "left");
         grp.add(label);
 
-        var curVal:String = Std.string(Save.instance.modOptions.get(saveKey));
-        var valueText = new FlxText(panelWidth - 180, 11, 130, curVal, 18);
+        var curVal:String = "Off";
+        try {
+            var fetchedVal = Save.instance.modOptions.get(saveKey);
+            if (fetchedVal != null) curVal = Std.string(fetchedVal);
+        } catch(e:Dynamic) {}
+
+        var valueText = new FlxText(panelWidth - 190, 12, 140, curVal, 18);
         valueText.setFormat("VCR OSD Mono", 18, 0xFF00FF00, "right");
         grp.add(valueText);
 
@@ -172,6 +381,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             key: saveKey,
             options: options,
             y: yPos,
+            desc: descStr,
             currentIndex: Math.max(0, options.indexOf(curVal)),
             fire: function(self:Dynamic) {
                 self.currentIndex = (self.currentIndex + 1) % self.options.length;
@@ -182,26 +392,342 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         });
     }
 
+    function createFontOption(yPos:Float, labelText:String, saveKey:String, descStr:String) {
+        var grp = new FlxSpriteGroup(20, yPos);
+        var bg = new FlxSprite(0, 0).makeGraphic(panelWidth - 40, 44, 0xFF000000);
+        bg.alpha = 0.5;
+        grp.add(bg);
+
+        var label = new FlxText(15, 12, panelWidth - 210, labelText, 18);
+        label.setFormat("VCR OSD Mono", 18, FlxColor.WHITE, "left");
+        grp.add(label);
+
+        var curVal:String = "vcr.ttf";
+        try {
+            var fetchedVal = Save.instance.modOptions.get(saveKey);
+            if (fetchedVal != null) curVal = Std.string(fetchedVal);
+        } catch(e:Dynamic) {}
+
+        var valueText = new FlxText(panelWidth - 190, 12, 140, curVal, 18);
+        valueText.setFormat("VCR OSD Mono", 18, 0xFF00FF00, "right");
+        grp.add(valueText);
+
+        itemsGroup.add(grp);
+
+        optionItems.push({
+            bg: bg,
+            textDisplay: valueText,
+            key: saveKey,
+            options: [],
+            y: yPos,
+            desc: descStr,
+            currentIndex: 0,
+            fire: function(self:Dynamic) {
+                openFontSelector(self.key, self.textDisplay);
+            }
+        });
+    }
+
+    function openFontSelector(saveKey:String, textRef:FlxText) {
+        isFontMenuOpen = true;
+        currentFontSaveKey = saveKey;
+        currentFontTextRef = textRef;
+        fontSelectedIndex = 0;
+        fontTargetScrollY = 0;
+        fontItems = [];
+
+        fontBgGroup = new FlxSpriteGroup(uiX, 0);
+        fontBgGroup.cameras = [optionCam];
+        add(fontBgGroup);
+
+        var bg = new FlxSprite(0, 0).makeGraphic(panelWidth, FlxG.height, 0xFF000000);
+        bg.alpha = 0.95;
+        bg.scrollFactor.set(0, 0);
+        fontBgGroup.add(bg);
+
+        var fTitle = new FlxText(10, 10, panelWidth - 20, "SELECT FONT (ESC TO CANCEL)", 24);
+        fTitle.setFormat("VCR OSD Mono", 24, FlxColor.WHITE, "center");
+        fTitle.scrollFactor.set(0, 0);
+        fontBgGroup.add(fTitle);
+
+        fontItemsGroup = new FlxSpriteGroup(uiX, 60);
+        fontItemsGroup.cameras = [optionCam];
+        add(fontItemsGroup);
+
+        var fontMap:Map<String, String> = null;
+        try { fontMap = apiRef.getAvailableFonts(); } catch(e:Dynamic) {}
+        
+        if (fontMap != null) {
+            var keys:Array<String> = [];
+            for (k in fontMap.keys()) keys.push(k);
+            keys.sort(function(a:String, b:String):Int {
+                a = a.toLowerCase();
+                b = b.toLowerCase();
+                if (a < b) return -1;
+                if (a > b) return 1;
+                return 0;
+            });
+
+            var fY:Float = 0;
+            for (i in 0...keys.length) {
+                var kName = keys[i];
+                var fFile = fontMap.get(kName);
+                var fPath = "VCR OSD Mono";
+                try { fPath = apiRef.resolveCustomFont(fFile); } catch(e:Dynamic) {}
+
+                var fTxt = new FlxText(30, fY + 10, panelWidth - 60, kName, 22);
+                try { fTxt.setFormat(fPath, 22, FlxColor.WHITE, "left"); } catch(e:Dynamic) {}
+                
+                var txtH:Float = 22;
+                try { txtH = fTxt.height; } catch(e:Dynamic) {}
+                
+                var boxHeight:Float = txtH + 20;
+                if (boxHeight < 44) boxHeight = 44;
+
+                var itemBg = new FlxSprite(20, fY).makeGraphic(panelWidth - 40, Std.int(boxHeight), 0xFFFFFFFF);
+                itemBg.alpha = (i == 0) ? 0.3 : 0.0;
+                fontItemsGroup.add(itemBg);
+                fontItemsGroup.add(fTxt);
+
+                fontItems.push({
+                    bg: itemBg,
+                    fileName: fFile,
+                    y: fY,
+                    height: boxHeight
+                });
+
+                fY += boxHeight + 6;
+            }
+            fontMaxScroll = Math.max(0, fY - FlxG.height + 150);
+        }
+
+        if (descBg != null) descBg.visible = false;
+        if (descTextDisplay != null) descTextDisplay.visible = false;
+    }
+
+    function closeFontSelector() {
+        if (fontBgGroup != null) {
+            remove(fontBgGroup);
+            fontBgGroup.destroy();
+            fontBgGroup = null;
+        }
+        if (fontItemsGroup != null) {
+            remove(fontItemsGroup);
+            fontItemsGroup.destroy();
+            fontItemsGroup = null;
+        }
+        fontItems = [];
+        isFontMenuOpen = false;
+        
+        if (descBg != null) descBg.visible = !panelHidden;
+        if (descTextDisplay != null) descTextDisplay.visible = !panelHidden;
+    }
+
+    function selectCurrentFont() {
+        if (fontItems.length > 0 && fontSelectedIndex >= 0 && fontSelectedIndex < fontItems.length) {
+            var selFile = fontItems[fontSelectedIndex].fileName;
+            Save.instance.modOptions.set(currentFontSaveKey, selFile);
+            Save.instance.flush();
+            if (currentFontTextRef != null) currentFontTextRef.text = selFile;
+            FlxG.sound.play(Paths.sound('confirmMenu'), 0.7);
+        }
+        closeFontSelector();
+    }
+
+    function changeFontSelection(change:Int = 0) {
+        fontSelectedIndex += change;
+        if (fontSelectedIndex < 0) fontSelectedIndex = fontItems.length - 1;
+        if (fontSelectedIndex >= fontItems.length) fontSelectedIndex = 0;
+
+        for (i in 0...fontItems.length) {
+            var item = fontItems[i];
+            item.bg.alpha = (i == fontSelectedIndex) ? 0.4 : 0.0;
+        }
+
+        if (change != 0) FlxG.sound.play(Paths.sound('scrollMenu'), 0.4);
+
+        if (fontItems.length > 0) {
+            var targetY = fontItems[fontSelectedIndex].y - (FlxG.height / 2) + 60;
+            fontTargetScrollY = Math.max(0, Math.min(fontMaxScroll, targetY));
+        }
+    }
+
+    function handleFontInput(elapsed:Float) {
+        if (FlxG.onMobile) {
+            if (FlxG.touches.list.length > 0) {
+                var touch = FlxG.touches.list[0];
+                if (touch.screenX >= uiX && touch.screenX <= uiX + panelWidth) {
+                    if (touch.justPressed) {
+                        touchStart = touch.screenY;
+                        isDragging = false;
+                    }
+                    if (touch.pressed) {
+                        if (Math.abs(touch.screenY - touchStart) > 20) isDragging = true;
+                        if (isDragging) fontTargetScrollY -= touch.deltaY;
+                    }
+                    if (touch.justReleased && !isDragging && holdTimer <= 0) {
+                        fireFontClickAt(touch.getWorldPosition(optionCam));
+                    }
+                }
+            }
+        } else {
+            if (FlxG.mouse.wheel != 0) {
+                fontTargetScrollY -= FlxG.mouse.wheel * 80;
+            }
+            if (FlxG.mouse.justPressed && FlxG.mouse.screenX >= uiX && FlxG.mouse.screenX <= uiX + panelWidth && holdTimer <= 0) {
+                fireFontClickAt(FlxG.mouse.getWorldPosition(optionCam));
+            }
+        }
+
+        if (fontTargetScrollY < 0) fontTargetScrollY = 0;
+        if (fontTargetScrollY > fontMaxScroll) fontTargetScrollY = fontMaxScroll;
+    }
+
+    function fireFontClickAt(pos:FlxPoint) {
+        for (i in 0...fontItems.length) {
+            var item = fontItems[i];
+            if (pos.x >= uiX + 20 && pos.x <= uiX + panelWidth - 20 && pos.y >= fontItemsGroup.y + item.y && pos.y <= fontItemsGroup.y + item.y + item.height) {
+                fontSelectedIndex = i;
+                changeFontSelection(0);
+                selectCurrentFont();
+                holdTimer = 0.2;
+                break;
+            }
+        }
+    }
+
+    function loopCharacterAnimation(char:BaseCharacter):Void {
+        if (char == null) return;
+        try {
+            var isFin:Bool = true;
+            
+            try {
+                isFin = char.isAnimationFinished();
+            } catch(e:Dynamic) {
+                var animObj = Reflect.getProperty(char, "animation");
+                if (animObj != null) {
+                    var f = Reflect.getProperty(animObj, "finished");
+                    if (f != null) isFin = f;
+                }
+            }
+
+            if (isFin) {
+                char.dance();
+            }
+        } catch(e:Dynamic) {}
+    }
+
+    override public function beatHit():Void {
+        super.beatHit();
+        
+        try {
+            if (bf != null) bf.dance();
+            if (dad != null) dad.dance();
+            if (gf != null) gf.dance();
+        } catch(e:Dynamic) {
+            trace("[KSSETTE] Animation sync error: " + e);
+        }
+    }
+
     override public function update(elapsed:Float):Void {
+        if (FlxG.sound.music != null && FlxG.sound.music.playing) {
+            try {
+                Reflect.setProperty(Conductor.instance, "songPosition", FlxG.sound.music.time);
+            } catch(e:Dynamic) {}
+        }
+
         super.update(elapsed);
-        handleInput(elapsed);
+
+        loopCharacterAnimation(bf);
+        loopCharacterAnimation(dad);
+        loopCharacterAnimation(gf);
+
+        if (FlxG.keys.justPressed.TAB) {
+            panelHidden = !panelHidden;
+        }
+        if (FlxG.keys.justPressed.SHIFT) {
+            panelOnLeft = !panelOnLeft;
+        }
+
+        var targetX:Float = panelOnLeft ? 0 : (FlxG.width - panelWidth);
+        if (panelHidden) {
+            targetX = panelOnLeft ? -panelWidth : FlxG.width;
+        }
+        uiX = FlxMath.lerp(uiX, targetX, elapsed * 12);
+
+        if (panelBg != null) panelBg.x = uiX;
+        if (titleBar != null) titleBar.x = uiX;
+        if (titleText != null) titleText.x = uiX + 10;
+        if (hintText != null) hintText.x = uiX + 10;
+        if (itemsGroup != null) itemsGroup.x = uiX;
+
+        var targetY = 80 - targetScrollY;
+        if (itemsGroup != null) itemsGroup.y = FlxMath.lerp(itemsGroup.y, targetY, elapsed * 15);
+
+        if (isFontMenuOpen) {
+            if (fontBgGroup != null) fontBgGroup.x = uiX;
+            if (fontItemsGroup != null) {
+                fontItemsGroup.x = uiX;
+                fontItemsGroup.y = FlxMath.lerp(fontItemsGroup.y, 60 - fontTargetScrollY, elapsed * 15);
+            }
+
+            if (FlxG.keys.justPressed.ESCAPE) {
+                closeFontSelector();
+                FlxG.sound.play(Paths.sound('cancelMenu'), 0.7);
+            }
+
+            if (holdTimer > 0) holdTimer -= elapsed;
+
+            if (holdTimer <= 0) {
+                if (controls.UI_UP_P) {
+                    changeFontSelection(-1);
+                    holdTimer = 0.1;
+                } else if (controls.UI_DOWN_P) {
+                    changeFontSelection(1);
+                    holdTimer = 0.1;
+                } else if (controls.ACCEPT) {
+                    selectCurrentFont();
+                    holdTimer = 0.2;
+                }
+            }
+            
+            handleFontInput(elapsed);
+            return; 
+        }
+
+        var targetDescX:Float = panelOnLeft ? (panelWidth + 20) : 20;
+        var descBoxH:Float = 60;
+        if (descBg != null) descBoxH = descBg.height;
+        var targetDescY:Float = panelHidden ? FlxG.height + 20 : (FlxG.height - descBoxH - 20);
+        
+        if (descBg != null) {
+            descBg.x = FlxMath.lerp(descBg.x, targetDescX, elapsed * 12);
+            descBg.y = FlxMath.lerp(descBg.y, targetDescY, elapsed * 12);
+            if (descTextDisplay != null) {
+                descTextDisplay.x = descBg.x;
+                descTextDisplay.y = descBg.y + 20;
+            }
+        }
+
+        if (!panelHidden) {
+            handleInput(elapsed);
+        }
 
         if (holdTimer > 0) holdTimer -= elapsed;
 
-        if (controls.UI_UP_P && holdTimer <= 0) {
-            changeSelection(-1);
-            holdTimer = 0.1;
-        }
-        if (controls.UI_DOWN_P && holdTimer <= 0) {
-            changeSelection(1);
-            holdTimer = 0.1;
-        }
-        
-        if (controls.ACCEPT && holdTimer <= 0) {
-            var item = optionItems[selectedIndex];
-            item.fire(item);
-            holdTimer = 0.15;
-            FlxG.sound.play(Paths.sound('confirmMenu'), 0.7);
+        if (holdTimer <= 0 && !panelHidden) {
+            if (controls.UI_UP_P) {
+                changeSelection(-1);
+                holdTimer = 0.1;
+            } else if (controls.UI_DOWN_P) {
+                changeSelection(1);
+                holdTimer = 0.1;
+            } else if (controls.ACCEPT) {
+                var item = optionItems[selectedIndex];
+                item.fire(item);
+                holdTimer = 0.2;
+                FlxG.sound.play(Paths.sound('confirmMenu'), 0.7);
+            }
         }
 
         if (FlxG.keys.justPressed.ESCAPE) {
@@ -221,56 +747,73 @@ class KssetteMenuState extends ScriptedMusicBeatState {
 
         for (i in 0...optionItems.length) {
             var item = optionItems[i];
-            item.bg.color = (i == selectedIndex) ? 0xFF505050 : 0xFF1A1A1A;
-            item.bg.alpha = (i == selectedIndex) ? 1.0 : 0.6;
+            var isSelected = (i == selectedIndex);
+            item.bg.color = isSelected ? 0xFF555555 : 0xFF000000;
+            item.bg.alpha = isSelected ? 0.9 : 0.5;
+        }
+
+        if (optionItems.length > 0 && selectedIndex >= 0 && selectedIndex < optionItems.length) {
+            if (descTextDisplay != null) {
+                descTextDisplay.text = optionItems[selectedIndex].desc;
+                
+                var reqH:Float = 60;
+                try {
+                    reqH = descTextDisplay.height + 40;
+                    if (reqH < 60) reqH = 60;
+                } catch(e:Dynamic) {}
+
+                if (descBg != null) {
+                    descBg.setGraphicSize(Std.int(FlxG.width - panelWidth - 40), Std.int(reqH));
+                    descBg.updateHitbox();
+                }
+            }
         }
 
         if (change != 0) FlxG.sound.play(Paths.sound('scrollMenu'), 0.4);
 
-        targetScrollY = Math.max(0, optionItems[selectedIndex].y - 200);
+        var targetY = optionItems[selectedIndex].y - (FlxG.height / 2) + 60;
+        targetScrollY = Math.max(0, Math.min(maxScroll, targetY));
     }
 
     function handleInput(elapsed:Float) {
         if (FlxG.onMobile) {
             if (FlxG.touches.list.length > 0) {
                 var touch = FlxG.touches.list[0];
-                if (touch.screenX >= FlxG.width - panelWidth) {
+                if (touch.screenX >= uiX && touch.screenX <= uiX + panelWidth) {
                     if (touch.justPressed) {
                         touchStart = touch.screenY;
                         isDragging = false;
                     }
                     if (touch.pressed) {
-                        if (Math.abs(touch.screenY - touchStart) > 15) isDragging = true;
+                        if (Math.abs(touch.screenY - touchStart) > 20) isDragging = true;
                         if (isDragging) targetScrollY -= touch.deltaY;
                     }
                     if (touch.justReleased && !isDragging && holdTimer <= 0) {
-                        fireClickAt(touch.getWorldPosition(uiCamera));
+                        fireClickAt(touch.getWorldPosition(optionCam));
                     }
                 }
             }
         } else {
             if (FlxG.mouse.wheel != 0) {
-                targetScrollY -= FlxG.mouse.wheel * 70;
+                targetScrollY -= FlxG.mouse.wheel * 80;
             }
-            if (FlxG.mouse.justPressed && FlxG.mouse.screenX >= FlxG.width - panelWidth && holdTimer <= 0) {
-                fireClickAt(FlxG.mouse.getWorldPosition(uiCamera));
+            if (FlxG.mouse.justPressed && FlxG.mouse.screenX >= uiX && FlxG.mouse.screenX <= uiX + panelWidth && holdTimer <= 0) {
+                fireClickAt(FlxG.mouse.getWorldPosition(optionCam));
             }
         }
 
         if (targetScrollY < 0) targetScrollY = 0;
         if (targetScrollY > maxScroll) targetScrollY = maxScroll;
-
-        uiCamera.scroll.y += (targetScrollY - uiCamera.scroll.y) * 0.25;
     }
 
     function fireClickAt(pos:FlxPoint) {
         for (i in 0...optionItems.length) {
             var item = optionItems[i];
-            if (item.bg.overlapsPoint(pos, true, uiCamera)) {
+            if (pos.x >= uiX + 20 && pos.x <= uiX + panelWidth - 20 && pos.y >= itemsGroup.y + item.y && pos.y <= itemsGroup.y + item.y + 44) {
                 selectedIndex = i;
                 changeSelection(0);
                 item.fire(item);
-                holdTimer = 0.15;
+                holdTimer = 0.2;
                 try { FlxG.sound.play(Paths.sound('scrollMenu'), 0.5); } catch(e:Dynamic) {}
                 break;
             }
