@@ -31,6 +31,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
     var panelWidth:Int = 450;
     
     var optionCam:FlxCamera;
+    var hudCam:FlxCamera;
     var stageCam:FunkinCamera;
 
     var panelBg:FlxSprite;
@@ -82,6 +83,10 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         stageCam.bgColor = FlxColor.BLACK;
         stageCam.zoom = 0.7;
         FlxG.cameras.reset(stageCam);
+
+        hudCam = new FlxCamera(0, 0, FlxG.width, FlxG.height);
+        hudCam.bgColor = FlxColor.TRANSPARENT;
+        FlxG.cameras.add(hudCam, false);
 
         optionCam = new FlxCamera(0, 0, FlxG.width, FlxG.height);
         optionCam.bgColor = FlxColor.TRANSPARENT;
@@ -197,7 +202,40 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         FlxG.camera.fade(FlxColor.BLACK, 0.4, true);
         
         changeSelection(0);
+        initPreviews();
         trace("[KSSETTE] create() finished completely!");
+    }
+
+    function initPreviews() {
+        var moduleNames = [
+            "KssetteAccuracy", "KssetteHealthbar", "KssetteJudgements", 
+            "KssetteTimeBar", "KssetteCombo", "KssetteSongInfo",
+            "KssetteShowTitle", "KssetteBreakBar", "KssetteSubtitles"
+        ];
+        for (mName in moduleNames) {
+            var mod:Dynamic = ModuleHandler.getModule(mName);
+            if (mod != null) {
+                try {
+                    mod.buildPreview(hudCam);
+                } catch(e:Dynamic) {}
+            }
+        }
+    }
+
+    function updatePreviews() {
+        var moduleNames = [
+            "KssetteAccuracy", "KssetteHealthbar", "KssetteJudgements", 
+            "KssetteTimeBar", "KssetteCombo", "KssetteSongInfo",
+            "KssetteShowTitle", "KssetteBreakBar", "KssetteSubtitles"
+        ];
+        for (mName in moduleNames) {
+            var mod:Dynamic = ModuleHandler.getModule(mName);
+            if (mod != null) {
+                try {
+                    mod.updatePreview();
+                } catch(e:Dynamic) {}
+            }
+        }
     }
 
     function spawnCharacter(id:String, initEvent:ScriptEvent):BaseCharacter {
@@ -388,6 +426,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 var newVal = self.options[self.currentIndex];
                 Save.instance.modOptions.set(self.key, newVal);
                 self.textDisplay.text = newVal;
+                updatePreviews();
             }
         });
     }
@@ -530,6 +569,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             Save.instance.flush();
             if (currentFontTextRef != null) currentFontTextRef.text = selFile;
             FlxG.sound.play(Paths.sound('confirmMenu'), 0.7);
+            updatePreviews();
         }
         closeFontSelector();
     }
