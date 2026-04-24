@@ -21,10 +21,12 @@ import funkin.modding.events.ScriptEvent;
 import funkin.Conductor;
 import flixel.math.FlxMath;
 import funkin.graphics.FunkinCamera;
+import funkin.Preferences;
 import Math;
 import Std;
 import Reflect;
 import flixel.math.FlxPoint;
+import StringTools;
 
 class KssetteMenuState extends ScriptedMusicBeatState {
     var apiRef:Dynamic;
@@ -72,13 +74,10 @@ class KssetteMenuState extends ScriptedMusicBeatState {
     var gf:BaseCharacter;
 
     override public function create():Void {
-        trace("[KSSETTE] Initializing create()...");
         super.create();
         
-        trace("[KSSETTE] Fetching API Module...");
         apiRef = ModuleHandler.getModule("KssetteApi");
         
-        trace("[KSSETTE] Setting up cameras...");
         stageCam = new FunkinCamera('stageCam', 0, 0, FlxG.width, FlxG.height);
         stageCam.bgColor = FlxColor.BLACK;
         stageCam.zoom = 0.7;
@@ -91,7 +90,6 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         optionCam = new FlxCamera(0, 0, FlxG.width, FlxG.height);
         optionCam.bgColor = FlxColor.TRANSPARENT;
         FlxG.cameras.add(optionCam, false);
-        trace("[KSSETTE] Cameras setup complete.");
 
         try {
             Reflect.setProperty(Conductor.instance, "bpm", 100);
@@ -100,23 +98,19 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 if (Reflect.hasField(Conductor.instance, "forceBPM")) {
                     Conductor.instance.forceBPM(100);
                 }
-            } catch(e2:Dynamic) {
-                trace("[KSSETTE] Warning: Could not set predefined BPM - " + e2);
-            }
+            } catch(e2:Dynamic) {}
         }
 
         var initEvent:ScriptEvent = null;
         try { initEvent = new ScriptEvent("onCreate"); } catch(e:Dynamic) {}
 
-        trace("[KSSETTE] Spawning Stage...");
         try {
             stage = new Stage("mainStage");
             try { stage.onCreate(initEvent); } catch(e2:Dynamic) {}
             stage.cameras = [stageCam];
             add(stage);
-        } catch(e:Dynamic) { trace("[KSSETTE] CRASH AT STAGE SPAWN: " + e); }
+        } catch(e:Dynamic) {}
 
-        trace("[KSSETTE] Spawning Characters...");
         gf = spawnCharacter("gf", initEvent);
         dad = spawnCharacter("dad", initEvent);
         bf = spawnCharacter("bf", initEvent);
@@ -177,7 +171,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             placeChar(dad, dadData, false);
             placeChar(bf, bfData, true);
 
-        } catch(e:Dynamic) { trace("[KSSETTE] Error setting positions: " + e); }
+        } catch(e:Dynamic) {}
 
         if (gf != null) { add(gf); gf.cameras = [stageCam]; }
         if (dad != null) { add(dad); dad.cameras = [stageCam]; }
@@ -189,21 +183,20 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             stageCam.scroll.set(0, 0);
         }
 
-        trace("[KSSETTE] Building Panel...");
         uiX = FlxG.width - panelWidth;
         buildSidePanel();
 
-        trace("[KSSETTE] Starting music...");
         try {
             if (FlxG.sound.music != null) FlxG.sound.music.stop();
-            FlxG.sound.playMusic(Paths.music('offsetsLoop/offsetsLoop'), 1.0, true);
+            FlxG.sound.playMusic(Paths.music('dakassette'), 1.0, true);
         } catch(e:Dynamic) {}
 
         FlxG.camera.fade(FlxColor.BLACK, 0.4, true);
         
         changeSelection(0);
+        
         initPreviews();
-        trace("[KSSETTE] create() finished completely!");
+        updatePreviews();
     }
 
     function initPreviews() {
@@ -216,23 +209,11 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             var mod:Dynamic = ModuleHandler.getModule(mName);
             if (mod != null) {
                 try {
-                    mod.buildPreview(hudCam);
-                } catch(e:Dynamic) {}
-            }
-        }
-    }
-
-    function updatePreviews() {
-        var moduleNames = [
-            "KssetteAccuracy", "KssetteHealthbar", "KssetteJudgements", 
-            "KssetteTimeBar", "KssetteCombo", "KssetteSongInfo",
-            "KssetteShowTitle", "KssetteBreakBar", "KssetteSubtitles"
-        ];
-        for (mName in moduleNames) {
-            var mod:Dynamic = ModuleHandler.getModule(mName);
-            if (mod != null) {
-                try {
-                    mod.updatePreview();
+                    if (Reflect.hasField(mod, "buildPreview")) {
+                        Reflect.callMethod(mod, Reflect.field(mod, "buildPreview"), [hudCam]);
+                    } else {
+                        mod.buildPreview(hudCam);
+                    }
                 } catch(e:Dynamic) {}
             }
         }
@@ -248,9 +229,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 var rawType = Reflect.getProperty(entry, "renderType");
                 if (rawType != null) rType = Std.string(rawType).toLowerCase();
             }
-        } catch(e:Dynamic) {
-            trace("[KSSETTE] Could not fetch registry for " + id + ": " + e);
-        }
+        } catch(e:Dynamic) {}
 
         if (rType == "") {
             var types = ["sparrow", "animateatlas", "multisparrow", "multianimateatlas", "packer"];
@@ -264,7 +243,6 @@ class KssetteMenuState extends ScriptedMusicBeatState {
 
                     if (char != null) {
                         try { char.onCreate(initEvent); } catch(e2:Dynamic) {}
-                        trace("[KSSETTE] Fallback spawned " + id + " as " + type);
                         return char;
                     }
                 } catch(e:Dynamic) {}
@@ -272,7 +250,6 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             return null;
         }
 
-        trace("[KSSETTE] Spawning " + id + " as " + rType);
         try {
             if (rType == "animateatlas") char = new AnimateAtlasCharacter(id);
             else if (rType == "multisparrow") char = new MultiSparrowCharacter(id);
@@ -281,9 +258,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             else char = new SparrowCharacter(id);
             
             try { char.onCreate(initEvent); } catch(e2:Dynamic) {}
-        } catch(e:Dynamic) {
-            trace("[KSSETTE] Failed spawning " + id + ": " + e);
-        }
+        } catch(e:Dynamic) {}
         return char;
     }
 
@@ -307,7 +282,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         var apiVer = "0.2.a1";
         try { if (apiRef != null) apiVer = Std.string(apiRef.hudVersion); } catch(e:Dynamic) {}
 
-        titleText = new FlxText(uiX + 10, 10, panelWidth - 20, "Kassette HUD Options " + apiVer, 24);
+        titleText = new FlxText(uiX + 10, 10, panelWidth - 20, "Kassette HUD Options [" + apiVer + "]", 24);
         titleText.setFormat("VCR OSD Mono", 24, FlxColor.WHITE, "center");
         titleText.scrollFactor.set(0, 0);
         titleText.cameras = [optionCam];
@@ -330,7 +305,6 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         
         curY += 20;
         addHeader("HUD Visuals", curY); curY += 40;
-        createToggle(curY, "Show HUD", "kssette_show_hud", ["On", "Off"], "Toggles the visibility of the entire HUD."); curY += step;
         createToggle(curY, "Show Score", "kssette_show_score", ["On", "Off"], "Show your current score."); curY += step;
         createToggle(curY, "Show Misses", "kssette_show_misses", ["On", "Off"], "Show a counter for how many notes you've missed."); curY += step;
         createToggle(curY, "Accuracy Mode", "kssette_acc_mode", ["Classic", "Ascending", "Off"], "How accuracy is calculated. 'Ascending' starts at 0% and climbs up."); curY += step;
@@ -346,14 +320,24 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         addHeader("Positions", curY); curY += 40;
         createToggle(curY, "Opponent Pos", "kssette_opponent_pos", ["Left", "Right"], "Where to put the opponent's notes when Middle Scroll is ON."); curY += step;
         createToggle(curY, "Time Bar Pos", "kssette_timebar_pos", ["Bottom", "Top", "Bottom Left", "Bottom Right", "Top Left", "Top Right"], "Choose where the Song Progress Bar is placed on screen."); curY += step;
-        createToggle(curY, "Info Text Pos", "kssette_info_pos", ["Below Score", "Above Arrows", "Bottom Left"], "Where to show the Song Name and Difficulty."); curY += step;
+
+        var forceDownscrollLook = false;
+        try {
+            if (apiRef != null && Reflect.hasField(apiRef, "isMobileMode") && Reflect.hasField(apiRef, "isMobileLikePC")) {
+                var isMob:Bool = Reflect.field(apiRef, "isMobileMode");
+                var isMobPC:Bool = Reflect.callMethod(apiRef, Reflect.field(apiRef, "isMobileLikePC"), []);
+                forceDownscrollLook = (isMob && !isMobPC);
+            }
+        } catch(e:Dynamic) {}
+
+        var infoLabel = (!Preferences.downscroll && !forceDownscrollLook) ? "Above Arrows" : "Below Score";
+        
+        createToggle(curY, "Info Text Pos", "kssette_info_pos", [infoLabel, "Bottom Left"], "Where to show the Song Name and Difficulty."); curY += step;
         createToggle(curY, "Judge Pos", "kssette_judge_pos", ["Off", "Left", "Right", "Top Left", "Top Right"], "Shows a counter for Sicks, Goods, Bads, etc. Choose where to place it."); curY += step;
         
         curY += 20;
         addHeader("Performance", curY); curY += 40;
         createToggle(curY, "Smooth Display", "kssette_smooth_display", ["On", "Off"], "Makes the score and accuracy numbers scroll smoothly."); curY += step;
-        createToggle(curY, "Hide Splashes", "kssette_hide_splashes", ["Off", "On"], "Removes the particles when hitting 'Sick!'. Helps with lag."); curY += step;
-        createToggle(curY, "Colored HUD", "kssette_colorize_hud", ["On", "Off"], "Changes the HUD colors to match the characters."); curY += step;
         createToggle(curY, "Colored Health", "kssette_colored_healthbar", ["On", "Off"], "Changes the health bar colors to match the character icons."); curY += step;
 
         curY += 20;
@@ -413,6 +397,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
 
         itemsGroup.add(grp);
 
+        var menuInst = this;
         optionItems.push({
             bg: bg,
             textDisplay: valueText,
@@ -426,7 +411,9 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 var newVal = self.options[self.currentIndex];
                 Save.instance.modOptions.set(self.key, newVal);
                 self.textDisplay.text = newVal;
-                updatePreviews();
+                Save.instance.flush();
+                
+                try { menuInst.updatePreviews(); } catch(e:Dynamic) {}
             }
         });
     }
@@ -453,6 +440,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
 
         itemsGroup.add(grp);
 
+        var menuInst = this;
         optionItems.push({
             bg: bg,
             textDisplay: valueText,
@@ -462,12 +450,12 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             desc: descStr,
             currentIndex: 0,
             fire: function(self:Dynamic) {
-                openFontSelector(self.key, self.textDisplay);
+                menuInst.openFontSelector(self.key, self.textDisplay);
             }
         });
     }
 
-    function openFontSelector(saveKey:String, textRef:FlxText) {
+    public function openFontSelector(saveKey:String, textRef:FlxText) {
         isFontMenuOpen = true;
         currentFontSaveKey = saveKey;
         currentFontTextRef = textRef;
@@ -493,50 +481,164 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         fontItemsGroup.cameras = [optionCam];
         add(fontItemsGroup);
 
-        var fontMap:Map<String, String> = null;
+        var fontMap:Dynamic = null;
         try { fontMap = apiRef.getAvailableFonts(); } catch(e:Dynamic) {}
         
         if (fontMap != null) {
             var keys:Array<String> = [];
-            for (k in fontMap.keys()) keys.push(k);
-            keys.sort(function(a:String, b:String):Int {
-                a = a.toLowerCase();
-                b = b.toLowerCase();
-                if (a < b) return -1;
-                if (a > b) return 1;
-                return 0;
-            });
+            var kIter = fontMap.keys();
+            for (k in kIter) keys.push(Std.string(k));
+            
+            var allFonts:Array<Dynamic> = [];
 
-            var fY:Float = 0;
-            for (i in 0...keys.length) {
-                var kName = keys[i];
-                var fFile = fontMap.get(kName);
+            for (k in keys) {
+                var fFile = fontMap.get(k);
                 var fPath = "VCR OSD Mono";
                 try { fPath = apiRef.resolveCustomFont(fFile); } catch(e:Dynamic) {}
 
-                var fTxt = new FlxText(30, fY + 10, panelWidth - 60, kName, 22);
-                try { fTxt.setFormat(fPath, 22, FlxColor.WHITE, "left"); } catch(e:Dynamic) {}
-                
-                var txtH:Float = 22;
-                try { txtH = fTxt.height; } catch(e:Dynamic) {}
-                
-                var boxHeight:Float = txtH + 20;
-                if (boxHeight < 44) boxHeight = 44;
+                var rawName = k;
+                var exts = [".ttf", ".otf"];
+                var lowerK = k.toLowerCase();
+                for (ext in exts) {
+                    if (StringTools.endsWith(lowerK, ext)) {
+                        rawName = k.substr(0, k.length - 4);
+                        break;
+                    }
+                }
 
-                var itemBg = new FlxSprite(20, fY).makeGraphic(panelWidth - 40, Std.int(boxHeight), 0xFFFFFFFF);
-                itemBg.alpha = (i == 0) ? 0.3 : 0.0;
-                fontItemsGroup.add(itemBg);
-                fontItemsGroup.add(fTxt);
+                var familyRaw = rawName;
+                var variantName = "Regular";
+                var variantParts = ["-bold", "-italic", "-regular", "-light", "-medium", "-semibold", "-black", "_bold", "_italic", "_regular", " bold", " italic", " regular"];
+                
+                for (v in variantParts) {
+                    var vIdx = rawName.toLowerCase().lastIndexOf(v);
+                    if (vIdx != -1 && vIdx > 0) {
+                        familyRaw = rawName.substr(0, vIdx);
+                        var vRaw = rawName.substr(vIdx + 1);
+                        var cleanV = "";
+                        for (i in 0...vRaw.length) {
+                            var char = vRaw.charAt(i);
+                            if (char != "-" && char != "_" && char != " ") cleanV += char;
+                        }
+                        if (cleanV.length > 0) {
+                            variantName = cleanV.substr(0,1).toUpperCase() + cleanV.substr(1);
+                        } else {
+                            variantName = vRaw;
+                        }
+                        break;
+                    }
+                }
 
-                fontItems.push({
-                    bg: itemBg,
-                    fileName: fFile,
-                    y: fY,
-                    height: boxHeight
+                if (familyRaw.toLowerCase() == "vcr" || k == "VCR (Default)") { familyRaw = "VCR OSD Mono"; variantName = "Default"; }
+                if (familyRaw.toLowerCase() == "pixel" || k == "Senpai Pixel (Default)") { familyRaw = "Senpai Pixel"; variantName = "Default"; }
+
+                allFonts.push({
+                    key: k,
+                    file: fFile,
+                    path: fPath,
+                    family: familyRaw,
+                    variant: variantName
                 });
-
-                fY += boxHeight + 6;
             }
+
+            var fY:Float = 0;
+            var familiesData:Array<Dynamic> = [];
+
+            for (f in allFonts) {
+                var fam = f.family;
+                var found = false;
+                for (fd in familiesData) {
+                    if (fd.name == fam) {
+                        fd.variants.push(f);
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    familiesData.push({name: fam, variants: [f]});
+                }
+            }
+
+            familiesData.sort(function(a:Dynamic, b:Dynamic):Int {
+                var nameA:String = a.name.toLowerCase();
+                var nameB:String = b.name.toLowerCase();
+                if (nameA < nameB) return -1;
+                if (nameA > nameB) return 1;
+                return 0;
+            });
+
+            for (famData in familiesData) {
+                var fam = famData.name;
+                var variants:Array<Dynamic> = famData.variants;
+                
+                if (variants.length == 1) {
+                    var v = variants[0];
+                    var displayName = v.family;
+                    if (v.variant != "Regular" && v.variant != "Default") displayName += " " + v.variant;
+
+                    var fTxt = new FlxText(30, fY + 10, panelWidth - 60, displayName, 22);
+                    try { fTxt.setFormat(v.path, 22, FlxColor.WHITE, "left"); } catch(e:Dynamic) {}
+                    
+                    var txtH:Float = 22;
+                    try { txtH = fTxt.height; } catch(e:Dynamic) {}
+                    
+                    var boxHeight:Float = txtH + 20;
+                    if (boxHeight < 44) boxHeight = 44;
+
+                    var itemBg = new FlxSprite(20, fY).makeGraphic(panelWidth - 40, Std.int(boxHeight), 0xFFFFFFFF);
+                    itemBg.alpha = (fontItems.length == fontSelectedIndex) ? 0.4 : 0.0;
+                    fontItemsGroup.add(itemBg);
+                    fontItemsGroup.add(fTxt);
+
+                    fontItems.push({
+                        bg: itemBg,
+                        fileName: v.file,
+                        y: fY,
+                        height: boxHeight
+                    });
+
+                    fY += boxHeight + 6;
+                } else {
+                    var famTxt = new FlxText(30, fY + 10, panelWidth - 60, fam, 22);
+                    famTxt.setFormat("VCR OSD Mono", 22, 0xFFDDDDDD, "left");
+                    fontItemsGroup.add(famTxt);
+                    fY += famTxt.height + 10;
+
+                    variants.sort(function(a:Dynamic, b:Dynamic):Int {
+                        var varA:String = a.variant.toLowerCase();
+                        var varB:String = b.variant.toLowerCase();
+                        if (varA < varB) return -1;
+                        if (varA > varB) return 1;
+                        return 0;
+                    });
+
+                    for (v in variants) {
+                        var fTxt = new FlxText(50, fY + 10, panelWidth - 80, v.variant, 20);
+                        try { fTxt.setFormat(v.path, 20, FlxColor.WHITE, "left"); } catch(e:Dynamic) {}
+                        
+                        var txtH:Float = 20;
+                        try { txtH = fTxt.height; } catch(e:Dynamic) {}
+                        
+                        var boxHeight:Float = txtH + 16;
+                        if (boxHeight < 36) boxHeight = 36;
+
+                        var itemBg = new FlxSprite(40, fY).makeGraphic(panelWidth - 80, Std.int(boxHeight), 0xFFFFFFFF);
+                        itemBg.alpha = (fontItems.length == fontSelectedIndex) ? 0.4 : 0.0;
+                        fontItemsGroup.add(itemBg);
+                        fontItemsGroup.add(fTxt);
+
+                        fontItems.push({
+                            bg: itemBg,
+                            fileName: v.file,
+                            y: fY,
+                            height: boxHeight
+                        });
+
+                        fY += boxHeight + 4;
+                    }
+                }
+            }
+
             fontMaxScroll = Math.max(0, fY - FlxG.height + 150);
         }
 
@@ -569,7 +671,8 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             Save.instance.flush();
             if (currentFontTextRef != null) currentFontTextRef.text = selFile;
             FlxG.sound.play(Paths.sound('confirmMenu'), 0.7);
-            updatePreviews();
+            
+            try { updatePreviews(); } catch(e:Dynamic) {}
         }
         closeFontSelector();
     }
@@ -626,7 +729,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
     function fireFontClickAt(pos:FlxPoint) {
         for (i in 0...fontItems.length) {
             var item = fontItems[i];
-            if (pos.x >= uiX + 20 && pos.x <= uiX + panelWidth - 20 && pos.y >= fontItemsGroup.y + item.y && pos.y <= fontItemsGroup.y + item.y + item.height) {
+            if (pos.x >= uiX + item.bg.x && pos.x <= uiX + item.bg.x + item.bg.width && pos.y >= fontItemsGroup.y + item.y && pos.y <= fontItemsGroup.y + item.y + item.height) {
                 fontSelectedIndex = i;
                 changeFontSelection(0);
                 selectCurrentFont();
@@ -664,9 +767,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             if (bf != null) bf.dance();
             if (dad != null) dad.dance();
             if (gf != null) gf.dance();
-        } catch(e:Dynamic) {
-            trace("[KSSETTE] Animation sync error: " + e);
-        }
+        } catch(e:Dynamic) {}
     }
 
     override public function update(elapsed:Float):Void {
@@ -777,6 +878,26 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 FlxG.switchState(new OptionsState());
                 FlxG.sound.playMusic(Paths.music('freakyMenu'), 1.0, true);
             });
+        }
+    }
+
+    public function updatePreviews() {
+        var moduleNames = [
+            "KssetteAccuracy", "KssetteHealthbar", "KssetteJudgements", 
+            "KssetteTimeBar", "KssetteCombo", "KssetteSongInfo",
+            "KssetteShowTitle", "KssetteBreakBar", "KssetteSubtitles"
+        ];
+        for (mName in moduleNames) {
+            var mod:Dynamic = ModuleHandler.getModule(mName);
+            if (mod != null) {
+                try {
+                    if (Reflect.hasField(mod, "updatePreview")) {
+                        Reflect.callMethod(mod, Reflect.field(mod, "updatePreview"), []);
+                    } else {
+                        mod.updatePreview();
+                    }
+                } catch(e:Dynamic) {}
+            }
         }
     }
 

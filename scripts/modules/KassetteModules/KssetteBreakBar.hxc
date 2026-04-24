@@ -24,9 +24,67 @@ class KssetteBreakBar extends Module {
     
     var cachedNoteTimes:Array<Dynamic> = [];
     var localNoteIndex:Int = 0;
+
+    public var isPreview:Bool = false;
+    public var previewCam:flixel.FlxCamera = null;
+    var previewBreakTimer:Float = 0.0;
     
     public function new() {
         super("KssetteBreakBar");
+    }
+
+    public function cleanupUI() {
+        if (borders != null) {
+            for (b in borders) {
+                if (b != null) b.destroy();
+            }
+        }
+        borders = [];
+        
+        if (barFill != null) barFill.destroy();
+        if (breakText != null) breakText.destroy();
+    }
+
+    public function setupUI(cam:flixel.FlxCamera) {
+        cleanupUI();
+
+        var centerY = (FlxG.height / 2) - 60;
+        var centerX = FlxG.width / 2;
+        var startX = centerX - (barWidth / 2);
+        var thick = 4;
+        
+        var bTop = new FlxSprite(startX, centerY).makeGraphic(Std.int(barWidth), thick, 0xFFFFFFFF);
+        var bBot = new FlxSprite(startX, centerY + barHeight - thick).makeGraphic(Std.int(barWidth), thick, 0xFFFFFFFF);
+        var bLeft = new FlxSprite(startX, centerY + thick).makeGraphic(thick, Std.int(barHeight - thick * 2), 0xFFFFFFFF);
+        var bRight = new FlxSprite(startX + barWidth - thick, centerY + thick).makeGraphic(thick, Std.int(barHeight - thick * 2), 0xFFFFFFFF);
+        
+        borders = [bTop, bBot, bLeft, bRight];
+        for (b in borders) {
+            b.scrollFactor.set(0, 0);
+            b.zIndex = 995;
+            b.alpha = 0;
+            b.cameras = [cam];
+            FlxG.state.add(b);
+        }
+        
+        barFill = new FlxSprite(startX + thick, centerY + thick).makeGraphic(Std.int(barWidth - thick * 2), Std.int(barHeight - thick * 2), 0xFFFFFFFF);
+        barFill.scrollFactor.set(0, 0);
+        barFill.zIndex = 994;
+        barFill.origin.set(0, 0);
+        barFill.alpha = 0;
+        barFill.cameras = [cam];
+        FlxG.state.add(barFill);
+
+        breakText = new FlxText(startX, centerY - 28, barWidth, "BREAK", 20);
+        breakText.setFormat(cachedFont, 20, 0xFFFFFFFF, "center", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        breakText.scrollFactor.set(0, 0);
+        breakText.zIndex = 996;
+        breakText.alpha = 0;
+        breakText.cameras = [cam];
+        FlxG.state.add(breakText);
+
+        currentAlpha = 0;
+        alphaTarget = 0;
     }
     
     override public function onCountdownStart(event) {
@@ -47,58 +105,83 @@ class KssetteBreakBar extends Module {
         }
         
         localNoteIndex = 0;
-        
-        if (borders != null) {
-            for (b in borders) {
-                if (b != null) b.destroy();
-            }
-        }
-        borders = [];
-        
-        if (barFill != null) barFill.destroy();
-        if (breakText != null) breakText.destroy();
-        
-        var centerY = (FlxG.height / 2) - 60;
-        var centerX = FlxG.width / 2;
-        var startX = centerX - (barWidth / 2);
-        var thick = 4;
-        
-        var bTop = new FlxSprite(startX, centerY).makeGraphic(Std.int(barWidth), thick, 0xFFFFFFFF);
-        var bBot = new FlxSprite(startX, centerY + barHeight - thick).makeGraphic(Std.int(barWidth), thick, 0xFFFFFFFF);
-        var bLeft = new FlxSprite(startX, centerY + thick).makeGraphic(thick, Std.int(barHeight - thick * 2), 0xFFFFFFFF);
-        var bRight = new FlxSprite(startX + barWidth - thick, centerY + thick).makeGraphic(thick, Std.int(barHeight - thick * 2), 0xFFFFFFFF);
-        
-        borders = [bTop, bBot, bLeft, bRight];
-        for (b in borders) {
-            b.scrollFactor.set(0, 0);
-            b.zIndex = 995;
-            b.alpha = 0;
-            if (state.camHUD != null) b.cameras = [state.camHUD];
-            state.add(b);
-        }
-        
-        barFill = new FlxSprite(startX + thick, centerY + thick).makeGraphic(Std.int(barWidth - thick * 2), Std.int(barHeight - thick * 2), 0xFFFFFFFF);
-        barFill.scrollFactor.set(0, 0);
-        barFill.zIndex = 994;
-        barFill.origin.set(0, 0);
-        barFill.alpha = 0;
-        if (state.camHUD != null) barFill.cameras = [state.camHUD];
-        state.add(barFill);
+        isPreview = false;
 
-        breakText = new FlxText(startX, centerY - 28, barWidth, "BREAK", 20);
-        breakText.setFormat(cachedFont, 20, 0xFFFFFFFF, "center", FlxTextBorderStyle.OUTLINE, 0xFF000000);
-        breakText.scrollFactor.set(0, 0);
-        breakText.zIndex = 996;
-        breakText.alpha = 0;
-        if (state.camHUD != null) breakText.cameras = [state.camHUD];
-        state.add(breakText);
+        if (state.camHUD != null) {
+            setupUI(state.camHUD);
+        }
+    }
 
-        currentAlpha = 0;
-        alphaTarget = 0;
+    public function buildPreview(cam:flixel.FlxCamera) {
+        isPreview = true;
+        previewCam = cam;
+        
+        apiModule = ModuleHandler.getModule("KssetteApi");
+        if (apiModule != null) {
+            cachedFont = apiModule.getHudFont();
+        }
+        if (cachedFont == null || cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
+
+        setupUI(cam);
+        previewBreakTimer = 6.0;
+        updatePreview();
+    }
+
+    public function updatePreview() {
+        if (!isPreview || breakText == null) return;
+
+        apiModule = ModuleHandler.getModule("KssetteApi");
+        if (apiModule != null) {
+            cachedActive = apiModule.getKssValue("kssette_show_breakbar") == true;
+            cachedFont = apiModule.getHudFont();
+        }
+        if (cachedFont == null || cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
+
+        if (breakText.font != cachedFont) {
+            breakText.font = cachedFont;
+        }
     }
     
     override public function onUpdate(event) {
         super.onUpdate(event);
+        
+        if (isPreview) {
+            if (!cachedActive || barFill == null || breakText == null) {
+                alphaTarget = 0;
+            } else {
+                previewBreakTimer -= event.elapsed;
+                
+                if (previewBreakTimer <= 0) {
+                    previewBreakTimer = 6.0;
+                }
+
+                if (previewBreakTimer <= 5.0) {
+                    alphaTarget = 1;
+                    var prog = previewBreakTimer / 5.0;
+                    if (prog < 0) prog = 0;
+                    if (prog > 1) prog = 1;
+                    barFill.scale.x = prog;
+                } else {
+                    alphaTarget = 0;
+                }
+            }
+            
+            if (currentAlpha == 0 && alphaTarget == 0) return;
+
+            currentAlpha += (alphaTarget - currentAlpha) * (event.elapsed * 10);
+            if (Math.abs(alphaTarget - currentAlpha) < 0.01) currentAlpha = alphaTarget;
+            
+            var borderAlpha = currentAlpha * 0.6;
+            for (b in borders) {
+                if (b != null) b.alpha = borderAlpha;
+            }
+            
+            barFill.alpha = currentAlpha * 0.4;
+            breakText.alpha = currentAlpha * 0.8;
+            
+            return;
+        }
+
         if (!cachedActive || barFill == null || breakText == null) return;
 
         var breakActive:Bool = false;
@@ -153,10 +236,9 @@ class KssetteBreakBar extends Module {
         if (Math.abs(alphaTarget - currentAlpha) < 0.01) currentAlpha = alphaTarget;
         
         var borderAlpha = currentAlpha * 0.6;
-        borders[0].alpha = borderAlpha;
-        borders[1].alpha = borderAlpha;
-        borders[2].alpha = borderAlpha;
-        borders[3].alpha = borderAlpha;
+        for (b in borders) {
+            if (b != null) b.alpha = borderAlpha;
+        }
         
         barFill.alpha = currentAlpha * 0.4;
         breakText.alpha = currentAlpha * 0.8;

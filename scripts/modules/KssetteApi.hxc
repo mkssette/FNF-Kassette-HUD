@@ -98,18 +98,18 @@ class KssetteApi extends Module {
 
     function initSettings() {
         var options = [
-            "kssette_show_hud", "kssette_show_score", "kssette_show_misses",
+            "kssette_show_score", "kssette_show_misses",
             "kssette_acc_mode", "kssette_show_rank", "kssette_show_tier",
             "kssette_middlescroll", "kssette_opponent_pos", "kssette_ghost_tapping", 
             "kssette_ghost_sing", "kssette_show_timebar", "kssette_info_pos",
             "kssette_show_song_title", "kssette_show_song_diff",  
             "kssette_show_song_time", "kssette_judge_pos", "kssette_mobile_keyboard",
             "kssette_timebar_pos", "kssette_show_breakbar", "kssette_resume_countdown",
-            "kssette_smooth_display", "kssette_hide_splashes", "kssette_custom_font",
+            "kssette_smooth_display", "kssette_custom_font",
             "kssette_custom_pixel_font",
             "kssette_intro_text", "kssette_intro_font_title", "kssette_intro_font_artist",
             "kssette_subtitles_anim", "kssette_subtitles_pos", "kssette_smart_karaoke",
-            "kssette_colorize_hud", "kssette_colored_healthbar"
+            "kssette_colored_healthbar"
         ];
 
         for (opt in options) {
@@ -124,7 +124,6 @@ class KssetteApi extends Module {
                 if (opt == "kssette_info_pos") defaultVal = "Below Score";
                 if (opt == "kssette_mobile_keyboard") defaultVal = "Off";
                 if (opt == "kssette_timebar_pos") defaultVal = "Bottom";
-                if (opt == "kssette_hide_splashes") defaultVal = "Off";
                 if (opt == "kssette_custom_font") defaultVal = "vcr.ttf";
                 if (opt == "kssette_custom_pixel_font") defaultVal = "pixel.otf";
                 if (opt == "kssette_intro_text") defaultVal = "On";
@@ -249,7 +248,7 @@ class KssetteApi extends Module {
                                     try {
                                         if (Reflect.hasField(val, "char")) {
                                             var charVal = Std.parseInt(Std.string(Reflect.field(val, "char")));
-                                            if (charVal == 0) isPlayerEvent = true;
+                                            if (charVal == 0) isPlayerEvent = true; 
                                         }
                                     } catch(e:Dynamic) {}
 
@@ -300,10 +299,6 @@ class KssetteApi extends Module {
         }
 
         currentNoteIndex = 0;
-    }
-
-    override public function onNoteSplash(event) {
-        if (getKssValue("kssette_hide_splashes") == true) event.cancel();
     }
 
     public function extractIconColor(icon:Dynamic, isPlayer:Bool, iconId:String):Int {
@@ -432,7 +427,7 @@ class KssetteApi extends Module {
             var timeUntilNext = nextTime - currentTime;
 
             if (timeSincePrev > 400 && timeUntilNext > 400) {
-                var totalVisibleTime = gap - 800;
+                var totalVisibleTime = gap - 800; 
                 var currentVisibleTime = timeSincePrev - 400;
                 var progress = currentVisibleTime / totalVisibleTime;
                 return {active: true, progress: progress, timeLeft: timeUntilNext};
@@ -795,9 +790,9 @@ class KssetteApi extends Module {
         for (folder in folders) {
             var path = "mods/" + folder + "/fonts";
             try {
-                var files = FileUtil.readDir(path);
-                if (files != null) {
-                    for (file in files) {
+                var dirFiles = FileUtil.readDir(path);
+                if (dirFiles != null) {
+                    for (file in dirFiles) {
                         var f = file.toLowerCase();
                         if (StringTools.endsWith(f, ".ttf") || StringTools.endsWith(f, ".otf")) {
                             if (blacklist.indexOf(f) == -1) {
@@ -854,11 +849,11 @@ class KssetteApi extends Module {
                 if (foundPath != "") break; 
                 var path = "mods/" + folder + "/fonts";
                 try {
-                    var archivos = FileUtil.readDir(path);
-                    if (archivos != null) {
-                        for (archivo in archivos) {
-                                if (archivo.toLowerCase() == fontKey.toLowerCase()) {
-                                foundPath = "mods/" + folder + "/fonts/" + archivo;
+                    var dirFiles = FileUtil.readDir(path);
+                    if (dirFiles != null) {
+                        for (f in dirFiles) {
+                            if (f.toLowerCase() == fontKey.toLowerCase()) {
+                                foundPath = "mods/" + folder + "/fonts/" + f;
                                 break;
                             }
                         }
@@ -905,8 +900,7 @@ class KssetteApi extends Module {
                         if (nStyle != null) styleId = Std.string(nStyle);
                     }
                 }
-            } catch(e:Dynamic) {
-            }
+            } catch(e:Dynamic) {}
         }
 
         var currentStyleId:String = styleId;
@@ -1098,7 +1092,7 @@ class KssetteApi extends Module {
             i--;
         }
 
-        var item = mainPage.createItem(label, function() {
+        var item = mainPage.createItem(label, function() { 
             FlxG.camera.fade(FlxColor.BLACK, 0.4, false, function() {
                 FlxG.switchState(ScriptedMusicBeatState.init("KssetteMenuState"));
             });
