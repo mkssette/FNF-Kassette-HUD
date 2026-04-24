@@ -692,7 +692,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             if (currentFontTextRef != null) currentFontTextRef.text = selFile;
             FlxG.sound.play(Paths.sound('confirmMenu'), 0.7);
             
-            try { cast(FlxG.state, Dynamic).updatePreviews(); } catch(e:Dynamic) {}
+            updatePreviews();
         }
         closeFontSelector();
     }

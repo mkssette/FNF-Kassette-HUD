@@ -41,8 +41,20 @@ class KssetteBreakBar extends Module {
         }
         borders = [];
         
-        if (barFill != null) barFill.destroy();
-        if (breakText != null) breakText.destroy();
+        if (barFill != null) {
+            barFill.destroy();
+            barFill = null;
+        }
+        if (breakText != null) {
+            breakText.destroy();
+            breakText = null;
+        }
+    }
+
+    override public function onStateChangeStart(event) {
+        super.onStateChangeStart(event);
+        isPreview = false;
+        cleanupUI();
     }
 
     public function setupUI(cam:flixel.FlxCamera) {
@@ -128,7 +140,7 @@ class KssetteBreakBar extends Module {
     }
 
     public function updatePreview() {
-        if (!isPreview || breakText == null) return;
+        if (!isPreview || breakText == null || !breakText.exists) return;
 
         apiModule = ModuleHandler.getModule("KssetteApi");
         if (apiModule != null) {
@@ -145,8 +157,13 @@ class KssetteBreakBar extends Module {
     override public function onUpdate(event) {
         super.onUpdate(event);
         
+        if (barFill == null || !barFill.exists || barFill.scale == null || breakText == null || !breakText.exists) {
+            alphaTarget = 0;
+            return;
+        }
+
         if (isPreview) {
-            if (!cachedActive || barFill == null || breakText == null) {
+            if (!cachedActive) {
                 alphaTarget = 0;
             } else {
                 previewBreakTimer -= event.elapsed;
@@ -173,7 +190,7 @@ class KssetteBreakBar extends Module {
             
             var borderAlpha = currentAlpha * 0.6;
             for (b in borders) {
-                if (b != null) b.alpha = borderAlpha;
+                if (b != null && b.exists) b.alpha = borderAlpha;
             }
             
             barFill.alpha = currentAlpha * 0.4;
@@ -182,38 +199,38 @@ class KssetteBreakBar extends Module {
             return;
         }
 
-        if (!cachedActive || barFill == null || breakText == null) return;
-
         var breakActive:Bool = false;
         var breakProgress:Float = 0.0;
         
-        var state = PlayState.instance;
-        if (state != null && state.conductorInUse != null) {
-            if (cachedNoteTimes != null && cachedNoteTimes.length > 0) {
-                var currentTime = state.conductorInUse.songPosition;
-                var noteIndex:Int = localNoteIndex;
+        if (cachedActive) {
+            var state = PlayState.instance;
+            if (state != null && state.conductorInUse != null) {
+                if (cachedNoteTimes != null && cachedNoteTimes.length > 0) {
+                    var currentTime = state.conductorInUse.songPosition;
+                    var noteIndex:Int = localNoteIndex;
 
-                while (noteIndex < cachedNoteTimes.length && cachedNoteTimes[noteIndex].start <= currentTime) {
-                    noteIndex++;
-                }
-                
-                localNoteIndex = noteIndex;
-
-                if (noteIndex < cachedNoteTimes.length) {
-                    var nextTime:Float = cachedNoteTimes[noteIndex].start;
-                    var prevTime:Float = 0;
-                    if (noteIndex > 0) prevTime = cachedNoteTimes[noteIndex - 1].end;
+                    while (noteIndex < cachedNoteTimes.length && cachedNoteTimes[noteIndex].start <= currentTime) {
+                        noteIndex++;
+                    }
                     
-                    var gap = nextTime - prevTime;
-                    if (gap >= 2500) {
-                        var timeSincePrev = currentTime - prevTime;
-                        var timeUntilNext = nextTime - currentTime;
+                    localNoteIndex = noteIndex;
 
-                        if (timeSincePrev > 400 && timeUntilNext > 400) {
-                            var totalVisibleTime = gap - 800; 
-                            var currentVisibleTime = timeSincePrev - 400;
-                            breakProgress = currentVisibleTime / totalVisibleTime;
-                            breakActive = true;
+                    if (noteIndex < cachedNoteTimes.length) {
+                        var nextTime:Float = cachedNoteTimes[noteIndex].start;
+                        var prevTime:Float = 0;
+                        if (noteIndex > 0) prevTime = cachedNoteTimes[noteIndex - 1].end;
+                        
+                        var gap = nextTime - prevTime;
+                        if (gap >= 2500) {
+                            var timeSincePrev = currentTime - prevTime;
+                            var timeUntilNext = nextTime - currentTime;
+
+                            if (timeSincePrev > 400 && timeUntilNext > 400) {
+                                var totalVisibleTime = gap - 800; 
+                                var currentVisibleTime = timeSincePrev - 400;
+                                breakProgress = currentVisibleTime / totalVisibleTime;
+                                breakActive = true;
+                            }
                         }
                     }
                 }
@@ -237,7 +254,7 @@ class KssetteBreakBar extends Module {
         
         var borderAlpha = currentAlpha * 0.6;
         for (b in borders) {
-            if (b != null) b.alpha = borderAlpha;
+            if (b != null && b.exists) b.alpha = borderAlpha;
         }
         
         barFill.alpha = currentAlpha * 0.4;

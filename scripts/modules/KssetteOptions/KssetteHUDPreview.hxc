@@ -9,6 +9,7 @@ import funkin.data.notestyle.NoteStyleRegistry;
 import funkin.play.components.HealthIcon;
 import funkin.play.notes.Strumline;
 import funkin.play.notes.StrumlineNote;
+import funkin.util.Constants;
 import flixel.FlxG;
 import flixel.FlxSprite;
 import flixel.FlxCamera;
@@ -24,8 +25,8 @@ class KssetteHUDPreview extends Module {
     public var previewCam:FlxCamera = null;
     var apiModule:Dynamic = null;
 
-    var playerStrum:Strumline;
-    var opponentStrum:Strumline;
+    var playerStrumPreview:Strumline;
+    var opponentStrumPreview:Strumline;
     
     var healthBarBG:FlxSprite;
     var healthBarFillP1:FlxSprite;
@@ -36,50 +37,50 @@ class KssetteHUDPreview extends Module {
     var bopTimer:Float = 0.0;
     var cachedActive:Bool = true;
 
-    var playerStrumInTween:FlxTween = null;
-    var opponentStrumInTween:FlxTween = null;
+    var previewInTween:FlxTween = null;
+    var previewOutTween:FlxTween = null;
 
     public function new() {
         super("KssetteHUDPreview");
     }
 
     public function cancelStrumTweens() {
-        if (playerStrumInTween != null) {
-            try { playerStrumInTween.cancel(); } catch(e:Dynamic) {}
-            playerStrumInTween = null;
+        if (previewInTween != null) {
+            try { previewInTween.cancel(); } catch(e:Dynamic) {}
+            previewInTween = null;
         }
-        if (opponentStrumInTween != null) {
-            try { opponentStrumInTween.cancel(); } catch(e:Dynamic) {}
-            opponentStrumInTween = null;
+        if (previewOutTween != null) {
+            try { previewOutTween.cancel(); } catch(e:Dynamic) {}
+            previewOutTween = null;
         }
         
-        if (playerStrum != null && playerStrum.exists && playerStrum.strumlineNotes != null) {
-            for (note in playerStrum.strumlineNotes) {
+        if (playerStrumPreview != null && playerStrumPreview.exists && playerStrumPreview.strumlineNotes != null) {
+            for (note in playerStrumPreview.strumlineNotes) {
                 if (note != null && note.exists) FlxTween.cancelTweensOf(note);
             }
         }
-        if (opponentStrum != null && opponentStrum.exists && opponentStrum.strumlineNotes != null) {
-            for (note in opponentStrum.strumlineNotes) {
+        if (opponentStrumPreview != null && opponentStrumPreview.exists && opponentStrumPreview.strumlineNotes != null) {
+            for (note in opponentStrumPreview.strumlineNotes) {
                 if (note != null && note.exists) FlxTween.cancelTweensOf(note);
             }
         }
         
-        if (playerStrum != null && playerStrum.exists) FlxTween.cancelTweensOf(playerStrum);
-        if (opponentStrum != null && opponentStrum.exists) FlxTween.cancelTweensOf(opponentStrum);
+        if (playerStrumPreview != null && playerStrumPreview.exists) FlxTween.cancelTweensOf(playerStrumPreview);
+        if (opponentStrumPreview != null && opponentStrumPreview.exists) FlxTween.cancelTweensOf(opponentStrumPreview);
     }
 
     public function cleanUp() {
         cancelStrumTweens();
 
-        if (playerStrum != null) {
-            try { FlxG.state.remove(playerStrum); } catch(e:Dynamic) {}
-            try { playerStrum.destroy(); } catch(e:Dynamic) {}
-            playerStrum = null;
+        if (playerStrumPreview != null) {
+            try { FlxG.state.remove(playerStrumPreview); } catch(e:Dynamic) {}
+            try { playerStrumPreview.destroy(); } catch(e:Dynamic) {}
+            playerStrumPreview = null;
         }
-        if (opponentStrum != null) {
-            try { FlxG.state.remove(opponentStrum); } catch(e:Dynamic) {}
-            try { opponentStrum.destroy(); } catch(e:Dynamic) {}
-            opponentStrum = null;
+        if (opponentStrumPreview != null) {
+            try { FlxG.state.remove(opponentStrumPreview); } catch(e:Dynamic) {}
+            try { opponentStrumPreview.destroy(); } catch(e:Dynamic) {}
+            opponentStrumPreview = null;
         }
         if (healthBarBG != null) {
             try { FlxG.state.remove(healthBarBG); } catch(e:Dynamic) {}
@@ -184,40 +185,43 @@ class KssetteHUDPreview extends Module {
         var oppPos = Std.string(apiModule.getKssValue("kssette_opponent_pos"));
         var coloredHB = apiModule.getKssValue("kssette_colored_healthbar") == true;
 
-        var targetY = downscroll ? FlxG.height - 150.0 : 50.0;
+        var strumYOffset = 50.0;
+        try { strumYOffset = Constants.STRUMLINE_Y_OFFSET; } catch(e:Dynamic) {}
+
+        var targetY = downscroll ? FlxG.height - 150.0 : strumYOffset;
         var startY = downscroll ? targetY + 300.0 : targetY - 300.0;
-        var currentY:Float = (playerStrum != null && playerStrum.exists) ? playerStrum.y : startY;
+        var currentY:Float = (playerStrumPreview != null && playerStrumPreview.exists) ? playerStrumPreview.y : startY;
 
         cancelStrumTweens();
 
-        if (playerStrum != null) {
-            try { FlxG.state.remove(playerStrum); } catch(e:Dynamic) {}
-            try { playerStrum.destroy(); } catch(e:Dynamic) {}
-            playerStrum = null;
+        if (playerStrumPreview != null) {
+            try { FlxG.state.remove(playerStrumPreview); } catch(e:Dynamic) {}
+            try { playerStrumPreview.destroy(); } catch(e:Dynamic) {}
+            playerStrumPreview = null;
         }
-        if (opponentStrum != null) {
-            try { FlxG.state.remove(opponentStrum); } catch(e:Dynamic) {}
-            try { opponentStrum.destroy(); } catch(e:Dynamic) {}
-            opponentStrum = null;
+        if (opponentStrumPreview != null) {
+            try { FlxG.state.remove(opponentStrumPreview); } catch(e:Dynamic) {}
+            try { opponentStrumPreview.destroy(); } catch(e:Dynamic) {}
+            opponentStrumPreview = null;
         }
 
         var noteStyle = NoteStyleRegistry.instance.fetchDefault();
 
-        playerStrum = new Strumline(noteStyle, true);
-        playerStrum.cameras = [previewCam];
-        playerStrum.scrollFactor.set(0, 0);
-        playerStrum.zIndex = 1100;
-        try { var pbg = Reflect.getProperty(playerStrum, "background"); if (pbg != null) pbg.visible = false; } catch(e:Dynamic) {}
-        FlxG.state.add(playerStrum);
+        playerStrumPreview = new Strumline(noteStyle, true);
+        playerStrumPreview.cameras = [previewCam];
+        playerStrumPreview.scrollFactor.set(0, 0);
+        playerStrumPreview.zIndex = 1100;
+        try { var pbg = Reflect.getProperty(playerStrumPreview, "background"); if (pbg != null) pbg.visible = false; } catch(e:Dynamic) {}
+        FlxG.state.add(playerStrumPreview);
 
         var showOpp = (ms != "Hidden Notes");
         if (showOpp) {
-            opponentStrum = new Strumline(noteStyle, false);
-            opponentStrum.cameras = [previewCam];
-            opponentStrum.scrollFactor.set(0, 0);
-            opponentStrum.zIndex = 1099;
-            try { var obg = Reflect.getProperty(opponentStrum, "background"); if (obg != null) obg.visible = false; } catch(e:Dynamic) {}
-            FlxG.state.add(opponentStrum);
+            opponentStrumPreview = new Strumline(noteStyle, false);
+            opponentStrumPreview.cameras = [previewCam];
+            opponentStrumPreview.scrollFactor.set(0, 0);
+            opponentStrumPreview.zIndex = 1099;
+            try { var obg = Reflect.getProperty(opponentStrumPreview, "background"); if (obg != null) obg.visible = false; } catch(e:Dynamic) {}
+            FlxG.state.add(opponentStrumPreview);
         }
 
         var halfW = FlxG.width / 2.0;
@@ -229,44 +233,52 @@ class KssetteHUDPreview extends Module {
 
         var msOn = (ms != "Off" && ms != "null" && ms != "");
         var pStyle = (ms == "P Style");
+        var sxOff = 50.0;
+        try { sxOff = Constants.STRUMLINE_X_OFFSET; } catch(e:Dynamic) {}
 
         if (msOn) {
-            playerStrum.x = halfW - (playerStrum.width / 2.0);
+            playerStrumPreview.x = (FlxG.width - playerStrumPreview.width) / 2.0;
         } else {
-            playerStrum.x = (halfW + 50) + (cutoutSize / 2.0);
+            playerStrumPreview.x = (halfW + sxOff) + (cutoutSize / 2.0);
         }
 
-        if (showOpp && opponentStrum != null && opponentStrum.exists) {
+        if (showOpp && opponentStrumPreview != null && opponentStrumPreview.exists) {
             if (!msOn) {
-                opponentStrum.x = 50 + cutoutSize;
+                opponentStrumPreview.x = sxOff + cutoutSize;
             } else {
-                opponentStrum.x = 0; 
+                opponentStrumPreview.x = 0; 
                 
-                var receptors:Array<Dynamic> = null;
-                try { receptors = opponentStrum.strumlineNotes.members; } catch(e:Dynamic) {}
+                var oppReceptors:Array<Dynamic> = null;
+                try { oppReceptors = opponentStrumPreview.strumlineNotes.members; } catch(e:Dynamic) {}
                 
-                if (receptors != null && receptors.length >= 4 && receptors[0] != null) {
+                if (oppReceptors != null && oppReceptors.length >= 4) {
                     var defScale:Float = 0.7;
                     try { defScale = noteStyle.getStrumlineScale(); } catch(e:Dynamic) {}
-                    
-                    var nw = receptors[0].width;
+
+                    var noteSpace = 112.0;
+                    var nw = (oppReceptors[0] != null && oppReceptors[0].exists) ? oppReceptors[0].width : noteSpace;
                     
                     if (pStyle) {
-                        receptors[0].x = 50;
-                        receptors[1].x = 50 + 112;
-                        receptors[2].x = FlxG.width - 50 - 112 - nw;
-                        receptors[3].x = FlxG.width - 50 - nw;
-                        
-                        for (rec in receptors) {
-                            if (rec != null && rec.exists) rec.alpha = 0.6;
+                        for (rec in oppReceptors) {
+                            if (rec != null && rec.exists) {
+                                rec.scale.set(defScale, defScale);
+                                rec.updateHitbox();
+                                rec.alpha = 0.6;
+                            }
                         }
+                        
+                        if (oppReceptors[0] != null && oppReceptors[0].exists) oppReceptors[0].x = sxOff;
+                        if (oppReceptors[1] != null && oppReceptors[1].exists) oppReceptors[1].x = sxOff + noteSpace;
+                        if (oppReceptors[3] != null && oppReceptors[3].exists) oppReceptors[3].x = FlxG.width - sxOff - nw;
+                        if (oppReceptors[2] != null && oppReceptors[2].exists) oppReceptors[2].x = FlxG.width - sxOff - nw - noteSpace;
+                        
                     } else if (ms == "On") {
                         var sizeRatio = 0.65;
-                        var targetSpacing = 112 * sizeRatio;
+                        var targetSpacing = noteSpace * sizeRatio;
                         var actualNw = 0.0;
 
                         for (i in 0...4) {
-                            var rec = receptors[i];
+                            var rec = oppReceptors[i];
                             if (rec != null && rec.exists) {
                                 rec.scale.set(defScale * sizeRatio, defScale * sizeRatio);
                                 rec.updateHitbox();
@@ -276,14 +288,14 @@ class KssetteHUDPreview extends Module {
                         }
 
                         var exactTotalWidth = (targetSpacing * 3) + actualNw;
-                        var compactStartX:Float = 50;
+                        var compactStartX:Float = sxOff;
                         
                         if (oppPos == "Right") {
-                            compactStartX = FlxG.width - 50 - exactTotalWidth;
+                            compactStartX = FlxG.width - sxOff - exactTotalWidth;
                         }
 
                         for (i in 0...4) {
-                            var rec = receptors[i];
+                            var rec = oppReceptors[i];
                             if (rec != null && rec.exists) {
                                 rec.x = compactStartX + (targetSpacing * i);
                             }
@@ -293,12 +305,12 @@ class KssetteHUDPreview extends Module {
             }
         }
 
-        playerStrum.y = currentY;
-        if (opponentStrum != null && opponentStrum.exists) opponentStrum.y = currentY;
+        playerStrumPreview.y = currentY;
+        if (opponentStrumPreview != null && opponentStrumPreview.exists) opponentStrumPreview.y = currentY;
 
-        playerStrumInTween = FlxTween.tween(playerStrum, {y: targetY}, 0.3, {ease: FlxEase.cubeOut});
-        if (opponentStrum != null && opponentStrum.exists && opponentStrum.visible) {
-            opponentStrumInTween = FlxTween.tween(opponentStrum, {y: targetY}, 0.3, {ease: FlxEase.cubeOut});
+        previewInTween = FlxTween.tween(playerStrumPreview, {y: targetY}, 0.3, {ease: FlxEase.cubeOut});
+        if (opponentStrumPreview != null && opponentStrumPreview.exists && opponentStrumPreview.visible) {
+            previewOutTween = FlxTween.tween(opponentStrumPreview, {y: targetY}, 0.3, {ease: FlxEase.cubeOut});
         }
 
         cachedActive = apiModule.getKssValue("kssette_show_hud") == true;
@@ -313,6 +325,7 @@ class KssetteHUDPreview extends Module {
         if (healthBarFillP1 != null && healthBarFillP1.exists) healthBarFillP1.y = hbY + 4;
         if (healthBarFillP2 != null && healthBarFillP2.exists) healthBarFillP2.y = hbY + 4;
 
+        var p1Color = 0xFF66FF33; var p2Color = 0xFFFF0000;
         if (coloredHB) {
             try {
                 p1Color = apiModule.extractIconColor(iconP1, true, "bf");
@@ -330,6 +343,14 @@ class KssetteHUDPreview extends Module {
         super.onUpdate(event);
 
         if (!isPreview) return;
+
+        if (Std.isOfType(FlxG.state, PlayState)) {
+            if (FlxG.state.subState == null) {
+                isPreview = false;
+                cleanUp();
+                return;
+            }
+        }
 
         try {
             if (cachedActive && iconP1 != null && iconP1.exists && iconP2 != null && iconP2.exists && healthBarBG != null && healthBarBG.exists) {
