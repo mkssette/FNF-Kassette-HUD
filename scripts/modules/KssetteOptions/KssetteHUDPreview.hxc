@@ -181,7 +181,11 @@ class KssetteHUDPreview extends Module {
         } catch(e:Dynamic) {}
 
         var downscroll = Preferences.downscroll || forceDownscrollLook;
-        var ms = Std.string(apiModule.getKssValue("kssette_middlescroll"));
+        var rawMs:Dynamic = apiModule.getKssValue("kssette_middlescroll");
+        var ms:String = "";
+        if (rawMs == true) ms = "On";
+        else if (rawMs == false) ms = "Off";
+        else ms = Std.string(rawMs);
         var oppPos = Std.string(apiModule.getKssValue("kssette_opponent_pos"));
         var coloredHB = apiModule.getKssValue("kssette_colored_healthbar") == true;
 
