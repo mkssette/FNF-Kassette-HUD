@@ -120,7 +120,7 @@ class KssetteHUDPreview extends Module {
 
         healthBarBG = new FlxSprite(0, FlxG.height * 0.89);
         try {
-            healthBarBG.loadGraphic(Paths.image('ui/healthBar'));
+            healthBarBG.loadGraphic(Paths.image('healthBar'));
         } catch(e:Dynamic) {
             healthBarBG.makeGraphic(601, 19, 0xFF000000);
         }
@@ -132,24 +132,36 @@ class KssetteHUDPreview extends Module {
         var fw = Std.int((healthBarBG.width - 8) / 2);
         var fh = Std.int(healthBarBG.height - 8);
 
-        healthBarFillP2 = new FlxSprite(healthBarBG.x + 4, healthBarBG.y + 4).makeGraphic(fw, fh, 0xFFFF0000);
+        healthBarFillP2 = new FlxSprite(healthBarBG.x + 4, healthBarBG.y + 4).makeGraphic(fw, fh, 0xFFFFFFFF);
+        healthBarFillP2.color = 0xFFFF0000;
         healthBarFillP2.scrollFactor.set(0, 0);
         healthBarFillP2.cameras = [cam];
         FlxG.state.add(healthBarFillP2);
 
-        healthBarFillP1 = new FlxSprite(healthBarBG.x + 4 + fw, healthBarBG.y + 4).makeGraphic(fw, fh, 0xFF66FF33);
+        healthBarFillP1 = new FlxSprite(healthBarBG.x + 4 + fw, healthBarBG.y + 4).makeGraphic(fw, fh, 0xFFFFFFFF);
+        healthBarFillP1.color = 0xFF66FF33;
         healthBarFillP1.scrollFactor.set(0, 0);
         healthBarFillP1.cameras = [cam];
         FlxG.state.add(healthBarFillP1);
 
-        iconP1 = new HealthIcon('bf', 0);
+        iconP1 = new HealthIcon('bf', true);
         iconP1.autoUpdate = false;
+        try {
+            iconP1.loadGraphic(Paths.image('icons/icon-bf'), true, 150, 150);
+            iconP1.animation.add('icon', [0, 1], 0, false, true);
+            iconP1.animation.play('icon');
+        } catch(e:Dynamic) {}
         iconP1.cameras = [cam];
         iconP1.scrollFactor.set(0, 0);
         FlxG.state.add(iconP1);
 
-        iconP2 = new HealthIcon('dad', 1);
+        iconP2 = new HealthIcon('dad', false);
         iconP2.autoUpdate = false;
+        try {
+            iconP2.loadGraphic(Paths.image('icons/icon-dad'), true, 150, 150);
+            iconP2.animation.add('icon', [0, 1], 0, false, false);
+            iconP2.animation.play('icon');
+        } catch(e:Dynamic) {}
         iconP2.cameras = [cam];
         iconP2.scrollFactor.set(0, 0);
         FlxG.state.add(iconP2);
@@ -329,18 +341,16 @@ class KssetteHUDPreview extends Module {
         if (healthBarFillP1 != null && healthBarFillP1.exists) healthBarFillP1.y = hbY + 4;
         if (healthBarFillP2 != null && healthBarFillP2.exists) healthBarFillP2.y = hbY + 4;
 
-        var p1Color = 0xFF66FF33; var p2Color = 0xFFFF0000;
+        var p1Color = 0xFF66FF33; 
+        var p2Color = 0xFFFF0000;
+        
         if (coloredHB) {
-            try {
-                p1Color = apiModule.extractIconColor(iconP1, true, "bf");
-                p2Color = apiModule.extractIconColor(iconP2, false, "dad");
-            } catch(e:Dynamic) {}
+            p1Color = 0xFF31B0D1; 
+            p2Color = 0xFFAF66CE; 
         }
 
-        var fw = Std.int((healthBarBG.width - 8) / 2);
-        var fh = Std.int(healthBarBG.height - 8);
-        if (healthBarFillP1 != null && healthBarFillP1.exists) healthBarFillP1.makeGraphic(fw, fh, p1Color);
-        if (healthBarFillP2 != null && healthBarFillP2.exists) healthBarFillP2.makeGraphic(fw, fh, p2Color);
+        if (healthBarFillP1 != null && healthBarFillP1.exists) healthBarFillP1.color = p1Color;
+        if (healthBarFillP2 != null && healthBarFillP2.exists) healthBarFillP2.color = p2Color;
     }
 
     override public function onUpdate(event:Dynamic) {

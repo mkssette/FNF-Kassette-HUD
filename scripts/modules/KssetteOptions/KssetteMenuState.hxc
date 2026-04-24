@@ -73,6 +73,20 @@ class KssetteMenuState extends ScriptedMusicBeatState {
     var dad:BaseCharacter;
     var gf:BaseCharacter;
 
+    var mobileControls:FlxSpriteGroup;
+    var btnUp:FlxSpriteGroup;
+    var btnDown:FlxSpriteGroup;
+    var btnAccept:FlxSpriteGroup;
+    var btnExit:FlxSpriteGroup;
+    var btnHide:FlxSpriteGroup;
+    var btnSwap:FlxSpriteGroup;
+
+    var previewScore:FlxText;
+    var previewInfo:FlxText;
+    var previewTime:FlxText;
+    var judgeLabels:Array<FlxText> = [];
+    var judgeValues:Array<FlxText> = [];
+
     override public function create():Void {
         super.create();
         
@@ -185,6 +199,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
 
         uiX = FlxG.width - panelWidth;
         buildSidePanel();
+        buildMobileControls();
 
         try {
             if (FlxG.sound.music != null) FlxG.sound.music.stop();
@@ -199,7 +214,31 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         updatePreviews();
     }
 
-    function initPreviews() {
+    function buildMobileControls() {
+        if (!FlxG.onMobile) return;
+        mobileControls = new FlxSpriteGroup(10, FlxG.height - 180);
+        mobileControls.cameras = [optionCam];
+        add(mobileControls);
+        var btnW = 130; var btnH = 75; var sp = 10;
+        var createBtn = function(xPos:Float, yPos:Float, textStr:String, colorHex:Int) {
+            var grp = new FlxSpriteGroup(xPos, yPos);
+            var bg = new FlxSprite(0, 0).makeGraphic(btnW, btnH, FlxColor.WHITE);
+            bg.color = colorHex; bg.alpha = 0.5; grp.add(bg);
+            var txt = new FlxText(0, (btnH - 20) / 2, btnW, textStr, 20);
+            txt.setFormat("VCR OSD Mono", 20, FlxColor.WHITE, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+            grp.add(txt); return grp;
+        };
+        btnUp = createBtn(0, 0, "UP", 0xFF888888);
+        btnDown = createBtn(0, btnH + sp, "DOWN", 0xFF888888);
+        btnAccept = createBtn(btnW + sp, 0, "SELECT", 0xFF00FF00);
+        btnExit = createBtn(btnW + sp, btnH + sp, "EXIT", 0xFFFF4444);
+        btnHide = createBtn((btnW + sp) * 2, 0, "HIDE UI", 0xFF4444FF);
+        btnSwap = createBtn((btnW + sp) * 2, btnH + sp, "MOVE UI", 0xFF44FF44);
+        mobileControls.add(btnUp); mobileControls.add(btnDown); mobileControls.add(btnAccept);
+        mobileControls.add(btnExit); mobileControls.add(btnHide); mobileControls.add(btnSwap);
+    }
+
+    public function initPreviews() {
         var moduleNames = [
             "KssetteAccuracy", "KssetteHUDPreview", "KssetteJudgements", 
             "KssetteTimeBar", "KssetteCombo", "KssetteSongInfo",
@@ -219,7 +258,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         }
     }
 
-    function updatePreviews() {
+    public function updatePreviews() {
         var moduleNames = [
             "KssetteAccuracy", "KssetteHUDPreview", "KssetteJudgements", 
             "KssetteTimeBar", "KssetteCombo", "KssetteSongInfo",
@@ -236,6 +275,65 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                     }
                 } catch(e:Dynamic) {}
             }
+        }
+        fixZIndex();
+    }
+
+    public function fixZIndex() {
+        var accMod:Dynamic = ModuleHandler.getModule("KssetteAccuracy");
+        if (accMod != null) {
+            try {
+                if (accMod.uiText != null) { FlxG.state.remove(accMod.uiText, true); FlxG.state.add(accMod.uiText); }
+                if (accMod.infoText != null) { FlxG.state.remove(accMod.infoText, true); FlxG.state.add(accMod.infoText); }
+                if (accMod.timeText != null) { FlxG.state.remove(accMod.timeText, true); FlxG.state.add(accMod.timeText); }
+                if (accMod.modeText != null) { FlxG.state.remove(accMod.modeText, true); FlxG.state.add(accMod.modeText); }
+                if (accMod.judgeLabels != null) {
+                    var labels = accMod.judgeLabels;
+                    for (i in 0...labels.length) {
+                        var l = labels[i];
+                        if (l != null) { FlxG.state.remove(l, true); FlxG.state.add(l); }
+                    }
+                }
+                if (accMod.judgeValues != null) {
+                    var vals = accMod.judgeValues;
+                    for (i in 0...vals.length) {
+                        var v = vals[i];
+                        if (v != null) { FlxG.state.remove(v, true); FlxG.state.add(v); }
+                    }
+                }
+            } catch(e:Dynamic) {}
+        }
+        
+        var timeMod:Dynamic = ModuleHandler.getModule("KssetteTimeBar");
+        if (timeMod != null) {
+            try {
+                if (timeMod.timeBarBG != null) { FlxG.state.remove(timeMod.timeBarBG, true); FlxG.state.add(timeMod.timeBarBG); }
+                if (timeMod.timeBar != null) { FlxG.state.remove(timeMod.timeBar, true); FlxG.state.add(timeMod.timeBar); }
+            } catch(e:Dynamic) {}
+        }
+        
+        var breakMod:Dynamic = ModuleHandler.getModule("KssetteBreakBar");
+        if (breakMod != null) {
+            try {
+                if (breakMod.borders != null) {
+                    var brds = breakMod.borders;
+                    for (i in 0...brds.length) {
+                        var b = brds[i];
+                        if (b != null) { FlxG.state.remove(b, true); FlxG.state.add(b); }
+                    }
+                }
+                if (breakMod.barFill != null) { FlxG.state.remove(breakMod.barFill, true); FlxG.state.add(breakMod.barFill); }
+                if (breakMod.breakText != null) { FlxG.state.remove(breakMod.breakText, true); FlxG.state.add(breakMod.breakText); }
+            } catch(e:Dynamic) {}
+        }
+
+        var titleMod:Dynamic = ModuleHandler.getModule("KssetteShowTitle");
+        if (titleMod != null) {
+            try {
+                if (titleMod.albumSprite != null) { FlxG.state.remove(titleMod.albumSprite, true); FlxG.state.add(titleMod.albumSprite); }
+                if (titleMod.titleTxt != null) { FlxG.state.remove(titleMod.titleTxt, true); FlxG.state.add(titleMod.titleTxt); }
+                if (titleMod.artistTxt != null) { FlxG.state.remove(titleMod.artistTxt, true); FlxG.state.add(titleMod.artistTxt); }
+            } catch(e:Dynamic) {}
         }
     }
 
@@ -692,7 +790,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             if (currentFontTextRef != null) currentFontTextRef.text = selFile;
             FlxG.sound.play(Paths.sound('confirmMenu'), 0.7);
             
-            updatePreviews();
+            try { updatePreviews(); } catch(e:Dynamic) {}
         }
         closeFontSelector();
     }
