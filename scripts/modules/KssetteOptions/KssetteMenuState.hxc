@@ -133,7 +133,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                     }
                     
                     var cScale:Float = 1.0;
-                    if (cData.scale != null) cScale = cData.scale;
+                    if (cData.scale != null) cScale = cScale;
                     try { char.setScale(char.getBaseScale() * cScale); } catch(e:Dynamic) {}
                     
                     try {
@@ -201,7 +201,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
 
     function initPreviews() {
         var moduleNames = [
-            "KssetteAccuracy", "KssetteHealthbar", "KssetteJudgements", 
+            "KssetteAccuracy", "KssetteHUDPreview", "KssetteJudgements", 
             "KssetteTimeBar", "KssetteCombo", "KssetteSongInfo",
             "KssetteShowTitle", "KssetteBreakBar", "KssetteSubtitles"
         ];
@@ -213,6 +213,26 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                         Reflect.callMethod(mod, Reflect.field(mod, "buildPreview"), [hudCam]);
                     } else {
                         mod.buildPreview(hudCam);
+                    }
+                } catch(e:Dynamic) {}
+            }
+        }
+    }
+
+    function updatePreviews() {
+        var moduleNames = [
+            "KssetteAccuracy", "KssetteHUDPreview", "KssetteJudgements", 
+            "KssetteTimeBar", "KssetteCombo", "KssetteSongInfo",
+            "KssetteShowTitle", "KssetteBreakBar", "KssetteSubtitles"
+        ];
+        for (mName in moduleNames) {
+            var mod:Dynamic = ModuleHandler.getModule(mName);
+            if (mod != null) {
+                try {
+                    if (Reflect.hasField(mod, "updatePreview")) {
+                        Reflect.callMethod(mod, Reflect.field(mod, "updatePreview"), []);
+                    } else {
+                        mod.updatePreview();
                     }
                 } catch(e:Dynamic) {}
             }
@@ -324,8 +344,8 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         var forceDownscrollLook = false;
         try {
             if (apiRef != null && Reflect.hasField(apiRef, "isMobileMode") && Reflect.hasField(apiRef, "isMobileLikePC")) {
-                var isMob:Bool = Reflect.field(apiRef, "isMobileMode");
-                var isMobPC:Bool = Reflect.callMethod(apiRef, Reflect.field(apiRef, "isMobileLikePC"), []);
+                var isMob = Reflect.field(apiRef, "isMobileMode");
+                var isMobPC = Reflect.callMethod(apiRef, Reflect.field(apiRef, "isMobileLikePC"), []);
                 forceDownscrollLook = (isMob && !isMobPC);
             }
         } catch(e:Dynamic) {}
@@ -672,7 +692,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             if (currentFontTextRef != null) currentFontTextRef.text = selFile;
             FlxG.sound.play(Paths.sound('confirmMenu'), 0.7);
             
-            try { updatePreviews(); } catch(e:Dynamic) {}
+            try { cast(FlxG.state, Dynamic).updatePreviews(); } catch(e:Dynamic) {}
         }
         closeFontSelector();
     }
@@ -878,26 +898,6 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 FlxG.switchState(new OptionsState());
                 FlxG.sound.playMusic(Paths.music('freakyMenu'), 1.0, true);
             });
-        }
-    }
-
-    public function updatePreviews() {
-        var moduleNames = [
-            "KssetteAccuracy", "KssetteHealthbar", "KssetteJudgements", 
-            "KssetteTimeBar", "KssetteCombo", "KssetteSongInfo",
-            "KssetteShowTitle", "KssetteBreakBar", "KssetteSubtitles"
-        ];
-        for (mName in moduleNames) {
-            var mod:Dynamic = ModuleHandler.getModule(mName);
-            if (mod != null) {
-                try {
-                    if (Reflect.hasField(mod, "updatePreview")) {
-                        Reflect.callMethod(mod, Reflect.field(mod, "updatePreview"), []);
-                    } else {
-                        mod.updatePreview();
-                    }
-                } catch(e:Dynamic) {}
-            }
         }
     }
 

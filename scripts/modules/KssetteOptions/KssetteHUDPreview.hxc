@@ -1,0 +1,364 @@
+package kassettehud.util;
+
+import funkin.modding.module.Module;
+import funkin.modding.module.ModuleHandler;
+import funkin.play.PlayState;
+import funkin.Preferences;
+import funkin.Paths;
+import funkin.data.notestyle.NoteStyleRegistry;
+import funkin.play.components.HealthIcon;
+import funkin.play.notes.Strumline;
+import funkin.play.notes.StrumlineNote;
+import flixel.FlxG;
+import flixel.FlxSprite;
+import flixel.FlxCamera;
+import flixel.tweens.FlxTween;
+import flixel.tweens.FlxEase;
+import Std;
+import Math;
+import Reflect;
+import Type;
+
+class KssetteHUDPreview extends Module {
+    public var isPreview:Bool = false;
+    public var previewCam:FlxCamera = null;
+    var apiModule:Dynamic = null;
+
+    var playerStrum:Strumline;
+    var opponentStrum:Strumline;
+    
+    var healthBarBG:FlxSprite;
+    var healthBarFillP1:FlxSprite;
+    var healthBarFillP2:FlxSprite;
+    var iconP1:HealthIcon;
+    var iconP2:HealthIcon;
+
+    var bopTimer:Float = 0.0;
+    var cachedActive:Bool = true;
+
+    var playerStrumInTween:FlxTween = null;
+    var opponentStrumInTween:FlxTween = null;
+
+    public function new() {
+        super("KssetteHUDPreview");
+    }
+
+    public function cancelStrumTweens() {
+        if (playerStrumInTween != null) {
+            try { playerStrumInTween.cancel(); } catch(e:Dynamic) {}
+            playerStrumInTween = null;
+        }
+        if (opponentStrumInTween != null) {
+            try { opponentStrumInTween.cancel(); } catch(e:Dynamic) {}
+            opponentStrumInTween = null;
+        }
+        
+        if (playerStrum != null && playerStrum.exists && playerStrum.strumlineNotes != null) {
+            for (note in playerStrum.strumlineNotes) {
+                if (note != null && note.exists) FlxTween.cancelTweensOf(note);
+            }
+        }
+        if (opponentStrum != null && opponentStrum.exists && opponentStrum.strumlineNotes != null) {
+            for (note in opponentStrum.strumlineNotes) {
+                if (note != null && note.exists) FlxTween.cancelTweensOf(note);
+            }
+        }
+        
+        if (playerStrum != null && playerStrum.exists) FlxTween.cancelTweensOf(playerStrum);
+        if (opponentStrum != null && opponentStrum.exists) FlxTween.cancelTweensOf(opponentStrum);
+    }
+
+    public function cleanUp() {
+        cancelStrumTweens();
+
+        if (playerStrum != null) {
+            try { FlxG.state.remove(playerStrum); } catch(e:Dynamic) {}
+            try { playerStrum.destroy(); } catch(e:Dynamic) {}
+            playerStrum = null;
+        }
+        if (opponentStrum != null) {
+            try { FlxG.state.remove(opponentStrum); } catch(e:Dynamic) {}
+            try { opponentStrum.destroy(); } catch(e:Dynamic) {}
+            opponentStrum = null;
+        }
+        if (healthBarBG != null) {
+            try { FlxG.state.remove(healthBarBG); } catch(e:Dynamic) {}
+            try { healthBarBG.destroy(); } catch(e:Dynamic) {}
+            healthBarBG = null;
+        }
+        if (healthBarFillP1 != null) {
+            try { FlxG.state.remove(healthBarFillP1); } catch(e:Dynamic) {}
+            try { healthBarFillP1.destroy(); } catch(e:Dynamic) {}
+            healthBarFillP1 = null;
+        }
+        if (healthBarFillP2 != null) {
+            try { FlxG.state.remove(healthBarFillP2); } catch(e:Dynamic) {}
+            try { healthBarFillP2.destroy(); } catch(e:Dynamic) {}
+            healthBarFillP2 = null;
+        }
+        if (iconP1 != null) {
+            try { FlxG.state.remove(iconP1); } catch(e:Dynamic) {}
+            try { iconP1.destroy(); } catch(e:Dynamic) {}
+            iconP1 = null;
+        }
+        if (iconP2 != null) {
+            try { FlxG.state.remove(iconP2); } catch(e:Dynamic) {}
+            try { iconP2.destroy(); } catch(e:Dynamic) {}
+            iconP2 = null;
+        }
+    }
+
+    override public function onStateChangeStart(event:Dynamic) {
+        super.onStateChangeStart(event);
+        isPreview = false;
+        cleanUp();
+    }
+
+    public function setupUI(cam:FlxCamera) {
+        cleanUp();
+
+        healthBarBG = new FlxSprite(0, FlxG.height * 0.89);
+        try {
+            healthBarBG.loadGraphic(Paths.image('ui/healthBar'));
+        } catch(e:Dynamic) {
+            healthBarBG.makeGraphic(601, 19, 0xFF000000);
+        }
+        healthBarBG.screenCenter(0x01);
+        healthBarBG.scrollFactor.set(0, 0);
+        healthBarBG.cameras = [cam];
+        FlxG.state.add(healthBarBG);
+
+        var fw = Std.int((healthBarBG.width - 8) / 2);
+        var fh = Std.int(healthBarBG.height - 8);
+
+        healthBarFillP2 = new FlxSprite(healthBarBG.x + 4, healthBarBG.y + 4).makeGraphic(fw, fh, 0xFFFF0000);
+        healthBarFillP2.scrollFactor.set(0, 0);
+        healthBarFillP2.cameras = [cam];
+        FlxG.state.add(healthBarFillP2);
+
+        healthBarFillP1 = new FlxSprite(healthBarBG.x + 4 + fw, healthBarBG.y + 4).makeGraphic(fw, fh, 0xFF66FF33);
+        healthBarFillP1.scrollFactor.set(0, 0);
+        healthBarFillP1.cameras = [cam];
+        FlxG.state.add(healthBarFillP1);
+
+        iconP1 = new HealthIcon('bf', 0);
+        iconP1.autoUpdate = false;
+        iconP1.cameras = [cam];
+        iconP1.scrollFactor.set(0, 0);
+        FlxG.state.add(iconP1);
+
+        iconP2 = new HealthIcon('dad', 1);
+        iconP2.autoUpdate = false;
+        iconP2.cameras = [cam];
+        iconP2.scrollFactor.set(0, 0);
+        FlxG.state.add(iconP2);
+    }
+
+    public function buildPreview(cam:FlxCamera) {
+        isPreview = true;
+        previewCam = cam;
+        
+        apiModule = ModuleHandler.getModule("KssetteApi");
+        
+        setupUI(cam);
+        updatePreview();
+    }
+
+    public function updatePreview() {
+        if (!isPreview || healthBarBG == null || !healthBarBG.exists) return;
+        
+        if (apiModule == null) apiModule = ModuleHandler.getModule("KssetteApi");
+        if (apiModule == null) return;
+
+        var forceDownscrollLook = false;
+        try {
+            if (Reflect.hasField(apiModule, "isMobileMode") && Reflect.hasField(apiModule, "isMobileLikePC")) {
+                var isMob = Reflect.field(apiModule, "isMobileMode");
+                var isMobPC = Reflect.callMethod(apiModule, Reflect.field(apiModule, "isMobileLikePC"), []);
+                forceDownscrollLook = (isMob && !isMobPC);
+            }
+        } catch(e:Dynamic) {}
+
+        var downscroll = Preferences.downscroll || forceDownscrollLook;
+        var ms = Std.string(apiModule.getKssValue("kssette_middlescroll"));
+        var oppPos = Std.string(apiModule.getKssValue("kssette_opponent_pos"));
+        var coloredHB = apiModule.getKssValue("kssette_colored_healthbar") == true;
+
+        var targetY = downscroll ? FlxG.height - 150.0 : 50.0;
+        var startY = downscroll ? targetY + 300.0 : targetY - 300.0;
+        var currentY:Float = (playerStrum != null && playerStrum.exists) ? playerStrum.y : startY;
+
+        cancelStrumTweens();
+
+        if (playerStrum != null) {
+            try { FlxG.state.remove(playerStrum); } catch(e:Dynamic) {}
+            try { playerStrum.destroy(); } catch(e:Dynamic) {}
+            playerStrum = null;
+        }
+        if (opponentStrum != null) {
+            try { FlxG.state.remove(opponentStrum); } catch(e:Dynamic) {}
+            try { opponentStrum.destroy(); } catch(e:Dynamic) {}
+            opponentStrum = null;
+        }
+
+        var noteStyle = NoteStyleRegistry.instance.fetchDefault();
+
+        playerStrum = new Strumline(noteStyle, true);
+        playerStrum.cameras = [previewCam];
+        playerStrum.scrollFactor.set(0, 0);
+        playerStrum.zIndex = 1100;
+        try { var pbg = Reflect.getProperty(playerStrum, "background"); if (pbg != null) pbg.visible = false; } catch(e:Dynamic) {}
+        FlxG.state.add(playerStrum);
+
+        var showOpp = (ms != "Hidden Notes");
+        if (showOpp) {
+            opponentStrum = new Strumline(noteStyle, false);
+            opponentStrum.cameras = [previewCam];
+            opponentStrum.scrollFactor.set(0, 0);
+            opponentStrum.zIndex = 1099;
+            try { var obg = Reflect.getProperty(opponentStrum, "background"); if (obg != null) obg.visible = false; } catch(e:Dynamic) {}
+            FlxG.state.add(opponentStrum);
+        }
+
+        var halfW = FlxG.width / 2.0;
+        var cutoutSize = 0.0;
+        try {
+            var fssm:Dynamic = Type.resolveClass("funkin.ui.FullScreenScaleMode");
+            if (fssm != null) cutoutSize = Reflect.getProperty(fssm, "gameCutoutSize").x / 2.5;
+        } catch(e:Dynamic) {}
+
+        var msOn = (ms != "Off" && ms != "null" && ms != "");
+        var pStyle = (ms == "P Style");
+
+        if (msOn) {
+            playerStrum.x = halfW - (playerStrum.width / 2.0);
+        } else {
+            playerStrum.x = (halfW + 50) + (cutoutSize / 2.0);
+        }
+
+        if (showOpp && opponentStrum != null && opponentStrum.exists) {
+            if (!msOn) {
+                opponentStrum.x = 50 + cutoutSize;
+            } else {
+                opponentStrum.x = 0; 
+                
+                var receptors:Array<Dynamic> = null;
+                try { receptors = opponentStrum.strumlineNotes.members; } catch(e:Dynamic) {}
+                
+                if (receptors != null && receptors.length >= 4 && receptors[0] != null) {
+                    var defScale:Float = 0.7;
+                    try { defScale = noteStyle.getStrumlineScale(); } catch(e:Dynamic) {}
+                    
+                    var nw = receptors[0].width;
+                    
+                    if (pStyle) {
+                        receptors[0].x = 50;
+                        receptors[1].x = 50 + 112;
+                        receptors[2].x = FlxG.width - 50 - 112 - nw;
+                        receptors[3].x = FlxG.width - 50 - nw;
+                        
+                        for (rec in receptors) {
+                            if (rec != null && rec.exists) rec.alpha = 0.6;
+                        }
+                    } else if (ms == "On") {
+                        var sizeRatio = 0.65;
+                        var targetSpacing = 112 * sizeRatio;
+                        var actualNw = 0.0;
+
+                        for (i in 0...4) {
+                            var rec = receptors[i];
+                            if (rec != null && rec.exists) {
+                                rec.scale.set(defScale * sizeRatio, defScale * sizeRatio);
+                                rec.updateHitbox();
+                                rec.alpha = 1.0;
+                                if (i == 0) actualNw = rec.width;
+                            }
+                        }
+
+                        var exactTotalWidth = (targetSpacing * 3) + actualNw;
+                        var compactStartX:Float = 50;
+                        
+                        if (oppPos == "Right") {
+                            compactStartX = FlxG.width - 50 - exactTotalWidth;
+                        }
+
+                        for (i in 0...4) {
+                            var rec = receptors[i];
+                            if (rec != null && rec.exists) {
+                                rec.x = compactStartX + (targetSpacing * i);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        playerStrum.y = currentY;
+        if (opponentStrum != null && opponentStrum.exists) opponentStrum.y = currentY;
+
+        playerStrumInTween = FlxTween.tween(playerStrum, {y: targetY}, 0.3, {ease: FlxEase.cubeOut});
+        if (opponentStrum != null && opponentStrum.exists && opponentStrum.visible) {
+            opponentStrumInTween = FlxTween.tween(opponentStrum, {y: targetY}, 0.3, {ease: FlxEase.cubeOut});
+        }
+
+        cachedActive = apiModule.getKssValue("kssette_show_hud") == true;
+        healthBarBG.visible = cachedActive;
+        if (healthBarFillP1 != null && healthBarFillP1.exists) healthBarFillP1.visible = cachedActive;
+        if (healthBarFillP2 != null && healthBarFillP2.exists) healthBarFillP2.visible = cachedActive;
+        if (iconP1 != null && iconP1.exists) iconP1.visible = cachedActive;
+        if (iconP2 != null && iconP2.exists) iconP2.visible = cachedActive;
+
+        var hbY = downscroll ? FlxG.height * 0.11 : FlxG.height * 0.89;
+        healthBarBG.y = hbY;
+        if (healthBarFillP1 != null && healthBarFillP1.exists) healthBarFillP1.y = hbY + 4;
+        if (healthBarFillP2 != null && healthBarFillP2.exists) healthBarFillP2.y = hbY + 4;
+
+        if (coloredHB) {
+            try {
+                p1Color = apiModule.extractIconColor(iconP1, true, "bf");
+                p2Color = apiModule.extractIconColor(iconP2, false, "dad");
+            } catch(e:Dynamic) {}
+        }
+
+        var fw = Std.int((healthBarBG.width - 8) / 2);
+        var fh = Std.int(healthBarBG.height - 8);
+        if (healthBarFillP1 != null && healthBarFillP1.exists) healthBarFillP1.makeGraphic(fw, fh, p1Color);
+        if (healthBarFillP2 != null && healthBarFillP2.exists) healthBarFillP2.makeGraphic(fw, fh, p2Color);
+    }
+
+    override public function onUpdate(event:Dynamic) {
+        super.onUpdate(event);
+
+        if (!isPreview) return;
+
+        try {
+            if (cachedActive && iconP1 != null && iconP1.exists && iconP2 != null && iconP2.exists && healthBarBG != null && healthBarBG.exists) {
+                bopTimer += event.elapsed;
+                if (bopTimer >= 0.5) { 
+                    bopTimer = 0;
+                    iconP1.scale.set(1.2, 1.2);
+                    iconP2.scale.set(1.2, 1.2);
+                }
+                
+                var bopRecover = event.elapsed * 1.5;
+                if (iconP1.scale.x > 1.0) iconP1.scale.x -= bopRecover;
+                if (iconP1.scale.y > 1.0) iconP1.scale.y -= bopRecover;
+                if (iconP1.scale.x < 1.0) iconP1.scale.x = 1.0;
+                if (iconP1.scale.y < 1.0) iconP1.scale.y = 1.0;
+
+                iconP2.scale.x = iconP1.scale.x;
+                iconP2.scale.y = iconP1.scale.y;
+
+                iconP1.updateHitbox();
+                iconP2.updateHitbox();
+
+                iconP1.y = healthBarBG.y - (iconP1.height / 2) + 10;
+                iconP2.y = healthBarBG.y - (iconP2.height / 2) + 10;
+                
+                var hw = Std.int((healthBarBG.width - 8) / 2);
+                iconP1.x = healthBarBG.x + hw - 26;
+                iconP2.x = healthBarBG.x + hw - (iconP2.width - 26);
+            }
+        } catch(e:Dynamic) {}
+    }
+}
