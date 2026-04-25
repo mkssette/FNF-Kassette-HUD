@@ -621,7 +621,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
     }
 
     function createFontOption(labelText:String, saveKey:String, descStr:String) {
-        var labelOffsetX:Float = 40.0;
+        var labelOffsetX:Float = 80.0;
         var labelOffsetY:Float = 28.0;
 
         var grp = new FlxSpriteGroup(0, 0);
