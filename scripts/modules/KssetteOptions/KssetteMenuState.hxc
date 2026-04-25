@@ -9,7 +9,7 @@ import funkin.modding.module.ModuleHandler;
 import funkin.ui.options.OptionsState;
 import funkin.Paths;
 import flixel.util.FlxColor;
-import funkin.ui.ScriptedMusicBeatState;
+import funkin.modding.base.ScriptedMusicBeatState;
 import funkin.play.stage.Stage;
 import funkin.play.character.BaseCharacter;
 import funkin.play.character.SparrowCharacter;
@@ -21,11 +21,13 @@ import funkin.modding.events.ScriptEvent;
 import funkin.Conductor;
 import flixel.math.FlxMath;
 import funkin.graphics.FunkinCamera;
+import funkin.graphics.FunkinSprite;
 import funkin.Preferences;
 import Math;
 import Std;
 import Reflect;
 import flixel.math.FlxPoint;
+import flixel.math.FlxRect;
 import StringTools;
 
 class KssetteMenuState extends ScriptedMusicBeatState {
@@ -36,10 +38,12 @@ class KssetteMenuState extends ScriptedMusicBeatState {
     var hudCam:FlxCamera;
     var stageCam:FunkinCamera;
 
-    var panelBg:FlxSprite;
-    var titleBar:FlxSprite;
-    var titleText:FlxText;
-    var hintText:FlxText;
+    var marqueeBg:FlxSprite;
+    var marqueeText1:FlxText;
+    var marqueeText2:FlxText;
+    var marqueeString:String;
+    var marqueeSpeed:Float = 80;
+    var marqueeOffset:Float = 0;
 
     var descBg:FlxSprite;
     var descTextDisplay:FlxText;
@@ -47,6 +51,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
     var itemsGroup:FlxSpriteGroup;
     var optionItems:Array<Dynamic> = [];
     var selectedIndex:Int = 0;
+    var curSelectedFloat:Float = 0;
 
     var fontBgGroup:FlxSpriteGroup;
     var fontItemsGroup:FlxSpriteGroup;
@@ -58,8 +63,6 @@ class KssetteMenuState extends ScriptedMusicBeatState {
     var fontTargetScrollY:Float = 0;
     var fontMaxScroll:Float = 0;
 
-    var targetScrollY:Float = 0;
-    var maxScroll:Float = 0;
     var isDragging:Bool = false;
     var touchStart:Float = 0;
     var holdTimer:Float = 0;
@@ -370,7 +373,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
 
         try {
             if (rType == "animateatlas") char = new AnimateAtlasCharacter(id);
-            else if (rType == "multisparrow") char = new MultiSparrowCharacter(id);
+            else if (rType == "multsparrow") char = new MultiSparrowCharacter(id);
             else if (rType == "multianimateatlas") char = new MultiAnimateAtlasCharacter(id);
             else if (rType == "packer") char = new PackerCharacter(id);
             else char = new SparrowCharacter(id);
@@ -381,63 +384,67 @@ class KssetteMenuState extends ScriptedMusicBeatState {
     }
 
     function buildSidePanel() {
-        panelBg = new FlxSprite(uiX, 0).makeGraphic(panelWidth, FlxG.height, 0xFF000000);
-        panelBg.scrollFactor.set(0, 0);
-        panelBg.alpha = 0.6;
-        panelBg.cameras = [optionCam];
-        add(panelBg);
-
-        itemsGroup = new FlxSpriteGroup(uiX, 80);
-        itemsGroup.cameras = [optionCam];
-        add(itemsGroup);
-
-        titleBar = new FlxSprite(uiX, 0).makeGraphic(panelWidth, 70, 0xFF000000);
-        titleBar.scrollFactor.set(0, 0);
-        titleBar.alpha = 0.9;
-        titleBar.cameras = [optionCam];
-        add(titleBar);
+        marqueeBg = new FlxSprite(0, 0).makeGraphic(FlxG.width, 45, 0xFF000000);
+        marqueeBg.scrollFactor.set(0, 0);
+        marqueeBg.alpha = 1.0;
+        marqueeBg.cameras = [optionCam];
+        add(marqueeBg);
 
         var apiVer = "0.2.a1";
         try { if (apiRef != null) apiVer = Std.string(apiRef.hudVersion); } catch(e:Dynamic) {}
 
-        titleText = new FlxText(uiX + 10, 10, panelWidth - 20, "Kassette HUD Options [" + apiVer + "]", 24);
-        titleText.setFormat("VCR OSD Mono", 24, FlxColor.WHITE, "center");
-        titleText.scrollFactor.set(0, 0);
-        titleText.cameras = [optionCam];
-        add(titleText);
+        marqueeString = " KASSETTE HUD V" + apiVer + "    TAB TO HIDE UI    SHIFT TO MOVE UI    ESC TO EXIT    ";
+        marqueeString = marqueeString + marqueeString + marqueeString + marqueeString + marqueeString + marqueeString + marqueeString + marqueeString;
 
-        hintText = new FlxText(uiX + 10, 40, panelWidth - 20, "TAB: Hide UI | SHIFT: Move UI | ESC: Exit", 16);
-        hintText.setFormat("VCR OSD Mono", 16, 0xFFAAAAAA, "center");
-        hintText.scrollFactor.set(0, 0);
-        hintText.cameras = [optionCam];
-        add(hintText);
+        marqueeText1 = new FlxText(0, 6, 0, marqueeString, 32);
+        try { 
+            marqueeText1.setFormat(Paths.font("5by7.ttf"), 32, FlxColor.YELLOW, "left"); 
+            marqueeText1.antialiasing = false;
+        } catch(e:Dynamic) { 
+            marqueeText1.setFormat("VCR OSD Mono", 32, FlxColor.YELLOW, "left"); 
+        }
+        marqueeText1.scrollFactor.set(0, 0);
+        marqueeText1.cameras = [optionCam];
+        add(marqueeText1);
+
+        marqueeText2 = new FlxText(0, 6, 0, marqueeString, 32);
+        try { 
+            marqueeText2.setFormat(Paths.font("5by7.ttf"), 32, FlxColor.YELLOW, "left"); 
+            marqueeText2.antialiasing = false;
+        } catch(e:Dynamic) { 
+            marqueeText2.setFormat("VCR OSD Mono", 32, FlxColor.YELLOW, "left"); 
+        }
+        marqueeText2.scrollFactor.set(0, 0);
+        marqueeText2.cameras = [optionCam];
+        add(marqueeText2);
+
+        itemsGroup = new FlxSpriteGroup(0, 0);
+        itemsGroup.cameras = [optionCam];
+        add(itemsGroup);
 
         var curY:Float = 0;
-        var step:Float = 50;
 
-        addHeader("Gameplay Settings", curY); curY += 40;
-        createToggle(curY, "Middle Scroll", "kssette_middlescroll", ["Off", "On", "P Style", "Hidden Notes"], "Moves your notes to the center of the screen for better focus."); curY += step;
-        createToggle(curY, "Ghost Tapping", "kssette_ghost_tapping", ["On", "Off"], "Press keys anytime without penalty. You won't miss if there's no note."); curY += step;
-        createToggle(curY, "Ghost Sing", "kssette_ghost_sing", ["On", "Off"], "Your character will play singing animations when you press empty keys."); curY += step;
-        createToggle(curY, "Resume Countdown", "kssette_resume_countdown", ["On", "Off"], "Adds a 'Ready, Set, Go!' countdown when you unpause the game."); curY += step;
+        addHeader("Gameplay Settings");
+        createToggle("Middle Scroll", "kssette_middlescroll", ["Off", "On", "P Style", "Hidden Notes"], "Moves your notes to the center of the screen for better focus.");
+        createToggle("Ghost Tapping", "kssette_ghost_tapping", ["On", "Off"], "Press keys anytime without penalty. You won't miss if there's no note.");
+        createToggle("Ghost Sing", "kssette_ghost_sing", ["On", "Off"], "Your character will play singing animations when you press empty keys.");
+        createToggle("Resume Countdown", "kssette_resume_countdown", ["On", "Off"], "Adds a 'Ready, Set, Go!' countdown when you unpause the game.");
         
-        curY += 20;
-        addHeader("HUD Visuals", curY); curY += 40;
-        createToggle(curY, "Show Score", "kssette_show_score", ["On", "Off"], "Show your current score."); curY += step;
-        createToggle(curY, "Show Misses", "kssette_show_misses", ["On", "Off"], "Show a counter for how many notes you've missed."); curY += step;
-        createToggle(curY, "Accuracy Mode", "kssette_acc_mode", ["Classic", "Ascending", "Off"], "How accuracy is calculated. 'Ascending' starts at 0% and climbs up."); curY += step;
-        createToggle(curY, "Show Rank", "kssette_show_rank", ["On", "Off"], "Show your current Rank (P, E, G) based on performance."); curY += step;
-        createToggle(curY, "Show FC Tier", "kssette_show_tier", ["On", "Off"], "Show your Combo Status (SFC, GFC, FC, Clear)."); curY += step;
-        createToggle(curY, "Show Time Bar", "kssette_show_timebar", ["On", "Off"], "Show a bar indicating progress."); curY += step;
-        createToggle(curY, "Show Break Bar", "kssette_show_breakbar", ["On", "Off"], "Show a specific timer during long breaks in the song."); curY += step;
-        createToggle(curY, "Show Song Title", "kssette_show_song_title", ["On", "Off"], "Show the name of the song on the HUD."); curY += step;
-        createToggle(curY, "Show Difficulty", "kssette_show_song_diff", ["On", "Off"], "Show the difficulty level on the HUD."); curY += step;
-        createToggle(curY, "Show Time Left", "kssette_show_song_time", ["On", "Off"], "Show a digital timer counting down the song."); curY += step;
+        addHeader("HUD Visuals");
+        createToggle("Show Score", "kssette_show_score", ["On", "Off"], "Show your current score.");
+        createToggle("Show Misses", "kssette_show_misses", ["On", "Off"], "Show a counter for how many notes you've missed.");
+        createToggle("Accuracy Mode", "kssette_acc_mode", ["Classic", "Ascending", "Off"], "How accuracy is calculated. 'Ascending' starts at 0% and climbs up.");
+        createToggle("Show Rank", "kssette_show_rank", ["On", "Off"], "Show your current Rank (P, E, G) based on performance.");
+        createToggle("Show FC Tier", "kssette_show_tier", ["On", "Off"], "Show your Combo Status (SFC, GFC, FC, Clear).");
+        createToggle("Show Time Bar", "kssette_show_timebar", ["On", "Off"], "Show a bar indicating progress.");
+        createToggle("Show Break Bar", "kssette_show_breakbar", ["On", "Off"], "Show a specific timer during long breaks in the song.");
+        createToggle("Show Song Title", "kssette_show_song_title", ["On", "Off"], "Show the name of the song on the HUD.");
+        createToggle("Show Difficulty", "kssette_show_song_diff", ["On", "Off"], "Show the difficulty level on the HUD.");
+        createToggle("Show Time Left", "kssette_show_song_time", ["On", "Off"], "Show a digital timer counting down the song.");
         
-        curY += 20;
-        addHeader("Positions", curY); curY += 40;
-        createToggle(curY, "Opponent Pos", "kssette_opponent_pos", ["Left", "Right"], "Where to put the opponent's notes when Middle Scroll is ON."); curY += step;
-        createToggle(curY, "Time Bar Pos", "kssette_timebar_pos", ["Bottom", "Top", "Bottom Left", "Bottom Right", "Top Left", "Top Right"], "Choose where the Song Progress Bar is placed on screen."); curY += step;
+        addHeader("Positions");
+        createToggle("Opponent Pos", "kssette_opponent_pos", ["Left", "Right"], "Where to put the opponent's notes when Middle Scroll is ON.");
+        createToggle("Time Bar Pos", "kssette_timebar_pos", ["Bottom", "Top", "Bottom Left", "Bottom Right", "Top Left", "Top Right"], "Choose where the Song Progress Bar is placed on screen.");
 
         var forceDownscrollLook = false;
         try {
@@ -450,26 +457,21 @@ class KssetteMenuState extends ScriptedMusicBeatState {
 
         var infoLabel = (!Preferences.downscroll && !forceDownscrollLook) ? "Above Arrows" : "Below Score";
         
-        createToggle(curY, "Info Text Pos", "kssette_info_pos", [infoLabel, "Bottom Left"], "Where to show the Song Name and Difficulty."); curY += step;
-        createToggle(curY, "Judge Pos", "kssette_judge_pos", ["Off", "Left", "Right", "Top Left", "Top Right"], "Shows a counter for Sicks, Goods, Bads, etc. Choose where to place it."); curY += step;
+        createToggle("Info Text Pos", "kssette_info_pos", [infoLabel, "Bottom Left"], "Where to show the Song Name and Difficulty.");
+        createToggle("Judge Pos", "kssette_judge_pos", ["Off", "Left", "Right", "Top Left", "Top Right"], "Shows a counter for Sicks, Goods, Bads, etc. Choose where to place it.");
         
-        curY += 20;
-        addHeader("Performance", curY); curY += 40;
-        createToggle(curY, "Smooth Display", "kssette_smooth_display", ["On", "Off"], "Makes the score and accuracy numbers scroll smoothly."); curY += step;
-        createToggle(curY, "Colored Health", "kssette_colored_healthbar", ["On", "Off"], "Changes the health bar colors to match the character icons."); curY += step;
+        addHeader("Performance");
+        createToggle("Smooth Display", "kssette_smooth_display", ["On", "Off"], "Makes the score and accuracy numbers scroll smoothly.");
+        createToggle("Colored Health", "kssette_colored_healthbar", ["On", "Off"], "Changes the health bar colors to match the character icons.");
 
-        curY += 20;
-        addHeader("Intro Text", curY); curY += 40;
-        createToggle(curY, "Show Song Intro", "kssette_intro_text", ["On", "Off"], "Displays the song title and artist when the song starts."); curY += step;
+        addHeader("Intro Text");
+        createToggle("Show Song Intro", "kssette_intro_text", ["On", "Off"], "Displays the song title and artist when the song starts.");
         
-        curY += 20;
-        addHeader("Fonts", curY); curY += 40;
-        createFontOption(curY, "HUD Font", "kssette_custom_font", "Choose the font for the HUD."); curY += step;
-        createFontOption(curY, "Pixel Font", "kssette_custom_pixel_font", "Choose the font for pixel stages."); curY += step;
-        createFontOption(curY, "Intro Title Font", "kssette_intro_font_title", "Choose the font for the intro title."); curY += step;
-        createFontOption(curY, "Intro Artist Font", "kssette_intro_font_artist", "Choose the font for the intro artist."); curY += step;
-
-        maxScroll = Math.max(0, curY - FlxG.height + 150);
+        addHeader("Fonts");
+        createFontOption("HUD Font", "kssette_custom_font", "Choose the font for the HUD.");
+        createFontOption("Pixel Font", "kssette_custom_pixel_font", "Choose the font for pixel stages.");
+        createFontOption("Intro Title Font", "kssette_intro_font_title", "Choose the font for the intro title.");
+        createFontOption("Intro Artist Font", "kssette_intro_font_artist", "Choose the font for the intro artist.");
 
         descBg = new FlxSprite(20, FlxG.height).makeGraphic(1, 1, FlxColor.BLACK);
         descBg.setGraphicSize(Std.int(FlxG.width - panelWidth - 40), 60);
@@ -480,27 +482,86 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         add(descBg);
 
         descTextDisplay = new FlxText(20, FlxG.height + 20, Std.int(FlxG.width - panelWidth - 40), "", 20);
-        descTextDisplay.setFormat("VCR OSD Mono", 20, FlxColor.WHITE, "center");
+        try {
+            descTextDisplay.setFormat(Paths.font("5by7.ttf"), 28, FlxColor.WHITE, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+            descTextDisplay.antialiasing = false;
+        } catch(e:Dynamic) {
+            descTextDisplay.setFormat("VCR OSD Mono", 20, FlxColor.WHITE, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        }
         descTextDisplay.scrollFactor.set(0, 0);
         descTextDisplay.cameras = [optionCam];
         add(descTextDisplay);
     }
 
-    function addHeader(text:String, y:Float) {
-        var header = new FlxText(20, y, panelWidth - 40, text.toUpperCase(), 18);
-        header.setFormat("VCR OSD Mono", 18, 0xFFFFFFFF, "left");
-        header.alpha = 0.8;
-        itemsGroup.add(header);
-    }
-
-    function createToggle(yPos:Float, labelText:String, saveKey:String, options:Array<String>, descStr:String) {
-        var grp = new FlxSpriteGroup(20, yPos);
-        var bg = new FlxSprite(0, 0).makeGraphic(panelWidth - 40, 44, 0xFF000000);
-        bg.alpha = 0.5;
+    function addHeader(text:String) {
+        var grp = new FlxSpriteGroup(0, 0);
+        
+        var bg = new FlxSprite(0, 0).makeGraphic(420, 50, 0xFF000000);
+        bg.alpha = 0.8;
         grp.add(bg);
 
-        var label = new FlxText(15, 12, panelWidth - 210, labelText, 18);
-        label.setFormat("VCR OSD Mono", 18, FlxColor.WHITE, "left");
+        var header = new FlxText(0, 0, 420, text.toUpperCase(), 32);
+        try {
+            header.setFormat(Paths.font("5by7.ttf"), 32, FlxColor.YELLOW, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+            header.antialiasing = false;
+        } catch(e:Dynamic) {
+            header.setFormat("VCR OSD Mono", 24, FlxColor.YELLOW, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        }
+        header.y = (bg.height - header.height) / 2;
+        grp.add(header);
+        
+        itemsGroup.add(grp);
+
+        optionItems.push({
+            grp: grp,
+            bg: bg,
+            isHeader: true
+        });
+    }
+
+    function createToggle(labelText:String, saveKey:String, options:Array<String>, descStr:String) {
+        var labelOffsetX:Float = 80.0;
+        var labelOffsetY:Float = 28.0;
+
+        var grp = new FlxSpriteGroup(0, 0);
+        
+        var bg:Dynamic = FunkinSprite.createSparrow(0, 0, 'freeplay/freeplayCapsule/capsule/freeplayCapsule');
+
+        if (bg == null) {
+            bg = new FlxSprite(0, 0);
+            try {
+                var img = Paths.image("freeplay/freeplayCapsule/capsule/freeplayCapsule");
+                if (img != null) {
+                    bg.loadGraphic(img);
+                } else {
+                    bg.makeGraphic(420, 90, 0xFFFFFFFF);
+                }
+            } catch(e:Dynamic) {
+                bg.makeGraphic(420, 90, 0xFFFFFFFF);
+            }
+            grp.add(bg);
+        } else {
+            bg.animation.addByPrefix('idle', 'idle', 24, true);
+            bg.animation.addByPrefix('open', 'open', 24, false);
+            bg.animation.addByPrefix('close', 'close', 24, false);
+            bg.animation.play('idle');
+            grp.add(bg);
+        }
+        
+        try {
+            bg.setGraphicSize(420); 
+            bg.updateHitbox();
+        } catch(e:Dynamic) {}
+
+        var labelMaxWidth = 230.0;
+        var label = new FlxText(labelOffsetX, labelOffsetY, 0, labelText, 32);
+        label.wordWrap = false;
+        try {
+            label.setFormat(Paths.font("5by7.ttf"), 32, FlxColor.WHITE, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+            label.antialiasing = false;
+        } catch(e:Dynamic) {
+            label.setFormat("VCR OSD Mono", 24, FlxColor.WHITE, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        }
         grp.add(label);
 
         var curVal:String = "Off";
@@ -509,63 +570,114 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             if (fetchedVal != null) curVal = Std.string(fetchedVal);
         } catch(e:Dynamic) {}
 
-        var valueText = new FlxText(panelWidth - 190, 12, 140, curVal, 18);
-        valueText.setFormat("VCR OSD Mono", 18, 0xFF00FF00, "right");
+        var valueMaxWidth = 145.0;
+        var valueText = new FlxText(0, labelOffsetY, 0, curVal, 32);
+        valueText.wordWrap = false;
+        try {
+            valueText.setFormat(Paths.font("5by7.ttf"), 32, 0xFF00FF00, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+            valueText.antialiasing = false;
+        } catch(e:Dynamic) {
+            valueText.setFormat("VCR OSD Mono", 24, 0xFF00FF00, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        }
+        
+        if (valueText.width > valueMaxWidth) {
+            valueText.x = 420 - labelOffsetX - valueMaxWidth;
+        } else {
+            valueText.x = 420 - labelOffsetX - valueText.width;
+        }
         grp.add(valueText);
 
         itemsGroup.add(grp);
 
         var menuInst = this;
         optionItems.push({
+            grp: grp,
             bg: bg,
+            labelDisplay: label,
             textDisplay: valueText,
             key: saveKey,
             options: options,
-            y: yPos,
             desc: descStr,
+            isHeader: false,
+            slideTimer: 0.0,
             currentIndex: Math.max(0, options.indexOf(curVal)),
             fire: function(self:Dynamic) {
                 self.currentIndex = (self.currentIndex + 1) % self.options.length;
                 var newVal = self.options[self.currentIndex];
                 Save.instance.modOptions.set(self.key, newVal);
                 self.textDisplay.text = newVal;
-                Save.instance.flush();
                 
+                if (self.textDisplay.width > 145.0) {
+                    self.textDisplay.x = 420 - 40.0 - 145.0;
+                } else {
+                    self.textDisplay.x = 420 - 40.0 - self.textDisplay.width;
+                }
+                self.slideTimer = 0.0;
+
+                Save.instance.flush();
                 try { menuInst.updatePreviews(); } catch(e:Dynamic) {}
             }
         });
     }
 
-    function createFontOption(yPos:Float, labelText:String, saveKey:String, descStr:String) {
-        var grp = new FlxSpriteGroup(20, yPos);
-        var bg = new FlxSprite(0, 0).makeGraphic(panelWidth - 40, 44, 0xFF000000);
-        bg.alpha = 0.5;
-        grp.add(bg);
+    function createFontOption(labelText:String, saveKey:String, descStr:String) {
+        var labelOffsetX:Float = 40.0;
+        var labelOffsetY:Float = 28.0;
 
-        var label = new FlxText(15, 12, panelWidth - 210, labelText, 18);
-        label.setFormat("VCR OSD Mono", 18, FlxColor.WHITE, "left");
-        grp.add(label);
+        var grp = new FlxSpriteGroup(0, 0);
+        
+        var bg:Dynamic = FunkinSprite.createSparrow(0, 0, 'freeplay/freeplayCapsule/capsule/freeplayCapsule');
 
-        var curVal:String = "vcr.ttf";
+        if (bg == null) {
+            bg = new FlxSprite(0, 0);
+            try {
+                var img = Paths.image("freeplay/freeplayCapsule/capsule/freeplayCapsule");
+                if (img != null) {
+                    bg.loadGraphic(img);
+                } else {
+                    bg.makeGraphic(420, 90, 0xFFFFFFFF);
+                }
+            } catch(e:Dynamic) {
+                bg.makeGraphic(420, 90, 0xFFFFFFFF);
+            }
+            grp.add(bg);
+        } else {
+            bg.animation.addByPrefix('idle', 'idle', 24, true);
+            bg.animation.addByPrefix('open', 'open', 24, false);
+            bg.animation.addByPrefix('close', 'close', 24, false);
+            bg.animation.play('idle');
+            grp.add(bg);
+        }
+        
         try {
-            var fetchedVal = Save.instance.modOptions.get(saveKey);
-            if (fetchedVal != null) curVal = Std.string(fetchedVal);
+            bg.setGraphicSize(420); 
+            bg.updateHitbox();
         } catch(e:Dynamic) {}
 
-        var valueText = new FlxText(panelWidth - 190, 12, 140, curVal, 18);
-        valueText.setFormat("VCR OSD Mono", 18, 0xFF00FF00, "right");
-        grp.add(valueText);
+        var labelMaxWidth = 230.0;
+        var label = new FlxText(labelOffsetX, labelOffsetY, 0, labelText, 32);
+        label.wordWrap = false;
+        try {
+            label.setFormat(Paths.font("5by7.ttf"), 32, FlxColor.WHITE, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+            label.antialiasing = false;
+        } catch(e:Dynamic) {
+            label.setFormat("VCR OSD Mono", 24, FlxColor.WHITE, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        }
+        grp.add(label);
 
         itemsGroup.add(grp);
 
         var menuInst = this;
         optionItems.push({
+            grp: grp,
             bg: bg,
-            textDisplay: valueText,
+            labelDisplay: label,
+            textDisplay: null,
             key: saveKey,
             options: [],
-            y: yPos,
             desc: descStr,
+            isHeader: false,
+            slideTimer: 0.0,
             currentIndex: 0,
             fire: function(self:Dynamic) {
                 menuInst.openFontSelector(self.key, self.textDisplay);
@@ -581,7 +693,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         fontTargetScrollY = 0;
         fontItems = [];
 
-        fontBgGroup = new FlxSpriteGroup(uiX, 0);
+        fontBgGroup = new FlxSpriteGroup(0, 0);
         fontBgGroup.cameras = [optionCam];
         add(fontBgGroup);
 
@@ -590,18 +702,29 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         bg.scrollFactor.set(0, 0);
         fontBgGroup.add(bg);
 
-        var fTitle = new FlxText(10, 10, panelWidth - 20, "SELECT FONT (ESC TO CANCEL)", 24);
-        fTitle.setFormat("VCR OSD Mono", 24, FlxColor.WHITE, "center");
+        var fTitle = new FlxText(10, 10, panelWidth - 20, "SELECT FONT (ESC TO CANCEL)", 32);
+        try {
+            fTitle.setFormat(Paths.font("5by7.ttf"), 32, FlxColor.YELLOW, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+            fTitle.antialiasing = false;
+        } catch(e:Dynamic) {
+            fTitle.setFormat("VCR OSD Mono", 24, FlxColor.WHITE, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        }
         fTitle.scrollFactor.set(0, 0);
         fontBgGroup.add(fTitle);
 
-        fontItemsGroup = new FlxSpriteGroup(uiX, 60);
+        fontItemsGroup = new FlxSpriteGroup(0, 60);
         fontItemsGroup.cameras = [optionCam];
         add(fontItemsGroup);
 
         var fontMap:Dynamic = null;
         try { fontMap = apiRef.getAvailableFonts(); } catch(e:Dynamic) {}
         
+        var curSavedFont:String = "vcr.ttf";
+        try {
+            var fetchedVal = Save.instance.modOptions.get(saveKey);
+            if (fetchedVal != null) curSavedFont = Std.string(fetchedVal);
+        } catch(e:Dynamic) {}
+
         if (fontMap != null) {
             var keys:Array<String> = [];
             var kIter = fontMap.keys();
@@ -704,12 +827,13 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                     if (boxHeight < 44) boxHeight = 44;
 
                     var itemBg = new FlxSprite(20, fY).makeGraphic(panelWidth - 40, Std.int(boxHeight), 0xFFFFFFFF);
-                    itemBg.alpha = (fontItems.length == fontSelectedIndex) ? 0.4 : 0.0;
+                    itemBg.alpha = 0.0;
                     fontItemsGroup.add(itemBg);
                     fontItemsGroup.add(fTxt);
 
                     fontItems.push({
                         bg: itemBg,
+                        text: fTxt,
                         fileName: v.file,
                         y: fY,
                         height: boxHeight
@@ -741,12 +865,13 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                         if (boxHeight < 36) boxHeight = 36;
 
                         var itemBg = new FlxSprite(40, fY).makeGraphic(panelWidth - 80, Std.int(boxHeight), 0xFFFFFFFF);
-                        itemBg.alpha = (fontItems.length == fontSelectedIndex) ? 0.4 : 0.0;
+                        itemBg.alpha = 0.0;
                         fontItemsGroup.add(itemBg);
                         fontItemsGroup.add(fTxt);
 
                         fontItems.push({
                             bg: itemBg,
+                            text: fTxt,
                             fileName: v.file,
                             y: fY,
                             height: boxHeight
@@ -758,10 +883,15 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             }
 
             fontMaxScroll = Math.max(0, fY - FlxG.height + 150);
-        }
 
-        if (descBg != null) descBg.visible = false;
-        if (descTextDisplay != null) descTextDisplay.visible = false;
+            for (i in 0...fontItems.length) {
+                if (fontItems[i].fileName == curSavedFont) {
+                    fontSelectedIndex = i;
+                    break;
+                }
+            }
+        }
+        changeFontSelection(0);
     }
 
     function closeFontSelector() {
@@ -787,7 +917,20 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             var selFile = fontItems[fontSelectedIndex].fileName;
             Save.instance.modOptions.set(currentFontSaveKey, selFile);
             Save.instance.flush();
-            if (currentFontTextRef != null) currentFontTextRef.text = selFile;
+            if (currentFontTextRef != null) {
+                currentFontTextRef.text = selFile;
+                for (item in optionItems) {
+                    if (item.textDisplay == currentFontTextRef) {
+                        item.slideTimer = 0.0;
+                        if (item.textDisplay.width > 145.0) {
+                            item.textDisplay.x = 420 - 40.0 - 145.0;
+                        } else {
+                            item.textDisplay.x = 420 - 40.0 - item.textDisplay.width;
+                        }
+                        break;
+                    }
+                }
+            }
             FlxG.sound.play(Paths.sound('confirmMenu'), 0.7);
             
             try { updatePreviews(); } catch(e:Dynamic) {}
@@ -803,6 +946,9 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         for (i in 0...fontItems.length) {
             var item = fontItems[i];
             item.bg.alpha = (i == fontSelectedIndex) ? 0.4 : 0.0;
+            if (item.text != null) {
+                item.text.color = (i == fontSelectedIndex) ? FlxColor.YELLOW : FlxColor.WHITE;
+            }
         }
 
         if (change != 0) FlxG.sound.play(Paths.sound('scrollMenu'), 0.4);
@@ -817,7 +963,8 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         if (FlxG.onMobile) {
             if (FlxG.touches.list.length > 0) {
                 var touch = FlxG.touches.list[0];
-                if (touch.screenX >= uiX && touch.screenX <= uiX + panelWidth) {
+                var targetX = panelOnLeft ? 20 : (FlxG.width - 470);
+                if (touch.screenX >= targetX && touch.screenX <= targetX + panelWidth) {
                     if (touch.justPressed) {
                         touchStart = touch.screenY;
                         isDragging = false;
@@ -835,7 +982,8 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             if (FlxG.mouse.wheel != 0) {
                 fontTargetScrollY -= FlxG.mouse.wheel * 80;
             }
-            if (FlxG.mouse.justPressed && FlxG.mouse.screenX >= uiX && FlxG.mouse.screenX <= uiX + panelWidth && holdTimer <= 0) {
+            var targetX = panelOnLeft ? 20 : (FlxG.width - 470);
+            if (FlxG.mouse.justPressed && FlxG.mouse.screenX >= targetX && FlxG.mouse.screenX <= targetX + panelWidth && holdTimer <= 0) {
                 fireFontClickAt(FlxG.mouse.getWorldPosition(optionCam));
             }
         }
@@ -847,7 +995,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
     function fireFontClickAt(pos:FlxPoint) {
         for (i in 0...fontItems.length) {
             var item = fontItems[i];
-            if (pos.x >= uiX + item.bg.x && pos.x <= uiX + item.bg.x + item.bg.width && pos.y >= fontItemsGroup.y + item.y && pos.y <= fontItemsGroup.y + item.y + item.height) {
+            if (pos.y >= fontItemsGroup.y + item.y && pos.y <= fontItemsGroup.y + item.y + item.height) {
                 fontSelectedIndex = i;
                 changeFontSelection(0);
                 selectCurrentFont();
@@ -876,6 +1024,40 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 char.dance();
             }
         } catch(e:Dynamic) {}
+    }
+
+    function updateTextSlide(txt:FlxText, maxWidth:Float, timer:Float) {
+        if (txt == null) return;
+        if (txt.width <= maxWidth) {
+            txt.offset.x = 0;
+            txt.clipRect = null;
+            return;
+        }
+
+        var overflow = txt.width - maxWidth;
+        var speed = 40.0; 
+        var slideDuration = overflow / speed;
+        var cycle = 1.0 + slideDuration + 1.0 + slideDuration;
+        
+        var t = timer % cycle;
+        var currentOffset = 0.0;
+        
+        if (t < 1.0) {
+            currentOffset = 0.0;
+        } else if (t < 1.0 + slideDuration) {
+            var p = (t - 1.0) / slideDuration;
+            var ease = -(Math.cos(Math.PI * p) - 1) / 2;
+            currentOffset = overflow * ease;
+        } else if (t < 2.0 + slideDuration) {
+            currentOffset = overflow;
+        } else {
+            var p = (t - (2.0 + slideDuration)) / slideDuration;
+            var ease = -(Math.cos(Math.PI * p) - 1) / 2;
+            currentOffset = overflow * (1.0 - ease);
+        }
+        
+        txt.offset.x = currentOffset;
+        txt.clipRect = new FlxRect(currentOffset, 0, maxWidth, txt.height + 5);
     }
 
     override public function beatHit():Void {
@@ -908,26 +1090,100 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             panelOnLeft = !panelOnLeft;
         }
 
-        var targetX:Float = panelOnLeft ? 0 : (FlxG.width - panelWidth);
-        if (panelHidden) {
-            targetX = panelOnLeft ? -panelWidth : FlxG.width;
+        var targetMarqueeY:Float = panelHidden ? -50 : 0;
+        if (marqueeBg != null) {
+            marqueeBg.y = FlxMath.lerp(marqueeBg.y, targetMarqueeY, elapsed * 12);
         }
-        uiX = FlxMath.lerp(uiX, targetX, elapsed * 12);
 
-        if (panelBg != null) panelBg.x = uiX;
-        if (titleBar != null) titleBar.x = uiX;
-        if (titleText != null) titleText.x = uiX + 10;
-        if (hintText != null) hintText.x = uiX + 10;
-        if (itemsGroup != null) itemsGroup.x = uiX;
+        if (marqueeText1 != null && marqueeText2 != null) {
+            marqueeOffset -= marqueeSpeed * elapsed;
+            if (marqueeOffset <= -marqueeText1.width) {
+                marqueeOffset += marqueeText1.width;
+            }
 
-        var targetY = 80 - targetScrollY;
-        if (itemsGroup != null) itemsGroup.y = FlxMath.lerp(itemsGroup.y, targetY, elapsed * 15);
+            marqueeText1.x = marqueeOffset;
+            marqueeText2.x = marqueeOffset + marqueeText1.width;
+
+            if (marqueeBg != null) {
+                marqueeText1.y = marqueeBg.y + 6;
+                marqueeText2.y = marqueeBg.y + 6;
+            }
+        }
+
+        curSelectedFloat = FlxMath.lerp(curSelectedFloat, selectedIndex, elapsed * 10);
+        
+        var targetXBase:Float = panelOnLeft ? -50 : (FlxG.width - 400);
+        if (panelHidden) {
+            targetXBase = panelOnLeft ? -500 : FlxG.width + 100;
+        }
+        
+        for (i in 0...optionItems.length) {
+            var item = optionItems[i];
+            var diff = i - curSelectedFloat;
+            
+            var curveOffset = Math.abs(diff) * 45;
+            var targetX = panelOnLeft ? (targetXBase - curveOffset) : (targetXBase + curveOffset);
+            
+            if (item.isHeader) {
+                // Header style animation (no selected state)
+            } else {
+                if (i == selectedIndex) {
+                    targetX += panelOnLeft ? 40 : -40;
+                    item.slideTimer += elapsed;
+                    
+                    if (Std.isOfType(item.bg, FunkinSprite)) {
+                        var animName = "";
+                        try { animName = item.bg.animation.curAnim.name; } catch(e:Dynamic) {}
+                        if (animName != 'open' && animName != 'selected') {
+                            try { item.bg.animation.play('open'); } catch(e:Dynamic) {}
+                        }
+                        try { if (item.textDisplay != null) item.textDisplay.color = FlxColor.WHITE; } catch(e:Dynamic) {}
+                        try { item.labelDisplay.color = FlxColor.YELLOW; } catch(e:Dynamic) {}
+                    } else {
+                        item.bg.color = 0xFFFFFFFF;
+                        item.bg.alpha = 1.0;
+                    }
+                } else {
+                    item.slideTimer = 0.0;
+                    if (Std.isOfType(item.bg, FunkinSprite)) {
+                        var animName = "";
+                        try { animName = item.bg.animation.curAnim.name; } catch(e:Dynamic) {}
+                        if (animName == 'open' || animName == 'selected') {
+                            try { item.bg.animation.play('close'); } catch(e:Dynamic) {}
+                        } else if (animName != 'idle' && animName != 'unselected' && animName != 'close') {
+                            try { item.bg.animation.play('idle'); } catch(e:Dynamic) {}
+                        } else if (animName == 'close' && item.bg.animation.finished) {
+                            try { item.bg.animation.play('idle'); } catch(e:Dynamic) {}
+                        }
+                        try { if (item.textDisplay != null) item.textDisplay.color = 0xFFAAAAAA; } catch(e:Dynamic) {}
+                        try { item.labelDisplay.color = FlxColor.WHITE; } catch(e:Dynamic) {}
+                    } else {
+                        item.bg.color = 0xFFAAAAAA;
+                        item.bg.alpha = 0.7;
+                    }
+                }
+                
+                updateTextSlide(item.labelDisplay, 230.0, item.slideTimer);
+                if (item.textDisplay != null) {
+                    updateTextSlide(item.textDisplay, 145.0, item.slideTimer);
+                }
+            }
+            
+            var targetY = (FlxG.height / 2) + (diff * 110) - 45;
+            
+            item.grp.x = FlxMath.lerp(item.grp.x, targetX, elapsed * 12);
+            item.grp.y = FlxMath.lerp(item.grp.y, targetY, elapsed * 12);
+        }
 
         if (isFontMenuOpen) {
-            if (fontBgGroup != null) fontBgGroup.x = uiX;
+            var targetFontX = panelOnLeft ? 20 : (FlxG.width - 470);
+            if (panelHidden) {
+                targetFontX = panelOnLeft ? -500 : FlxG.width + 100;
+            }
+            if (fontBgGroup != null) fontBgGroup.x = FlxMath.lerp(fontBgGroup.x, targetFontX, elapsed * 12);
             if (fontItemsGroup != null) {
-                fontItemsGroup.x = uiX;
-                fontItemsGroup.y = FlxMath.lerp(fontItemsGroup.y, 60 - fontTargetScrollY, elapsed * 15);
+                fontItemsGroup.x = FlxMath.lerp(fontItemsGroup.x, targetFontX, elapsed * 12);
+                fontItemsGroup.y = FlxMath.lerp(fontItemsGroup.y, 55 - fontTargetScrollY, elapsed * 15);
             }
 
             if (FlxG.keys.justPressed.ESCAPE) {
@@ -983,9 +1239,11 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 holdTimer = 0.1;
             } else if (controls.ACCEPT) {
                 var item = optionItems[selectedIndex];
-                item.fire(item);
-                holdTimer = 0.2;
-                FlxG.sound.play(Paths.sound('confirmMenu'), 0.7);
+                if (!item.isHeader && item.fire != null) {
+                    item.fire(item);
+                    holdTimer = 0.2;
+                    FlxG.sound.play(Paths.sound('confirmMenu'), 0.7);
+                }
             }
         }
 
@@ -1001,18 +1259,21 @@ class KssetteMenuState extends ScriptedMusicBeatState {
 
     function changeSelection(change:Int = 0) {
         selectedIndex += change;
+        
         if (selectedIndex < 0) selectedIndex = optionItems.length - 1;
         if (selectedIndex >= optionItems.length) selectedIndex = 0;
 
-        for (i in 0...optionItems.length) {
-            var item = optionItems[i];
-            var isSelected = (i == selectedIndex);
-            item.bg.color = isSelected ? 0xFF555555 : 0xFF000000;
-            item.bg.alpha = isSelected ? 0.9 : 0.5;
+        if (optionItems[selectedIndex].isHeader) {
+            var dir = change >= 0 ? 1 : -1;
+            while(optionItems[selectedIndex].isHeader) {
+                selectedIndex += dir;
+                if (selectedIndex < 0) selectedIndex = optionItems.length - 1;
+                if (selectedIndex >= optionItems.length) selectedIndex = 0;
+            }
         }
 
         if (optionItems.length > 0 && selectedIndex >= 0 && selectedIndex < optionItems.length) {
-            if (descTextDisplay != null) {
+            if (descTextDisplay != null && !optionItems[selectedIndex].isHeader) {
                 descTextDisplay.text = optionItems[selectedIndex].desc;
                 
                 var reqH:Float = 60;
@@ -1029,49 +1290,49 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         }
 
         if (change != 0) FlxG.sound.play(Paths.sound('scrollMenu'), 0.4);
-
-        var targetY = optionItems[selectedIndex].y - (FlxG.height / 2) + 60;
-        targetScrollY = Math.max(0, Math.min(maxScroll, targetY));
     }
 
     function handleInput(elapsed:Float) {
         if (FlxG.onMobile) {
             if (FlxG.touches.list.length > 0) {
                 var touch = FlxG.touches.list[0];
-                if (touch.screenX >= uiX && touch.screenX <= uiX + panelWidth) {
+                var hitZone = panelOnLeft ? (touch.screenX <= panelWidth + 50) : (touch.screenX >= FlxG.width - panelWidth - 50);
+                if (hitZone) {
                     if (touch.justPressed) {
                         touchStart = touch.screenY;
                         isDragging = false;
                     }
                     if (touch.pressed) {
                         if (Math.abs(touch.screenY - touchStart) > 20) isDragging = true;
-                        if (isDragging) targetScrollY -= touch.deltaY;
                     }
-                    if (touch.justReleased && !isDragging && holdTimer <= 0) {
-                        fireClickAt(touch.getWorldPosition(optionCam));
+                    if (touch.justReleased) {
+                        if (isDragging) {
+                            if (touch.screenY - touchStart > 50) changeSelection(-1);
+                            if (touch.screenY - touchStart < -50) changeSelection(1);
+                        } else if (holdTimer <= 0) {
+                            fireClickAt(touch.getWorldPosition(optionCam));
+                        }
                     }
                 }
             }
         } else {
             if (FlxG.mouse.wheel != 0) {
-                targetScrollY -= FlxG.mouse.wheel * 80;
+                changeSelection(-FlxG.mouse.wheel);
             }
-            if (FlxG.mouse.justPressed && FlxG.mouse.screenX >= uiX && FlxG.mouse.screenX <= uiX + panelWidth && holdTimer <= 0) {
+            if (FlxG.mouse.justPressed && holdTimer <= 0) {
                 fireClickAt(FlxG.mouse.getWorldPosition(optionCam));
             }
         }
-
-        if (targetScrollY < 0) targetScrollY = 0;
-        if (targetScrollY > maxScroll) targetScrollY = maxScroll;
     }
 
     function fireClickAt(pos:FlxPoint) {
         for (i in 0...optionItems.length) {
             var item = optionItems[i];
-            if (pos.x >= uiX + 20 && pos.x <= uiX + panelWidth - 20 && pos.y >= itemsGroup.y + item.y && pos.y <= itemsGroup.y + item.y + 44) {
+            if (pos.x >= item.grp.x && pos.x <= item.grp.x + item.bg.width && pos.y >= item.grp.y && pos.y <= item.grp.y + item.bg.height) {
+                if (item.isHeader) continue;
                 selectedIndex = i;
                 changeSelection(0);
-                item.fire(item);
+                if (item.fire != null) item.fire(item);
                 holdTimer = 0.2;
                 try { FlxG.sound.play(Paths.sound('scrollMenu'), 0.5); } catch(e:Dynamic) {}
                 break;
