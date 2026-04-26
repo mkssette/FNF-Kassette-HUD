@@ -108,26 +108,6 @@ class KssetteMenuState extends ScriptedMusicBeatState {
     var judgeValues:Array<FlxText> = [];
 
     override public function create():Void {
-        largeCapsulePath = "ui/capsules/DescCapsule";
-        largeCapsuleWidth = 800.0;
-        descMaxHeight = 95.0;
-        descTextMaxWidth = 530.0;
-        descOffsetX = 45.0;
-        descOffsetY = 25.0; 
-        descValueMaxWidth = 140.0;
-        descValueOffsetX = 100.0; 
-        descValueOffsetY = 25.0;
-        smallCapsulePath = "ui/capsules/OptionCapsule";
-        smallCapsuleWidth = 620.0;  
-        capsuleSpacing = 115.0;
-        labelOffsetX = 80.0;
-        labelOffsetY = 25.0; 
-        labelMaxWidth = 320.0; 
-        valueOffsetX = 105.0; 
-        valueOffsetY = 25.0; 
-        valueMaxWidth = 150.0; 
-        panelWidth = 660; 
-        
         super.create();
         
         apiRef = ModuleHandler.getModule("KssetteApi");
@@ -514,8 +494,6 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         itemsGroup.cameras = [optionCam];
         add(itemsGroup);
 
-        var curY:Float = 0;
-
         addHeader("Gameplay Settings");
         createToggle("MIDDLE SCROLL", "kssette_middlescroll", ["Off", "On", "P Style", "Hidden Notes"], "Moves your notes to the center of the screen for better focus.");
         createToggle("GHOST TAPPING", "kssette_ghost_tapping", ["On", "Off"], "Press keys anytime without penalty. You won't miss if there's no note.");
@@ -577,13 +555,11 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             descBg.makeGraphic(Std.int(largeCapsuleWidth), Std.int(descMaxHeight + 30), 0xFF000000);
         }
         
-        try {
-            if (descBg.graphic != null) {
-                var sRatio = largeCapsuleWidth / descBg.graphic.width;
-                descBg.scale.set(sRatio, sRatio);
-                descBg.updateHitbox();
-            }
-        } catch(e:Dynamic) {}
+        if (descBg.graphic != null) {
+            var sRatio = largeCapsuleWidth / descBg.graphic.width;
+            descBg.scale.set(sRatio, sRatio);
+            descBg.updateHitbox();
+        }
         
         descBg.scrollFactor.set(0, 0);
         descBg.cameras = [optionCam];
@@ -658,13 +634,11 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             bg.makeGraphic(Std.int(smallCapsuleWidth), Std.int(smallCapsuleHeight), 0xFFFFFFFF);
         }
         
-        try {
-            if (bg.graphic != null) {
-                var sRatio = smallCapsuleWidth / bg.graphic.width;
-                bg.scale.set(sRatio, sRatio);
-                bg.updateHitbox();
-            }
-        } catch(e:Dynamic) {}
+        if (bg.graphic != null) {
+            var sRatio = smallCapsuleWidth / bg.graphic.width;
+            bg.scale.set(sRatio, sRatio);
+            bg.updateHitbox();
+        }
 
         bg.cameras = [optionCam];
         add(bg);
@@ -696,6 +670,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             valueText.setFormat("VCR OSD Mono", 24, 0xFF00FF00, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
         }
 
+        valueText.color = getValueColor(valueText.text);
         valueText.cameras = [optionCam];
         add(valueText);
 
@@ -716,7 +691,17 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 self.currentIndex = (self.currentIndex + 1) % self.options.length;
                 var newVal = self.options[self.currentIndex];
                 Save.instance.modOptions.set(self.key, newVal);
-                self.textDisplay.text = menuInst.formatShortValue(newVal);
+                
+                if (self.textDisplay != null) {
+                    self.textDisplay.text = menuInst.formatShortValue(newVal);
+                    self.textDisplay.color = menuInst.getValueColor(self.textDisplay.text);
+                    
+                    if (self.textDisplay.width > menuInst.valueMaxWidth) {
+                        self.textDisplay.x = menuInst.smallCapsuleWidth - self.valOffX - menuInst.valueMaxWidth;
+                    } else {
+                        self.textDisplay.x = menuInst.smallCapsuleWidth - self.valOffX - self.textDisplay.width;
+                    }
+                }
                 
                 self.slideTimer = 0.0;
                 self.flashTimer = 1.0;
@@ -728,6 +713,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 }
                 if (menuInst.descValueText != null) {
                     menuInst.descValueText.text = menuInst.formatLongValue(newVal);
+                    menuInst.descValueText.color = menuInst.getValueColor(menuInst.descValueText.text);
                 }
 
                 Save.instance.flush();
@@ -749,13 +735,11 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             bg.makeGraphic(Std.int(smallCapsuleWidth), Std.int(smallCapsuleHeight), 0xFFFFFFFF);
         }
         
-        try {
-            if (bg.graphic != null) {
-                var sRatio = smallCapsuleWidth / bg.graphic.width;
-                bg.scale.set(sRatio, sRatio);
-                bg.updateHitbox();
-            }
-        } catch(e:Dynamic) {}
+        if (bg.graphic != null) {
+            var sRatio = smallCapsuleWidth / bg.graphic.width;
+            bg.scale.set(sRatio, sRatio);
+            bg.updateHitbox();
+        }
 
         bg.cameras = [optionCam];
         add(bg);
@@ -1032,6 +1016,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 descTextDisplay.text = selItem.desc;
                 if (descValueText != null) {
                     descValueText.text = formatLongValue(selFile);
+                    descValueText.color = getValueColor(descValueText.text);
                     descValueSlideTimer = 0.0;
                 }
                 descSlideVerticalTimer = 0.0;
@@ -1051,7 +1036,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
 
         for (i in 0...fontItems.length) {
             var item = fontItems[i];
-            item.bg.alpha = 0.0;
+            if (item.bg != null) item.bg.alpha = 0.0;
             if (item.text != null) {
                 item.text.color = (i == fontSelectedIndex) ? FlxColor.YELLOW : FlxColor.WHITE;
             }
@@ -1113,31 +1098,25 @@ class KssetteMenuState extends ScriptedMusicBeatState {
 
     function loopCharacterAnimation(char:BaseCharacter):Void {
         if (char == null) return;
+        var isFin:Bool = true;
         try {
-            var isFin:Bool = true;
-            
-            try {
-                isFin = char.isAnimationFinished();
-            } catch(e:Dynamic) {
-                var animObj = Reflect.getProperty(char, "animation");
-                if (animObj != null) {
-                    var f = Reflect.getProperty(animObj, "finished");
-                    if (f != null) isFin = f;
-                }
+            isFin = char.isAnimationFinished();
+        } catch(e:Dynamic) {
+            var animObj = Reflect.getProperty(char, "animation");
+            if (animObj != null) {
+                var f = Reflect.getProperty(animObj, "finished");
+                if (f != null) isFin = f;
             }
-
-            if (isFin) {
-                char.dance();
-            }
-        } catch(e:Dynamic) {}
+        }
+        if (isFin) char.dance();
     }
 
     function updateTextSlide(txt:FlxText, maxWidth:Float, timer:Float) {
         if (txt == null) return;
-        try { if (txt.offset == null) txt.offset = new FlxPoint(0, 0); } catch(e:Dynamic) {}
+        if (txt.offset == null) txt.offset = new FlxPoint(0, 0);
         
         if (txt.wordWrap || txt.width <= maxWidth) {
-            try { txt.offset.x = 0; } catch(e:Dynamic) {}
+            txt.offset.x = 0;
             txt.clipRect = null;
             return;
         }
@@ -1164,16 +1143,16 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             currentOffset = overflow * (1.0 - ease);
         }
         
-        try { txt.offset.x = currentOffset; } catch(e:Dynamic) {}
+        txt.offset.x = currentOffset;
         txt.clipRect = new FlxRect(currentOffset, 0, maxWidth, txt.height + 5);
     }
 
     function updateVerticalTextSlide(txt:FlxText, maxHeight:Float, timer:Float) {
         if (txt == null) return;
-        try { if (txt.offset == null) txt.offset = new FlxPoint(0, 0); } catch(e:Dynamic) {}
+        if (txt.offset == null) txt.offset = new FlxPoint(0, 0);
         
         if (txt.height <= maxHeight) {
-            try { txt.offset.y = 0; } catch(e:Dynamic) {}
+            txt.offset.y = 0;
             txt.clipRect = null;
             return;
         }
@@ -1200,25 +1179,20 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             currentOffset = overflow * (1.0 - ease);
         }
         
-        try { txt.offset.y = currentOffset; } catch(e:Dynamic) {}
+        txt.offset.y = currentOffset;
         txt.clipRect = new FlxRect(0, currentOffset, txt.width + 5, maxHeight);
     }
 
     override public function beatHit():Void {
         super.beatHit();
-        
-        try {
-            if (bf != null) bf.dance();
-            if (dad != null) dad.dance();
-            if (gf != null) gf.dance();
-        } catch(e:Dynamic) {}
+        if (bf != null) bf.dance();
+        if (dad != null) dad.dance();
+        if (gf != null) gf.dance();
     }
 
     override public function update(elapsed:Float):Void {
         if (FlxG.sound.music != null && FlxG.sound.music.playing) {
-            try {
-                Reflect.setProperty(Conductor.instance, "songPosition", FlxG.sound.music.time);
-            } catch(e:Dynamic) {}
+            Reflect.setProperty(Conductor.instance, "songPosition", FlxG.sound.music.time);
         }
 
         super.update(elapsed);
@@ -1283,7 +1257,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                     capsuleFadeBg.flipX = panelOnLeft;
                 }
                 for (i in 0...optionItems.length) {
-                    optionItems[i].bg.x = startXBase;
+                    if (optionItems[i].bg != null) optionItems[i].bg.x = startXBase;
                 }
             }
         } else {
@@ -1316,69 +1290,63 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             
             var targetY = (FlxG.height / 2) + (diff * capsuleSpacing) - 50; 
             
-            item.bg.x = FlxMath.lerp(item.bg.x, targetX, elapsed * 12);
-            item.bg.y = FlxMath.lerp(item.bg.y, targetY, elapsed * 12);
+            if (item.bg != null) {
+                item.bg.x = FlxMath.lerp(item.bg.x, targetX, elapsed * 12);
+                item.bg.y = FlxMath.lerp(item.bg.y, targetY, elapsed * 12);
 
-            if (item.isHeader) {
-                item.labelDisplay.x = item.bg.x + (item.bg.width - item.labelDisplay.width) / 2;
-                item.labelDisplay.y = item.bg.y + (item.bg.height - item.labelDisplay.height) / 2;
-            } else {
-                if (i == selectedIndex) {
-                    item.slideTimer += elapsed;
-                    item.bg.alpha = 1.0;
-                    
-                    try { 
-                        if (item.textDisplay != null) { 
-                            item.textDisplay.color = getValueColor(item.textDisplay.text); 
-                            item.textDisplay.alpha = 1.0; 
-                        } 
-                    } catch(e:Dynamic) {}
-                    try { 
-                        item.labelDisplay.color = FlxColor.YELLOW; 
-                        item.labelDisplay.alpha = 1.0; 
-                    } catch(e:Dynamic) {}
-                } else {
-                    item.slideTimer = 0.0;
-                    item.bg.alpha = 1.0;
-                    
-                    try { 
-                        if (item.textDisplay != null) { 
-                            item.textDisplay.color = getValueColor(item.textDisplay.text); 
-                            item.textDisplay.alpha = 0.6; 
-                        } 
-                    } catch(e:Dynamic) {}
-                    try { 
-                        item.labelDisplay.color = FlxColor.WHITE; 
-                        item.labelDisplay.alpha = 0.6; 
-                    } catch(e:Dynamic) {}
-                }
-                
-                if (item.flashTimer != null && item.flashTimer > 0) {
-                    item.flashTimer -= elapsed * 8;
-                    if (item.flashTimer < 0) item.flashTimer = 0;
-                    
-                    var flashOn = (Math.floor(item.flashTimer * 10) % 2 == 0);
-                    item.bg.color = flashOn ? FlxColor.WHITE : FlxColor.YELLOW;
-                    try { item.labelDisplay.color = flashOn ? FlxColor.YELLOW : FlxColor.WHITE; } catch(e:Dynamic) {}
-                } else {
-                    item.bg.color = (i == selectedIndex) ? FlxColor.WHITE : 0xFF555555;
-                }
-
-                item.labelDisplay.x = item.bg.x + labelOffsetX;
-                item.labelDisplay.y = item.bg.y + labelOffsetY;
-
-                if (item.textDisplay != null) {
-                    var vX = item.bg.x + item.bg.width - valueOffsetX - item.textDisplay.width;
-                    if (item.textDisplay.width > valueMaxWidth) {
-                        vX = item.bg.x + item.bg.width - valueOffsetX - valueMaxWidth;
+                if (item.isHeader) {
+                    if (item.labelDisplay != null) {
+                        item.labelDisplay.x = item.bg.x + (item.bg.width - item.labelDisplay.width) / 2;
+                        item.labelDisplay.y = item.bg.y + (item.bg.height - item.labelDisplay.height) / 2;
                     }
-                    item.textDisplay.x = vX;
-                    item.textDisplay.y = item.bg.y + valueOffsetY;
-                }
+                } else {
+                    if (i == selectedIndex) {
+                        item.slideTimer += elapsed;
+                        item.bg.alpha = 1.0;
+                        if (item.textDisplay != null) item.textDisplay.alpha = 1.0; 
+                        if (item.labelDisplay != null) {
+                            item.labelDisplay.color = FlxColor.YELLOW;
+                            item.labelDisplay.alpha = 1.0;
+                        }
+                    } else {
+                        item.slideTimer = 0.0;
+                        item.bg.alpha = 1.0;
+                        if (item.textDisplay != null) item.textDisplay.alpha = 0.6; 
+                        if (item.labelDisplay != null) {
+                            item.labelDisplay.color = FlxColor.WHITE;
+                            item.labelDisplay.alpha = 0.6;
+                        }
+                    }
+                    
+                    if (item.flashTimer != null && item.flashTimer > 0) {
+                        item.flashTimer -= elapsed * 8;
+                        if (item.flashTimer < 0) item.flashTimer = 0;
+                        
+                        var flashOn = (Math.floor(item.flashTimer * 10) % 2 == 0);
+                        item.bg.color = flashOn ? FlxColor.WHITE : FlxColor.YELLOW;
+                        if (item.labelDisplay != null) item.labelDisplay.color = flashOn ? FlxColor.YELLOW : FlxColor.WHITE;
+                    } else {
+                        item.bg.color = (i == selectedIndex) ? FlxColor.WHITE : 0xFF555555;
+                    }
 
-                updateTextSlide(item.labelDisplay, labelMaxWidth, item.slideTimer);
-                if (item.textDisplay != null) {
-                    updateTextSlide(item.textDisplay, valueMaxWidth, item.slideTimer);
+                    if (item.labelDisplay != null) {
+                        item.labelDisplay.x = item.bg.x + labelOffsetX;
+                        item.labelDisplay.y = item.bg.y + labelOffsetY;
+                    }
+
+                    if (item.textDisplay != null) {
+                        var vX = item.bg.x + item.bg.width - valueOffsetX - item.textDisplay.width;
+                        if (item.textDisplay.width > valueMaxWidth) {
+                            vX = item.bg.x + item.bg.width - valueOffsetX - valueMaxWidth;
+                        }
+                        item.textDisplay.x = vX;
+                        item.textDisplay.y = item.bg.y + valueOffsetY;
+                    }
+
+                    updateTextSlide(item.labelDisplay, labelMaxWidth, item.slideTimer);
+                    if (item.textDisplay != null) {
+                        updateTextSlide(item.textDisplay, valueMaxWidth, item.slideTimer);
+                    }
                 }
             }
         }
@@ -1434,7 +1402,6 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 }
                 descValueText.x = vX;
                 descValueText.y = descBg.y + descValueOffsetY;
-                descValueText.color = getValueColor(descValueText.text);
             }
         }
 
@@ -1499,14 +1466,13 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             var selItem = optionItems[selectedIndex];
             if (descTextDisplay != null && !selItem.isHeader) {
                 var curVal = "Off";
-                try {
-                    var fetchedVal = Save.instance.modOptions.get(selItem.key);
-                    if (fetchedVal != null) curVal = Std.string(fetchedVal);
-                } catch(e:Dynamic) {}
+                var fetchedVal = Save.instance.modOptions.get(selItem.key);
+                if (fetchedVal != null) curVal = Std.string(fetchedVal);
                 
                 descTextDisplay.text = selItem.desc;
                 if (descValueText != null) {
                     descValueText.text = formatLongValue(curVal);
+                    descValueText.color = getValueColor(descValueText.text);
                 }
                 descSlideVerticalTimer = 0.0;
                 descValueSlideTimer = 0.0;
@@ -1552,13 +1518,13 @@ class KssetteMenuState extends ScriptedMusicBeatState {
     function fireClickAt(pos:FlxPoint) {
         for (i in 0...optionItems.length) {
             var item = optionItems[i];
-            if (pos.x >= item.bg.x && pos.x <= item.bg.x + item.bg.width && pos.y >= item.bg.y && pos.y <= item.bg.y + item.bg.height) {
+            if (item.bg != null && pos.x >= item.bg.x && pos.x <= item.bg.x + item.bg.width && pos.y >= item.bg.y && pos.y <= item.bg.y + item.bg.height) {
                 if (item.isHeader) continue;
                 selectedIndex = i;
                 changeSelection(0);
                 if (item.fire != null) item.fire(item);
                 holdTimer = 0.2;
-                try { FlxG.sound.play(Paths.sound('scrollMenu'), 0.5); } catch(e:Dynamic) {}
+                FlxG.sound.play(Paths.sound('scrollMenu'), 0.5);
                 break;
             }
         }
