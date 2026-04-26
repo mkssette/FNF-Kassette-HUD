@@ -44,7 +44,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
 
     var smallCapsulePath:String = "ui/capsules/OptionCapsule";
     var smallCapsuleWidth:Float = 620.0;  
-    var capsuleSpacing:Float = 120.0;     
+    var capsuleSpacing:Float = 115.0;     
     var labelOffsetX:Float = 80.0;
     var labelOffsetY:Float = 25.0; 
     var labelMaxWidth:Float = 320.0; 
@@ -57,6 +57,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
     var optionCam:FlxCamera;
     var hudCam:FlxCamera;
     var stageCam:FunkinCamera;
+    var capsuleFadeBg:FlxSprite;
     var marqueeBg:FlxSprite;
     var marqueeText1:FlxText;
     var marqueeText2:FlxText;
@@ -118,7 +119,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         descValueOffsetY = 25.0;
         smallCapsulePath = "ui/capsules/OptionCapsule";
         smallCapsuleWidth = 620.0;  
-        capsuleSpacing = 120.0;
+        capsuleSpacing = 115.0;
         labelOffsetX = 80.0;
         labelOffsetY = 25.0; 
         labelMaxWidth = 320.0; 
@@ -419,6 +420,17 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         return char;
     }
 
+    function getValueColor(val:String):Int {
+        if (val == null) return 0xFFFFFFFF;
+        var upper = StringTools.trim(val).toUpperCase();
+        if (upper == "ON" || upper == "ENABLED") return 0xFF00FF00;
+        if (upper == "OFF" || upper == "DISABLED") return 0xFFFF0000;
+        if (upper == "P S" || upper == "P STYLE" || StringTools.contains(upper, "LEFT") || StringTools.contains(upper, "RIGHT") || StringTools.contains(upper, "TOP") || StringTools.contains(upper, "BOT") || StringTools.contains(upper, "ABV") || StringTools.contains(upper, "BEL")) return 0xFF00CCFF;
+        if (upper == "CLA" || upper == "CLASSIC" || upper == "ASC" || upper == "ASCENDING") return 0xFFFFCC00;
+        if (upper == "HID" || upper == "HIDDEN" || StringTools.contains(upper, "HIDDEN NOTES")) return 0xFF999999;
+        return 0xFFFFFFFF;
+    }
+
     function formatShortValue(val:String):String {
         if (val == null) return "";
         var upper = val.toUpperCase();
@@ -456,7 +468,6 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         marqueeBg.scrollFactor.set(0, 0);
         marqueeBg.alpha = 1.0;
         marqueeBg.cameras = [optionCam];
-        add(marqueeBg);
 
         var apiVer = "0.2.a1";
         try { if (apiRef != null) apiVer = Std.string(apiRef.hudVersion); } catch(e:Dynamic) {}
@@ -473,7 +484,6 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         }
         marqueeText1.scrollFactor.set(0, 0);
         marqueeText1.cameras = [optionCam];
-        add(marqueeText1);
 
         marqueeText2 = new FlxText(0, 6, 0, marqueeString, 32);
         try { 
@@ -484,7 +494,25 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         }
         marqueeText2.scrollFactor.set(0, 0);
         marqueeText2.cameras = [optionCam];
-        add(marqueeText2);
+
+        capsuleFadeBg = new FlxSprite(0, 0);
+        capsuleFadeBg.makeGraphic(panelWidth, 1, 0x00000000);
+        
+        for (i in 0...panelWidth) {
+            var ratio = i / panelWidth;
+            var a = Std.int(0.8 * 255 * ratio); 
+            var color = (a << 24) | 0x000000;
+            capsuleFadeBg.graphic.bitmap.setPixel32(i, 0, color);
+        }
+        capsuleFadeBg.scale.y = FlxG.height;
+        capsuleFadeBg.updateHitbox();
+        capsuleFadeBg.scrollFactor.set(0, 0);
+        capsuleFadeBg.cameras = [optionCam];
+        add(capsuleFadeBg);
+
+        itemsGroup = new FlxSpriteGroup(0, 0);
+        itemsGroup.cameras = [optionCam];
+        add(itemsGroup);
 
         var curY:Float = 0;
 
@@ -586,6 +614,10 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         descValueText.scrollFactor.set(0, 0);
         descValueText.cameras = [optionCam];
         add(descValueText);
+
+        add(marqueeBg);
+        add(marqueeText1);
+        add(marqueeText2);
     }
 
     function addHeader(text:String) {
@@ -601,6 +633,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         } catch(e:Dynamic) {
             header.setFormat("VCR OSD Mono", 24, FlxColor.YELLOW, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
         }
+        header.y = (bg.height - header.height) / 2;
         header.cameras = [optionCam];
         add(header);
         
@@ -676,6 +709,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             desc: descStr,
             isHeader: false,
             slideTimer: 0.0,
+            flashTimer: 0.0,
             valOffX: valueOffsetX,
             currentIndex: Math.max(0, options.indexOf(curVal)),
             fire: function(self:Dynamic) {
@@ -685,6 +719,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 self.textDisplay.text = menuInst.formatShortValue(newVal);
                 
                 self.slideTimer = 0.0;
+                self.flashTimer = 1.0;
                 menuInst.descSlideVerticalTimer = 0.0;
                 menuInst.descValueSlideTimer = 0.0;
 
@@ -747,8 +782,10 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             desc: descStr,
             isHeader: false,
             slideTimer: 0.0,
+            flashTimer: 0.0,
             currentIndex: 0,
             fire: function(self:Dynamic) {
+                self.flashTimer = 1.0;
                 menuInst.descSlideVerticalTimer = 0.0;
                 menuInst.descValueSlideTimer = 0.0;
                 menuInst.openFontSelector(self.key, null); 
@@ -1224,11 +1261,13 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         
         var targetXBase:Float = 0;
         var targetDescX:Float = 0;
+        var targetFadeX:Float = 0;
 
         if (transitioningSide) {
             transitionTimer += elapsed;
             targetXBase = panelOnLeft ? -smallCapsuleWidth - 200 : FlxG.width + 200;
             targetDescX = panelOnLeft ? -largeCapsuleWidth - 200 : FlxG.width + 200;
+            targetFadeX = panelOnLeft ? -panelWidth - 200 : FlxG.width + 200;
 
             if (transitionTimer > 0.3) {
                 panelOnLeft = nextPanelOnLeft;
@@ -1236,8 +1275,13 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 
                 var startXBase = panelOnLeft ? -smallCapsuleWidth - 200 : FlxG.width + 200;
                 var startDescX = panelOnLeft ? -largeCapsuleWidth - 200 : FlxG.width + 200;
+                var startFadeX = panelOnLeft ? -panelWidth - 200 : FlxG.width + 200;
                 
                 if (descBg != null) descBg.x = startDescX;
+                if (capsuleFadeBg != null) {
+                    capsuleFadeBg.x = startFadeX;
+                    capsuleFadeBg.flipX = panelOnLeft;
+                }
                 for (i in 0...optionItems.length) {
                     optionItems[i].bg.x = startXBase;
                 }
@@ -1245,11 +1289,18 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         } else {
             targetXBase = panelOnLeft ? -50 : (FlxG.width - smallCapsuleWidth + 40);
             targetDescX = panelOnLeft ? (FlxG.width - largeCapsuleWidth - 20) : 20;
+            targetFadeX = panelOnLeft ? 0 : (FlxG.width - panelWidth);
 
             if (panelHidden) {
                 targetXBase = panelOnLeft ? -smallCapsuleWidth - 200 : FlxG.width + 200;
                 targetDescX = panelOnLeft ? FlxG.width + 200 : -largeCapsuleWidth - 200;
+                targetFadeX = panelOnLeft ? -panelWidth - 200 : FlxG.width + 200;
             }
+        }
+
+        if (capsuleFadeBg != null) {
+            capsuleFadeBg.x = FlxMath.lerp(capsuleFadeBg.x, targetFadeX, elapsed * 12);
+            capsuleFadeBg.flipX = panelOnLeft;
         }
         
         for (i in 0...optionItems.length) {
@@ -1274,19 +1325,45 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             } else {
                 if (i == selectedIndex) {
                     item.slideTimer += elapsed;
-                    
-                    item.bg.color = FlxColor.WHITE;
                     item.bg.alpha = 1.0;
-                    try { if (item.textDisplay != null) item.textDisplay.color = FlxColor.WHITE; } catch(e:Dynamic) {}
-                    try { item.labelDisplay.color = FlxColor.YELLOW; } catch(e:Dynamic) {}
+                    
+                    try { 
+                        if (item.textDisplay != null) { 
+                            item.textDisplay.color = getValueColor(item.textDisplay.text); 
+                            item.textDisplay.alpha = 1.0; 
+                        } 
+                    } catch(e:Dynamic) {}
+                    try { 
+                        item.labelDisplay.color = FlxColor.YELLOW; 
+                        item.labelDisplay.alpha = 1.0; 
+                    } catch(e:Dynamic) {}
                 } else {
                     item.slideTimer = 0.0;
-                    item.bg.color = 0xFF555555;
                     item.bg.alpha = 1.0;
-                    try { if (item.textDisplay != null) item.textDisplay.color = 0xFFAAAAAA; } catch(e:Dynamic) {}
-                    try { item.labelDisplay.color = FlxColor.WHITE; } catch(e:Dynamic) {}
+                    
+                    try { 
+                        if (item.textDisplay != null) { 
+                            item.textDisplay.color = getValueColor(item.textDisplay.text); 
+                            item.textDisplay.alpha = 0.6; 
+                        } 
+                    } catch(e:Dynamic) {}
+                    try { 
+                        item.labelDisplay.color = FlxColor.WHITE; 
+                        item.labelDisplay.alpha = 0.6; 
+                    } catch(e:Dynamic) {}
                 }
                 
+                if (item.flashTimer != null && item.flashTimer > 0) {
+                    item.flashTimer -= elapsed * 8;
+                    if (item.flashTimer < 0) item.flashTimer = 0;
+                    
+                    var flashOn = (Math.floor(item.flashTimer * 10) % 2 == 0);
+                    item.bg.color = flashOn ? FlxColor.WHITE : FlxColor.YELLOW;
+                    try { item.labelDisplay.color = flashOn ? FlxColor.YELLOW : FlxColor.WHITE; } catch(e:Dynamic) {}
+                } else {
+                    item.bg.color = (i == selectedIndex) ? FlxColor.WHITE : 0xFF555555;
+                }
+
                 item.labelDisplay.x = item.bg.x + labelOffsetX;
                 item.labelDisplay.y = item.bg.y + labelOffsetY;
 
@@ -1357,6 +1434,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 }
                 descValueText.x = vX;
                 descValueText.y = descBg.y + descValueOffsetY;
+                descValueText.color = getValueColor(descValueText.text);
             }
         }
 
