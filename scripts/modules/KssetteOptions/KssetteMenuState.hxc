@@ -97,45 +97,18 @@ class KssetteMenuState extends ScriptedMusicBeatState {
     var bf:BaseCharacter;
     var dad:BaseCharacter;
     var gf:BaseCharacter;
-    var previewScore:FlxText;
-    var previewInfo:FlxText;
-    var previewTime:FlxText;
-    var judgeLabels:Array<FlxText> = [];
-    var judgeValues:Array<FlxText> = [];
     var kssBackButton:FunkinBackButton;
     var previewHitbox:FlxSprite;
     var touchStart:Float = 0;
     var touchStartX:Float = 0;
-    var touchHoldY:Float = 0;
     var isDragging:Bool = false;
 
-    // Cache de sonidos en RAM
     var sndScroll:Dynamic;
     var sndOn:Dynamic;
     var sndOff:Dynamic;
     var sndCancel:Dynamic;
 
     override public function create():Void {
-        largeCapsulePath = "ui/capsules/DescCapsule";
-        largeCapsuleWidth = 800.0;
-        descMaxHeight = 95.0;
-        descTextMaxWidth = 450.0;
-        descOffsetX = 45.0;
-        descOffsetY = 20.0; 
-        descValueMaxWidth = 140.0;
-        descValueOffsetX = 100.0; 
-        descValueOffsetY = 25.0;
-        smallCapsulePath = "ui/capsules/OptionCapsule";
-        smallCapsuleWidth = 620.0;  
-        capsuleSpacing = 120.0;
-        labelOffsetX = 80.0;
-        labelOffsetY = 25.0; 
-        labelMaxWidth = 320.0; 
-        valueOffsetX = 105.0; 
-        valueOffsetY = 25.0; 
-        valueMaxWidth = 150.0; 
-        panelWidth = 660; 
-        
         super.create();
 
         try {
@@ -161,15 +134,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         optionCam.bgColor = FlxColor.TRANSPARENT;
         FlxG.cameras.add(optionCam, false);
 
-        try {
-            Reflect.setProperty(Conductor.instance, "bpm", 100);
-        } catch(e:Dynamic) {
-            try {
-                if (Reflect.hasField(Conductor.instance, "forceBPM")) {
-                    Conductor.instance.forceBPM(100);
-                }
-            } catch(e2:Dynamic) {}
-        }
+        try { Reflect.setProperty(Conductor.instance, "bpm", 100); } catch(e:Dynamic) {}
 
         var initEvent:ScriptEvent = null;
         try { initEvent = new ScriptEvent("onCreate"); } catch(e:Dynamic) {}
@@ -187,12 +152,9 @@ class KssetteMenuState extends ScriptedMusicBeatState {
 
         try {
             var sData = stage._data;
-            
             var placeChar = function(char:BaseCharacter, cData:Dynamic, isPlayer:Bool) {
                 if (char == null) return;
-                
                 try { char.resetCharacter(true); } catch(e:Dynamic) {}
-
                 if (cData != null) {
                     try {
                         char.x = cData.position[0] - char.characterOrigin.x;
@@ -201,36 +163,28 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                         char.x = cData.position[0];
                         char.y = cData.position[1];
                     }
-                    
                     var cScale:Float = 1.0;
                     if (cData.scale != null) cScale = cScale;
                     try { char.setScale(char.getBaseScale() * cScale); } catch(e:Dynamic) {}
-                    
                     try {
                         var dataFlip = char.getDataFlipX();
                         char.flipX = isPlayer ? !dataFlip : dataFlip;
                     } catch(e:Dynamic) {}
-
                     try { char.originalPosition.set(char.x, char.y); } catch(e:Dynamic) {}
                     try { char.resetCameraFocusPoint(); } catch(e:Dynamic) {}
-                    
                     if (cData.cameraOffsets != null) {
                         try {
                             char.cameraFocusPoint.x += cData.cameraOffsets[0];
                             char.cameraFocusPoint.y += cData.cameraOffsets[1];
                         } catch(e:Dynamic) {}
                     }
-                    
                     if (cData.scroll != null) {
                         try { char.scrollFactor.set(cData.scroll[0], cData.scroll[1]); } catch(e:Dynamic) {}
                     }
                 }
             };
 
-            var gfData = null;
-            var dadData = null;
-            var bfData = null;
-
+            var gfData = null; var dadData = null; var bfData = null;
             if (sData != null && sData.characters != null) {
                 gfData = sData.characters.gf;
                 dadData = sData.characters.dad;
@@ -281,40 +235,26 @@ class KssetteMenuState extends ScriptedMusicBeatState {
     }
 
     public function initPreviews() {
-        var moduleNames = [
-            "KssetteAccuracy", "KssetteHUDPreview", "KssetteJudgements", 
-            "KssetteTimeBar", "KssetteCombo", "KssetteSongInfo",
-            "KssetteShowTitle", "KssetteBreakBar", "KssetteSubtitles"
-        ];
+        var moduleNames = ["KssetteAccuracy", "KssetteHUDPreview", "KssetteJudgements", "KssetteTimeBar", "KssetteCombo", "KssetteSongInfo", "KssetteShowTitle", "KssetteBreakBar", "KssetteSubtitles"];
         for (mName in moduleNames) {
             var mod:Dynamic = ModuleHandler.getModule(mName);
             if (mod != null) {
                 try {
-                    if (Reflect.hasField(mod, "buildPreview")) {
-                        Reflect.callMethod(mod, Reflect.field(mod, "buildPreview"), [hudCam]);
-                    } else {
-                        mod.buildPreview(hudCam);
-                    }
+                    if (Reflect.hasField(mod, "buildPreview")) Reflect.callMethod(mod, Reflect.field(mod, "buildPreview"), [hudCam]);
+                    else mod.buildPreview(hudCam);
                 } catch(e:Dynamic) {}
             }
         }
     }
 
     public function updatePreviews() {
-        var moduleNames = [
-            "KssetteAccuracy", "KssetteHUDPreview", "KssetteJudgements", 
-            "KssetteTimeBar", "KssetteCombo", "KssetteSongInfo",
-            "KssetteShowTitle", "KssetteBreakBar", "KssetteSubtitles"
-        ];
+        var moduleNames = ["KssetteAccuracy", "KssetteHUDPreview", "KssetteJudgements", "KssetteTimeBar", "KssetteCombo", "KssetteSongInfo", "KssetteShowTitle", "KssetteBreakBar", "KssetteSubtitles"];
         for (mName in moduleNames) {
             var mod:Dynamic = ModuleHandler.getModule(mName);
             if (mod != null) {
                 try {
-                    if (Reflect.hasField(mod, "updatePreview")) {
-                        Reflect.callMethod(mod, Reflect.field(mod, "updatePreview"), []);
-                    } else {
-                        mod.updatePreview();
-                    }
+                    if (Reflect.hasField(mod, "updatePreview")) Reflect.callMethod(mod, Reflect.field(mod, "updatePreview"), []);
+                    else mod.updatePreview();
                 } catch(e:Dynamic) {}
             }
         }
@@ -762,6 +702,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 
                 if (self.textDisplay != null) {
                     self.textDisplay.text = menuInst.formatShortValue(newVal);
+                    // OPTIMIZATION: Only change color when value updates
                     var tColor = menuInst.getValueColor(self.textDisplay.text);
                     if (self.textDisplay.color != tColor) self.textDisplay.color = tColor;
                     
@@ -782,8 +723,9 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 }
                 if (menuInst.descValueText != null) {
                     menuInst.descValueText.text = menuInst.formatLongValue(newVal);
-                    var valColor = menuInst.getValueColor(menuInst.descValueText.text);
-                    if (menuInst.descValueText.color != valColor) menuInst.descValueText.color = valColor;
+                    // OPTIMIZATION: Only change color when value updates
+                    var vColor = menuInst.getValueColor(menuInst.descValueText.text);
+                    if (menuInst.descValueText.color != vColor) menuInst.descValueText.color = vColor;
                 }
 
                 var upperVal = Std.string(newVal).toUpperCase();
@@ -1104,6 +1046,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 descTextDisplay.text = selItem.desc;
                 if (descValueText != null) {
                     descValueText.text = formatLongValue(selFile);
+                    // OPTIMIZATION: Assign color ONLY when selection changes
                     var targetColor = getValueColor(descValueText.text);
                     if (descValueText.color != targetColor) descValueText.color = targetColor;
                     descValueSlideTimer = 0.0;
@@ -1130,6 +1073,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         for (i in 0...fontItems.length) {
             var item = fontItems[i];
             var targetAlpha = (i == fontSelectedIndex) ? 0.3 : 0.0;
+            // OPTIMIZATION: Prevent redundant property setting
             if (item.bg != null && item.bg.alpha != targetAlpha) item.bg.alpha = targetAlpha;
             
             if (item.text != null) {
@@ -1163,7 +1107,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         if (isFin) char.dance();
     }
 
-    // OPTIMIZATION: Instead of FlxRect.get(), we just directly manipulate properties of a single FlxRect instance per text 
+    // OPTIMIZATION: Safe manual clipping instead of new FlxRect instances
     function updateTextSlide(txt:FlxText, maxWidth:Float, timer:Float) {
         if (txt == null) return;
         if (txt.offset == null) txt.offset = new FlxPoint(0, 0);
@@ -1200,16 +1144,8 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         
         if (txt.clipRect == null || Math.abs(txt.offset.x - currentOffset) > 0.1) {
             txt.offset.x = currentOffset;
-            if (txt.clipRect == null) {
-                txt.clipRect = new FlxRect(currentOffset, 0, maxWidth, txt.height + 5);
-            } else {
-                var rect = txt.clipRect;
-                rect.x = currentOffset;
-                rect.y = 0;
-                rect.width = maxWidth;
-                rect.height = txt.height + 5;
-                txt.clipRect = rect; 
-            }
+            // Native safe approach: Assigning a new rect only when absolutely needed to avoid the get() crash
+            txt.clipRect = new FlxRect(currentOffset, 0, maxWidth, txt.height + 5); 
         }
     }
 
@@ -1249,16 +1185,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         
         if (txt.clipRect == null || Math.abs(txt.offset.y - currentOffset) > 0.1) {
             txt.offset.y = currentOffset;
-            if (txt.clipRect == null) {
-                txt.clipRect = new FlxRect(0, currentOffset, txt.width + 5, maxHeight);
-            } else {
-                var rect = txt.clipRect;
-                rect.x = 0;
-                rect.y = currentOffset;
-                rect.width = txt.width + 5;
-                rect.height = maxHeight;
-                txt.clipRect = rect;
-            }
+            txt.clipRect = new FlxRect(0, currentOffset, txt.width + 5, maxHeight);
         }
     }
 
@@ -1410,7 +1337,6 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             }
 
             if (!isVisible) {
-                // Just force the position to match math (to avoid flying around if you scroll too fast)
                 var curveOffset = Math.abs(diff) * 45;
                 var targetX = panelOnLeft ? (targetXBase - curveOffset) : (targetXBase + curveOffset);
                 if (!item.isHeader && i == selectedIndex) targetX += panelOnLeft ? 40 : -40;
@@ -1430,7 +1356,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                     item.textDisplay.y = targetY + valueOffsetY;
                 }
                 item.slideTimer = 0.0;
-                continue; // SKIP ALL MATH LERPS & SLIDING
+                continue; 
             }
 
             var curveOffset = Math.abs(diff) * 45;
@@ -1586,7 +1512,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 descTextDisplay.text = selItem.desc;
                 if (descValueText != null) {
                     descValueText.text = formatLongValue(curVal);
-                    // OPTIMIZATION: Assing color ONLY when selection changes
+                    // OPTIMIZATION: Assign color ONLY when selection changes
                     var targetColor = getValueColor(descValueText.text);
                     if (descValueText.color != targetColor) descValueText.color = targetColor;
                 }

@@ -18,6 +18,11 @@ import Reflect;
 import StringTools;
 
 class KssetteSubtitles extends Module {
+    
+    var defaultFontSize:Int = 24;
+    var topY_Normal:Float = 190;
+    var bottomY_Offset:Float = 190;
+
     var apiModule:Dynamic = null;
     var cachedFont:String = "VCR OSD Mono";
     var animType:String = "Slide";
@@ -61,7 +66,6 @@ class KssetteSubtitles extends Module {
         "Did you know? <font color=\"#FF0000\">Spirit is the manifestation of Senpai's hatred!</font>",
         "Fun fact: <i>Skid and Pump originally come from Spooky Month!</i>",
         "Did you know? <font color=\"#FFFF00\">Tankman is the mascot of Newgrounds!</font>",
-        
         "It's more likely for <font color=\"#00FF00\">GTA VI</font> to release before <b>Week 8</b>.",
         "This mod has no relation to <i>Cassette Girl</i>, but she is one of my favorite characters!",
         "If you're on mobile using a keyboard, I highly suggest enabling <b><font color=\"#FFCC00\">'PC/HITBOX MODE'</font></b>!",
@@ -107,8 +111,8 @@ class KssetteSubtitles extends Module {
             subText = null;
         }
         
-        subText = new FlxText(0, 0, FlxG.width, "", 30);
-        subText.borderSize = 2; 
+        subText = new FlxText(0, 0, FlxG.width, "", defaultFontSize);
+        subText.borderSize = 1.5; 
         subText.visible = false;
         subText.cameras = [cam];
         subText.zIndex = 1010;
@@ -307,29 +311,6 @@ class KssetteSubtitles extends Module {
             return;
         }
 
-        var dynamicTopY:Float = 100;
-        try {
-            if (apiModule != null) {
-                var infoPosRaw = apiModule.getKssValue("kssette_info_pos");
-                var infoPos = infoPosRaw != null ? Std.string(infoPosRaw) : "";
-                
-                var isDownscroll = false;
-                try { isDownscroll = funkin.Preferences.downscroll; } catch(e:Dynamic) {}
-                
-                try {
-                    if (Reflect.hasField(apiModule, "isMobileMode") && Reflect.hasField(apiModule, "isMobileLikePC")) {
-                        var isMob = Reflect.field(apiModule, "isMobileMode");
-                        var isMobPC = Reflect.callMethod(apiModule, Reflect.field(apiModule, "isMobileLikePC"), []);
-                        if (isMob && !isMobPC) isDownscroll = true;
-                    }
-                } catch(e:Dynamic) {}
-                
-                if ((infoPos == "Below Score" || infoPos == "") && isDownscroll) {
-                    dynamicTopY = 160;
-                }
-            }
-        } catch(e:Dynamic) {}
-
         var rawTargetText:String = "";
         var activeEntry:Dynamic = null;
         var isCutscene:Bool = false;
@@ -353,7 +334,7 @@ class KssetteSubtitles extends Module {
                     previewTimer = 1.0;
                     lastRawText = ""; 
                 } else if (previewState == 3) {
-                    rawTargetText = "<font size=\"40\" color=\"#FF0000\" face=\"pixel.otf\">Testing Size, Color & Custom Fonts!</font>";
+                    rawTargetText = "<font color=\"#FF0000\">Testing Colors & Custom Fonts!</font>";
                     previewTimer = 4.0;
                 }
             } else if (previewState == 1 || previewState == 3) {
@@ -516,7 +497,7 @@ class KssetteSubtitles extends Module {
         lastRawText = rawTargetText;
 
         var displayFont:String = cachedFont;
-        var displaySize:Int = 30;
+        var displaySize:Int = defaultFontSize;
         var displayColor:Int = 0xFFFFFFFF;
         var htmlTextToProcess:String = rawTargetText;
 
@@ -541,7 +522,7 @@ class KssetteSubtitles extends Module {
 
         if (shouldShow) {
             try { subText.setFormat(displayFont, displaySize, displayColor, "center", FlxTextBorderStyle.OUTLINE, 0xFF000000); } catch(e:Dynamic) {}
-            subText.borderSize = 2;
+            subText.borderSize = 1.5;
             
             compileHTML(htmlTextToProcess, displayColor);
             
@@ -549,7 +530,7 @@ class KssetteSubtitles extends Module {
             var realHeight = subText.height;
 
             var targetX:Float = 0; 
-            var targetY:Float = (posType == "Top") ? dynamicTopY : (FlxG.height - realHeight - 190);
+            var targetY:Float = (posType == "Top") ? topY_Normal : (FlxG.height - realHeight - bottomY_Offset);
             
             var useKaraoke:Bool = smartKaraoke && !isCutscene;
 
@@ -761,7 +742,7 @@ class KssetteSubtitles extends Module {
                         } catch(e:Dynamic) {}
                     }});
                 } else {
-                    var baseTargetY:Float = (posType == "Top") ? dynamicTopY : (FlxG.height - subText.height - 190);
+                    var baseTargetY:Float = (posType == "Top") ? topY_Normal : (FlxG.height - subText.height - bottomY_Offset);
                     var endY:Float = (posType == "Top") ? baseTargetY - 20 : baseTargetY + 20;
                     
                     currentTween = FlxTween.tween(subText, {y: endY, alpha: 0}, 0.25, {onComplete: function(t:FlxTween) {
