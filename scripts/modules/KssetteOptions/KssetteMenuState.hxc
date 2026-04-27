@@ -460,8 +460,8 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         var apiVer = "0.2.a1";
         try { if (apiRef != null) apiVer = Std.string(apiRef.hudVersion); } catch(e:Dynamic) {}
 
-        var mobileStr = "    SWIPE UP/DOWN TO SCROLL    SWIPE L/R TO MOVE UI    TAP GREEN BOX TO EXIT    ";
-        var pcStr = "    TAB TO HIDE UI    SHIFT TO MOVE UI    ESC TO EXIT    ";
+        var mobileStr = "    OPTIONS MENU    SWIPE UP/DOWN TO SCROLL    SWIPE L/R TO MOVE UI    TAP THE STAGE TO PREVIEW    ";
+        var pcStr = "    OPTIONS MENU    TAB TO HIDE OPTIONS    SHIFT TO MOVE OPTTIONS    ESC TO EXIT    ";
         marqueeString = " KASSETTE HUD V" + apiVer + (FlxG.onMobile ? mobileStr : pcStr);
         marqueeString = marqueeString + marqueeString + marqueeString + marqueeString + marqueeString + marqueeString + marqueeString + marqueeString;
 
