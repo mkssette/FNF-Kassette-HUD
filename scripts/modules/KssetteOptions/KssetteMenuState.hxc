@@ -25,10 +25,14 @@ import funkin.graphics.FunkinSprite;
 import funkin.Preferences;
 import Math;
 import Std;
-import Reflect;
 import flixel.math.FlxPoint;
 import flixel.math.FlxRect;
 import StringTools;
+import funkin.mobile.ui.FunkinBackButton;
+import funkin.util.TouchUtil;
+import funkin.util.SwipeUtil;
+import Type;
+import Reflect;
 
 class KssetteMenuState extends ScriptedMusicBeatState {
     
@@ -37,7 +41,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
     var descMaxHeight:Float = 95.0; 
     var descTextMaxWidth:Float = 450.0;
     var descOffsetX:Float = 45.0;
-    var descOffsetY:Float = 25.0; 
+    var descOffsetY:Float = 20.0; 
     var descValueMaxWidth:Float = 140.0;
     var descValueOffsetX:Float = 100.0; 
     var descValueOffsetY:Float = 25.0;
@@ -81,31 +85,29 @@ class KssetteMenuState extends ScriptedMusicBeatState {
     var currentFontTextRef:FlxText = null;
     var fontTargetScrollY:Float = 0;
     var fontMaxScroll:Float = 0;
-    var isDragging:Bool = false;
-    var touchStart:Float = 0;
     var holdTimer:Float = 0;
     var panelHidden:Bool = false;
     var panelOnLeft:Bool = false;
     var transitioningSide:Bool = false;
     var transitionTimer:Float = 0.0;
     var nextPanelOnLeft:Bool = false;
+    var exiting:Bool = false;
     var uiX:Float = 0;
     var stage:Stage;
     var bf:BaseCharacter;
     var dad:BaseCharacter;
     var gf:BaseCharacter;
-    var mobileControls:FlxSpriteGroup;
-    var btnUp:FlxSpriteGroup;
-    var btnDown:FlxSpriteGroup;
-    var btnAccept:FlxSpriteGroup;
-    var btnExit:FlxSpriteGroup;
-    var btnHide:FlxSpriteGroup;
-    var btnSwap:FlxSpriteGroup;
     var previewScore:FlxText;
     var previewInfo:FlxText;
     var previewTime:FlxText;
     var judgeLabels:Array<FlxText> = [];
     var judgeValues:Array<FlxText> = [];
+    var kssBackButton:FunkinBackButton;
+    var previewHitbox:FlxSprite;
+    var touchStart:Float = 0;
+    var touchStartX:Float = 0;
+    var touchHoldY:Float = 0;
+    var isDragging:Bool = false;
 
     override public function create():Void {
         largeCapsulePath = "ui/capsules/DescCapsule";
@@ -239,7 +241,6 @@ class KssetteMenuState extends ScriptedMusicBeatState {
 
         uiX = FlxG.width - panelWidth;
         buildSidePanel();
-        buildMobileControls();
 
         try {
             if (FlxG.sound.music != null) FlxG.sound.music.stop();
@@ -254,28 +255,15 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         updatePreviews();
     }
 
-    function buildMobileControls() {
-        if (!FlxG.onMobile) return;
-        mobileControls = new FlxSpriteGroup(10, FlxG.height - 180);
-        mobileControls.cameras = [optionCam];
-        add(mobileControls);
-        var btnW = 130; var btnH = 75; var sp = 10;
-        var createBtn = function(xPos:Float, yPos:Float, textStr:String, colorHex:Int) {
-            var grp = new FlxSpriteGroup(xPos, yPos);
-            var bg = new FlxSprite(0, 0).makeGraphic(btnW, btnH, FlxColor.WHITE);
-            bg.color = colorHex; bg.alpha = 0.5; grp.add(bg);
-            var txt = new FlxText(0, (btnH - 20) / 2, btnW, textStr, 20);
-            txt.setFormat("VCR OSD Mono", 20, FlxColor.WHITE, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
-            grp.add(txt); return grp;
-        };
-        btnUp = createBtn(0, 0, "UP", 0xFF888888);
-        btnDown = createBtn(0, btnH + sp, "DOWN", 0xFF888888);
-        btnAccept = createBtn(btnW + sp, 0, "SELECT", 0xFF00FF00);
-        btnExit = createBtn(btnW + sp, btnH + sp, "EXIT", 0xFFFF4444);
-        btnHide = createBtn((btnW + sp) * 2, 0, "HIDE UI", 0xFF4444FF);
-        btnSwap = createBtn((btnW + sp) * 2, btnH + sp, "MOVE UI", 0xFF44FF44);
-        mobileControls.add(btnUp); mobileControls.add(btnDown); mobileControls.add(btnAccept);
-        mobileControls.add(btnExit); mobileControls.add(btnHide); mobileControls.add(btnSwap);
+    function exitMenu() {
+        if (exiting) return;
+        exiting = true;
+        Save.instance.flush();
+        FlxG.camera.fade(FlxColor.BLACK, 0.4, false, function() {
+            FlxG.cameras.reset(new FlxCamera());
+            FlxG.switchState(new OptionsState());
+            FlxG.sound.playMusic(Paths.music('freakyMenu'), 1.0, true);
+        });
     }
 
     public function initPreviews() {
@@ -395,7 +383,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 try {
                     if (type == "animateatlas") char = new AnimateAtlasCharacter(id);
                     else if (type == "sparrow") char = new SparrowCharacter(id);
-                    else if (type == "multisparrow") char = new MultiSparrowCharacter(id);
+                    else if (type == "multsparrow") char = new MultiSparrowCharacter(id);
                     else if (type == "multianimateatlas") char = new MultiAnimateAtlasCharacter(id);
                     else if (type == "packer") char = new PackerCharacter(id);
 
@@ -472,7 +460,9 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         var apiVer = "0.2.a1";
         try { if (apiRef != null) apiVer = Std.string(apiRef.hudVersion); } catch(e:Dynamic) {}
 
-        marqueeString = " KASSETTE HUD V" + apiVer + "    TAB TO HIDE UI    SHIFT TO MOVE UI    ESC TO EXIT    ";
+        var mobileStr = "    SWIPE UP/DOWN TO SCROLL    SWIPE L/R TO MOVE UI    TAP GREEN BOX TO EXIT    ";
+        var pcStr = "    TAB TO HIDE UI    SHIFT TO MOVE UI    ESC TO EXIT    ";
+        marqueeString = " KASSETTE HUD V" + apiVer + (FlxG.onMobile ? mobileStr : pcStr);
         marqueeString = marqueeString + marqueeString + marqueeString + marqueeString + marqueeString + marqueeString + marqueeString + marqueeString;
 
         marqueeText1 = new FlxText(0, 6, 0, marqueeString, 32);
@@ -614,6 +604,26 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         add(marqueeBg);
         add(marqueeText1);
         add(marqueeText2);
+
+        previewHitbox = new FlxSprite(0, 0).makeGraphic(1, 1, 0xFF00FF00);
+        previewHitbox.alpha = 0.01;
+        previewHitbox.scrollFactor.set(0, 0);
+        previewHitbox.cameras = [optionCam];
+        add(previewHitbox);
+
+        if (FlxG.onMobile) {
+            kssBackButton = new FunkinBackButton(15, 15, 0xFFFFFFFF, function() {
+                if (isFontMenuOpen) {
+                    closeFontSelector();
+                    FlxG.sound.play(Paths.sound('cancelMenu'), 0.7);
+                } else {
+                    exitMenu();
+                }
+            }, 0.7);
+            kssBackButton.scrollFactor.set(0, 0);
+            kssBackButton.cameras = [optionCam];
+            add(kssBackButton);
+        }
     }
 
     function addHeader(text:String) {
@@ -806,6 +816,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         fontItems = [];
 
         fontBgGroup = new FlxSpriteGroup(0, 0);
+        fontBgGroup.x = panelOnLeft ? -panelWidth : FlxG.width;
         fontBgGroup.cameras = [optionCam];
         add(fontBgGroup);
 
@@ -825,6 +836,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         fontBgGroup.add(fTitle);
 
         fontItemsGroup = new FlxSpriteGroup(0, 60);
+        fontItemsGroup.x = panelOnLeft ? -panelWidth : FlxG.width;
         fontItemsGroup.cameras = [optionCam];
         add(fontItemsGroup);
 
@@ -929,16 +941,18 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                     var displayName = v.family;
                     if (v.variant != "Regular" && v.variant != "Default") displayName += " " + v.variant;
 
-                    var fTxt = new FlxText(30, fY + 10, panelWidth - 60, displayName, 22);
+                    var fTxt = new FlxText(30, 0, panelWidth - 60, displayName, 22);
                     try { fTxt.setFormat(v.path, 22, FlxColor.WHITE, "left"); } catch(e:Dynamic) {}
                     
                     var txtH:Float = 22;
                     try { txtH = fTxt.height; } catch(e:Dynamic) {}
                     
-                    var boxHeight:Float = txtH + 20;
-                    if (boxHeight < 44) boxHeight = 44;
+                    var boxHeight:Float = txtH + 40;
+                    if (boxHeight < 60) boxHeight = 60;
 
-                    var itemBg = new FlxSprite(20, fY).makeGraphic(panelWidth - 40, Std.int(boxHeight), 0xFFFFFFFF);
+                    fTxt.y = fY + (boxHeight - txtH) / 2;
+
+                    var itemBg = new FlxSprite(0, fY).makeGraphic(panelWidth, Std.int(boxHeight), FlxColor.WHITE);
                     itemBg.alpha = 0.0;
                     fontItemsGroup.add(itemBg);
                     fontItemsGroup.add(fTxt);
@@ -967,16 +981,18 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                     });
 
                     for (v in variants) {
-                        var fTxt = new FlxText(50, fY + 10, panelWidth - 80, v.variant, 20);
+                        var fTxt = new FlxText(50, 0, panelWidth - 80, v.variant, 20);
                         try { fTxt.setFormat(v.path, 20, FlxColor.WHITE, "left"); } catch(e:Dynamic) {}
                         
                         var txtH:Float = 20;
                         try { txtH = fTxt.height; } catch(e:Dynamic) {}
                         
-                        var boxHeight:Float = txtH + 16;
-                        if (boxHeight < 36) boxHeight = 36;
+                        var boxHeight:Float = txtH + 40;
+                        if (boxHeight < 60) boxHeight = 60;
 
-                        var itemBg = new FlxSprite(40, fY).makeGraphic(panelWidth - 80, Std.int(boxHeight), 0xFFFFFFFF);
+                        fTxt.y = fY + (boxHeight - txtH) / 2;
+
+                        var itemBg = new FlxSprite(0, fY).makeGraphic(panelWidth, Std.int(boxHeight), FlxColor.WHITE);
                         itemBg.alpha = 0.0;
                         fontItemsGroup.add(itemBg);
                         fontItemsGroup.add(fTxt);
@@ -1054,11 +1070,15 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         if (fontSelectedIndex < 0) fontSelectedIndex = fontItems.length - 1;
         if (fontSelectedIndex >= fontItems.length) fontSelectedIndex = 0;
 
+        var activeFont = "";
+        var fetchedVal = Save.instance.modOptions.get(currentFontSaveKey);
+        if (fetchedVal != null) activeFont = Std.string(fetchedVal);
+
         for (i in 0...fontItems.length) {
             var item = fontItems[i];
-            if (item.bg != null) item.bg.alpha = 0.0;
+            if (item.bg != null) item.bg.alpha = (i == fontSelectedIndex) ? 0.3 : 0.0;
             if (item.text != null) {
-                item.text.color = (i == fontSelectedIndex) ? FlxColor.YELLOW : FlxColor.WHITE;
+                item.text.color = (item.fileName == activeFont) ? FlxColor.YELLOW : FlxColor.WHITE;
             }
         }
 
@@ -1067,54 +1087,6 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         if (fontItems.length > 0) {
             var targetY = fontItems[fontSelectedIndex].y - (FlxG.height / 2) + 60;
             fontTargetScrollY = Math.max(0, Math.min(fontMaxScroll, targetY));
-        }
-    }
-
-    function handleFontInput(elapsed:Float) {
-        if (FlxG.onMobile) {
-            if (FlxG.touches.list.length > 0) {
-                var touch = FlxG.touches.list[0];
-                var targetX = panelOnLeft ? 20 : (FlxG.width - 470);
-                if (touch.screenX >= targetX && touch.screenX <= targetX + panelWidth) {
-                    if (touch.justPressed) {
-                        touchStart = touch.screenY;
-                        isDragging = false;
-                    }
-                    if (touch.pressed) {
-                        if (Math.abs(touch.screenY - touchStart) > 20) isDragging = true;
-                        if (isDragging) fontTargetScrollY -= touch.deltaY;
-                    }
-                    if (touch.justReleased && !isDragging && holdTimer <= 0) {
-                        fireFontClickAt(touch.getWorldPosition(optionCam));
-                    }
-                }
-            }
-        } else {
-            if (FlxG.mouse.wheel != 0) {
-                fontTargetScrollY -= FlxG.mouse.wheel * 80;
-            }
-            var targetX = panelOnLeft ? 20 : (FlxG.width - 470);
-            if (FlxG.mouse.justPressed && FlxG.mouse.screenX >= targetX && FlxG.mouse.screenX <= targetX + panelWidth && holdTimer <= 0) {
-                fireFontClickAt(FlxG.mouse.getWorldPosition(optionCam));
-            }
-        }
-
-        if (fontTargetScrollY < 0) fontTargetScrollY = 0;
-        if (fontTargetScrollY > fontMaxScroll) fontTargetScrollY = fontMaxScroll;
-    }
-
-    function fireFontClickAt(pos:FlxPoint) {
-        for (i in 0...fontItems.length) {
-            var item = fontItems[i];
-            if (item.bg != null && pos.x >= item.bg.x && pos.x <= item.bg.x + item.bg.width && pos.y >= item.bg.y && pos.y <= item.bg.y + item.bg.height) {
-                if (item.isHeader) continue;
-                selectedIndex = i;
-                changeSelection(0);
-                if (item.fire != null) item.fire(item);
-                holdTimer = 0.2;
-                FlxG.sound.play(Paths.sound('scrollMenu'), 0.5);
-                break;
-            }
         }
     }
 
@@ -1223,14 +1195,48 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         loopCharacterAnimation(dad);
         loopCharacterAnimation(gf);
 
-        if (FlxG.keys.justPressed.TAB) {
-            panelHidden = !panelHidden;
+        var backPressed = false;
+        try {
+            #if android
+            backPressed = FlxG.android.justReleased.BACK;
+            #end
+        } catch(e:Dynamic) {}
+
+        var esc = FlxG.keys.justPressed.ESCAPE || backPressed;
+
+        if (esc) {
+            if (isFontMenuOpen) {
+                closeFontSelector();
+                FlxG.sound.play(Paths.sound('cancelMenu'), 0.7);
+            } else {
+                exitMenu();
+            }
         }
 
-        if (FlxG.keys.justPressed.SHIFT && !transitioningSide && !panelHidden) {
-            transitioningSide = true;
-            transitionTimer = 0.0;
-            nextPanelOnLeft = !panelOnLeft;
+        if (kssBackButton != null) {
+            kssBackButton.visible = !panelHidden;
+            var targetBackX = panelOnLeft ? (FlxG.width - kssBackButton.width - 15) : 15;
+            kssBackButton.x = FlxMath.lerp(kssBackButton.x, targetBackX, elapsed * 12);
+        }
+
+        if (previewHitbox != null) {
+            var previewAreaW = FlxG.width - panelWidth;
+            previewHitbox.x = panelOnLeft ? panelWidth : 0;
+            previewHitbox.y = 0;
+            previewHitbox.setGraphicSize(Std.int(previewAreaW), Std.int(FlxG.height));
+            previewHitbox.updateHitbox();
+        }
+
+        if (!isFontMenuOpen) {
+            if (FlxG.keys.justPressed.TAB) {
+                panelHidden = !panelHidden;
+            }
+
+            if (FlxG.keys.justPressed.SHIFT && !transitioningSide && !panelHidden) {
+                transitioningSide = true;
+                transitionTimer = 0.0;
+                nextPanelOnLeft = !panelOnLeft;
+            }
         }
 
         var targetMarqueeY:Float = panelHidden ? -50 : 0;
@@ -1374,41 +1380,19 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         }
 
         if (isFontMenuOpen) {
-            var targetFontX = panelOnLeft ? 20 : (FlxG.width - 470);
-            if (panelHidden || transitioningSide) {
-                targetFontX = panelOnLeft ? -500 : FlxG.width + 100;
-            }
+            var targetFontX = panelOnLeft ? 0 : (FlxG.width - panelWidth);
             if (fontBgGroup != null) fontBgGroup.x = FlxMath.lerp(fontBgGroup.x, targetFontX, elapsed * 12);
             if (fontItemsGroup != null) {
                 fontItemsGroup.x = FlxMath.lerp(fontItemsGroup.x, targetFontX, elapsed * 12);
                 fontItemsGroup.y = FlxMath.lerp(fontItemsGroup.y, 55 - fontTargetScrollY, elapsed * 15);
             }
 
-            if (FlxG.keys.justPressed.ESCAPE) {
-                closeFontSelector();
-                FlxG.sound.play(Paths.sound('cancelMenu'), 0.7);
-            }
-
             if (holdTimer > 0) holdTimer -= elapsed;
-
-            if (holdTimer <= 0) {
-                if (controls.UI_UP_P) {
-                    changeFontSelection(-1);
-                    holdTimer = 0.1;
-                } else if (controls.UI_DOWN_P) {
-                    changeFontSelection(1);
-                    holdTimer = 0.1;
-                } else if (controls.ACCEPT) {
-                    selectCurrentFont();
-                    holdTimer = 0.2;
-                }
-            }
-            
             handleFontInput(elapsed);
             return; 
         }
 
-        var targetDescY:Float = panelHidden ? FlxG.height + 20 : (FlxG.height - (descBg != null ? descBg.height : 90) - 20);
+        var targetDescY:Float = FlxG.height - (descBg != null ? descBg.height : 90) - 20;
         
         if (descBg != null) {
             descBg.x = FlxMath.lerp(descBg.x, targetDescX, elapsed * 12);
@@ -1428,8 +1412,9 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             }
         }
 
+        handleInput(elapsed);
+
         if (!panelHidden && !transitioningSide) {
-            handleInput(elapsed);
             descSlideVerticalTimer += elapsed;
             descValueSlideTimer += elapsed;
             
@@ -1442,32 +1427,6 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         }
 
         if (holdTimer > 0) holdTimer -= elapsed;
-
-        if (holdTimer <= 0 && !panelHidden && !transitioningSide) {
-            if (controls.UI_UP_P) {
-                changeSelection(-1);
-                holdTimer = 0.1;
-            } else if (controls.UI_DOWN_P) {
-                changeSelection(1);
-                holdTimer = 0.1;
-            } else if (controls.ACCEPT) {
-                var item = optionItems[selectedIndex];
-                if (!item.isHeader && item.fire != null) {
-                    item.fire(item);
-                    holdTimer = 0.2;
-                    FlxG.sound.play(Paths.sound('confirmMenu'), 0.7);
-                }
-            }
-        }
-
-        if (FlxG.keys.justPressed.ESCAPE) {
-            Save.instance.flush();
-            FlxG.camera.fade(FlxColor.BLACK, 0.4, false, function() {
-                FlxG.cameras.reset(new FlxCamera());
-                FlxG.switchState(new OptionsState());
-                FlxG.sound.playMusic(Paths.music('freakyMenu'), 1.0, true);
-            });
-        }
     }
 
     function changeSelection(change:Int = 0) {
@@ -1505,50 +1464,257 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         if (change != 0) FlxG.sound.play(Paths.sound('scrollMenu'), 0.4);
     }
 
-    function handleInput(elapsed:Float) {
+    function handleFontInput(elapsed:Float) {
+        var tX:Float = FlxG.mouse.screenX;
+        var tY:Float = FlxG.mouse.screenY;
+        var tJustPressed = false;
+        var tPressed = false;
+        var tJustReleased = false;
+
         if (FlxG.onMobile) {
-            if (FlxG.touches.list.length > 0) {
-                var touch = FlxG.touches.list[0];
-                var targetX = panelOnLeft ? 20 : (FlxG.width - 470);
-                if (touch.screenX >= targetX && touch.screenX <= targetX + panelWidth) {
-                    if (touch.justPressed) {
-                        touchStart = touch.screenY;
-                        isDragging = false;
-                    }
-                    if (touch.pressed) {
-                        if (Math.abs(touch.screenY - touchStart) > 20) isDragging = true;
-                    }
-                    if (touch.justReleased) {
-                        if (isDragging) {
-                            if (touch.screenY - touchStart > 50) changeSelection(-1);
-                            if (touch.screenY - touchStart < -50) changeSelection(1);
-                        } else if (holdTimer <= 0) {
-                            fireClickAt(touch.getWorldPosition(optionCam));
-                        }
-                    }
+            tJustPressed = TouchUtil.justPressed;
+            tPressed = TouchUtil.pressed;
+            tJustReleased = TouchUtil.justReleased;
+            try {
+                if (TouchUtil.touch != null) {
+                    tX = TouchUtil.touch.screenX;
+                    tY = TouchUtil.touch.screenY;
+                }
+            } catch(e:Dynamic) {}
+        } else {
+            tJustPressed = FlxG.mouse.justPressed;
+            tPressed = FlxG.mouse.pressed;
+            tJustReleased = FlxG.mouse.justReleased;
+        }
+
+        var isOverPreviewZone = false;
+        if (previewHitbox != null && previewHitbox.exists) {
+            try {
+                if (FlxG.onMobile) {
+                    isOverPreviewZone = TouchUtil.overlaps(previewHitbox, optionCam);
+                } else {
+                    isOverPreviewZone = FlxG.mouse.overlaps(previewHitbox, optionCam);
+                }
+            } catch(e:Dynamic) {}
+        }
+
+        if (tJustPressed) {
+            touchStart = tY;
+            touchStartX = tX;
+            isDragging = false;
+        } else if (tPressed) {
+            if (Math.abs(tY - touchStart) > 20 || Math.abs(tX - touchStartX) > 20) {
+                isDragging = true;
+            }
+            if (isDragging) {
+                fontTargetScrollY += (touchStart - tY);
+                touchStart = tY; 
+            }
+        } else if (tJustReleased) {
+            var hasSwiped = false;
+            if (FlxG.onMobile) {
+                hasSwiped = SwipeUtil.swipeUp || SwipeUtil.swipeDown || SwipeUtil.swipeLeft || SwipeUtil.swipeRight;
+            }
+            if (!isDragging && !hasSwiped && holdTimer <= 0) {
+                if (isOverPreviewZone) {
+                    closeFontSelector();
+                    try { FlxG.sound.play(Paths.sound('cancelMenu'), 0.7); } catch(e:Dynamic) {}
+                } else {
+                    fireFontClickAt();
                 }
             }
-        } else {
-            if (FlxG.mouse.wheel != 0) {
-                changeSelection(-FlxG.mouse.wheel);
+            isDragging = false;
+        }
+
+        if (FlxG.mouse != null && FlxG.mouse.wheel != 0) {
+            fontTargetScrollY -= FlxG.mouse.wheel * 80;
+        }
+
+        if (fontTargetScrollY < 0) fontTargetScrollY = 0;
+        if (fontTargetScrollY > fontMaxScroll) fontTargetScrollY = fontMaxScroll;
+
+        if (FlxG.keys.justPressed.UP || FlxG.keys.justPressed.W) {
+            changeFontSelection(-1);
+            holdTimer = 0.1;
+        }
+        if (FlxG.keys.justPressed.DOWN || FlxG.keys.justPressed.S) {
+            changeFontSelection(1);
+            holdTimer = 0.1;
+        }
+        if (FlxG.keys.justPressed.ENTER || FlxG.keys.justPressed.SPACE) {
+            selectCurrentFont();
+            holdTimer = 0.2;
+        }
+    }
+
+    function fireFontClickAt() {
+        var clickedItem = false;
+        for (i in 0...fontItems.length) {
+            var item = fontItems[i];
+            if (item.bg != null) {
+                var isOver = false;
+                if (FlxG.onMobile) {
+                    isOver = TouchUtil.overlaps(item.bg, optionCam);
+                } else {
+                    isOver = FlxG.mouse.overlaps(item.bg, optionCam);
+                }
+
+                if (isOver) {
+                    if (fontSelectedIndex == i) {
+                        selectCurrentFont();
+                    } else {
+                        fontSelectedIndex = i;
+                        changeFontSelection(0);
+                        FlxG.sound.play(Paths.sound('scrollMenu'), 0.4);
+                    }
+                    holdTimer = 0.2;
+                    clickedItem = true;
+                    break;
+                }
             }
-            if (FlxG.mouse.justPressed && holdTimer <= 0) {
-                fireClickAt(FlxG.mouse.getWorldPosition(optionCam));
+        }
+        
+        if (!clickedItem) {
+            closeFontSelector();
+            try { FlxG.sound.play(Paths.sound('cancelMenu'), 0.7); } catch(e:Dynamic) {}
+        }
+    }
+
+    function handleInput(elapsed:Float) {
+        var tX:Float = FlxG.mouse.screenX;
+        var tY:Float = FlxG.mouse.screenY;
+        var tJustPressed = false;
+        var tPressed = false;
+        var tJustReleased = false;
+
+        if (FlxG.onMobile) {
+            tJustPressed = TouchUtil.justPressed;
+            tPressed = TouchUtil.pressed;
+            tJustReleased = TouchUtil.justReleased;
+            try {
+                var t = Reflect.getProperty(TouchUtil, "touch");
+                if (t != null) {
+                    tX = t.screenX;
+                    tY = t.screenY;
+                }
+            } catch(e:Dynamic) {}
+        } else {
+            tJustPressed = FlxG.mouse.justPressed;
+            tPressed = FlxG.mouse.pressed;
+            tJustReleased = FlxG.mouse.justReleased;
+        }
+
+        var isOverBackButton = false;
+        if (kssBackButton != null && kssBackButton.visible && kssBackButton.exists) {
+            try {
+                if (FlxG.onMobile) {
+                    isOverBackButton = TouchUtil.overlaps(kssBackButton, optionCam);
+                } else {
+                    isOverBackButton = FlxG.mouse.overlaps(kssBackButton, optionCam);
+                }
+            } catch(e:Dynamic) {}
+        }
+
+        var isOverPreviewZone = false;
+        if (previewHitbox != null && previewHitbox.exists) {
+            try {
+                if (FlxG.onMobile) {
+                    isOverPreviewZone = TouchUtil.overlaps(previewHitbox, optionCam);
+                } else {
+                    isOverPreviewZone = FlxG.mouse.overlaps(previewHitbox, optionCam);
+                }
+            } catch(e:Dynamic) {}
+        }
+
+        if (tJustPressed) {
+            touchStart = tY;
+            touchStartX = tX;
+            isDragging = false;
+        } else if (tPressed) {
+            if (Math.abs(tY - touchStart) > 10 || Math.abs(tX - touchStartX) > 10) {
+                isDragging = true;
+            }
+        } else if (tJustReleased) {
+            var hasSwiped = false;
+            if (FlxG.onMobile) {
+                hasSwiped = SwipeUtil.swipeUp || SwipeUtil.swipeDown || SwipeUtil.swipeLeft || SwipeUtil.swipeRight;
+            }
+            if (!isDragging && !hasSwiped && holdTimer <= 0) {
+                if (isOverBackButton) {
+                    
+                } else if (isOverPreviewZone) {
+                    panelHidden = !panelHidden;
+                    FlxG.sound.play(Paths.sound('scrollMenu'), 0.4);
+                } else if (!panelHidden) {
+                    fireClickAt();
+                }
+            }
+            isDragging = false;
+        }
+
+        if (FlxG.onMobile) {
+            if (SwipeUtil.swipeUp) {
+                if (!panelHidden) changeSelection(1);
+            } else if (SwipeUtil.swipeDown) {
+                if (!panelHidden) changeSelection(-1);
+            } else if (SwipeUtil.swipeLeft || SwipeUtil.swipeRight) {
+                if (!transitioningSide && !panelHidden) {
+                    transitioningSide = true;
+                    transitionTimer = 0.0;
+                    nextPanelOnLeft = !panelOnLeft;
+                }
+            }
+        }
+
+        if (!FlxG.onMobile && FlxG.mouse.wheel != 0 && !panelHidden) {
+            changeSelection(-FlxG.mouse.wheel);
+        }
+
+        if (!panelHidden && !transitioningSide) {
+            if (FlxG.keys.justPressed.UP || FlxG.keys.justPressed.W) {
+                changeSelection(-1);
+                holdTimer = 0.1;
+            }
+            if (FlxG.keys.justPressed.DOWN || FlxG.keys.justPressed.S) {
+                changeSelection(1);
+                holdTimer = 0.1;
+            }
+            if (FlxG.keys.justPressed.ENTER || FlxG.keys.justPressed.SPACE) {
+                var item = optionItems[selectedIndex];
+                if (!item.isHeader && item.fire != null) {
+                    item.fire(item);
+                    holdTimer = 0.2;
+                    FlxG.sound.play(Paths.sound('confirmMenu'), 0.5);
+                }
             }
         }
     }
 
-    function fireClickAt(pos:FlxPoint) {
+    function fireClickAt() {
         for (i in 0...optionItems.length) {
             var item = optionItems[i];
-            if (item.bg != null && pos.x >= item.bg.x && pos.x <= item.bg.x + item.bg.width && pos.y >= item.bg.y && pos.y <= item.bg.y + item.bg.height) {
-                if (item.isHeader) continue;
-                selectedIndex = i;
-                changeSelection(0);
-                if (item.fire != null) item.fire(item);
-                holdTimer = 0.2;
-                FlxG.sound.play(Paths.sound('scrollMenu'), 0.5);
-                break;
+            if (item.bg != null) {
+                var isOver = false;
+                if (FlxG.onMobile) {
+                    isOver = TouchUtil.overlaps(item.bg, optionCam);
+                } else {
+                    isOver = FlxG.mouse.overlaps(item.bg, optionCam);
+                }
+
+                if (isOver) {
+                    if (!item.isHeader) {
+                        if (selectedIndex == i) {
+                            if (item.fire != null) item.fire(item);
+                            holdTimer = 0.2;
+                            FlxG.sound.play(Paths.sound('confirmMenu'), 0.5);
+                        } else {
+                            selectedIndex = i;
+                            changeSelection(0);
+                            holdTimer = 0.2;
+                        }
+                    }
+                    break;
+                }
             }
         }
     }
