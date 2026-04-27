@@ -35,7 +35,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
     var largeCapsulePath:String = "ui/capsules/DescCapsule";
     var largeCapsuleWidth:Float = 800.0;
     var descMaxHeight:Float = 95.0; 
-    var descTextMaxWidth:Float = 530.0;
+    var descTextMaxWidth:Float = 450.0;
     var descOffsetX:Float = 45.0;
     var descOffsetY:Float = 25.0; 
     var descValueMaxWidth:Float = 140.0;
@@ -44,7 +44,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
 
     var smallCapsulePath:String = "ui/capsules/OptionCapsule";
     var smallCapsuleWidth:Float = 620.0;  
-    var capsuleSpacing:Float = 115.0;     
+    var capsuleSpacing:Float = 120.0;     
     var labelOffsetX:Float = 80.0;
     var labelOffsetY:Float = 25.0; 
     var labelMaxWidth:Float = 320.0; 
@@ -108,6 +108,26 @@ class KssetteMenuState extends ScriptedMusicBeatState {
     var judgeValues:Array<FlxText> = [];
 
     override public function create():Void {
+        largeCapsulePath = "ui/capsules/DescCapsule";
+        largeCapsuleWidth = 800.0;
+        descMaxHeight = 95.0;
+        descTextMaxWidth = 450.0;
+        descOffsetX = 45.0;
+        descOffsetY = 20.0; 
+        descValueMaxWidth = 140.0;
+        descValueOffsetX = 100.0; 
+        descValueOffsetY = 25.0;
+        smallCapsulePath = "ui/capsules/OptionCapsule";
+        smallCapsuleWidth = 620.0;  
+        capsuleSpacing = 120.0;
+        labelOffsetX = 80.0;
+        labelOffsetY = 25.0; 
+        labelMaxWidth = 320.0; 
+        valueOffsetX = 105.0; 
+        valueOffsetY = 25.0; 
+        valueMaxWidth = 150.0; 
+        panelWidth = 660; 
+        
         super.create();
         
         apiRef = ModuleHandler.getModule("KssetteApi");
@@ -628,10 +648,10 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             if (img != null) {
                 bg.loadGraphic(img);
             } else {
-                bg.makeGraphic(Std.int(smallCapsuleWidth), Std.int(smallCapsuleHeight), 0xFFFFFFFF);
+                bg.makeGraphic(Std.int(smallCapsuleWidth), Std.int(120.0), 0xFFFFFFFF);
             }
         } catch(e:Dynamic) {
-            bg.makeGraphic(Std.int(smallCapsuleWidth), Std.int(smallCapsuleHeight), 0xFFFFFFFF);
+            bg.makeGraphic(Std.int(smallCapsuleWidth), Std.int(120.0), 0xFFFFFFFF);
         }
         
         if (bg.graphic != null) {
@@ -729,10 +749,10 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             if (img != null) {
                 bg.loadGraphic(img);
             } else {
-                bg.makeGraphic(Std.int(smallCapsuleWidth), Std.int(smallCapsuleHeight), 0xFFFFFFFF);
+                bg.makeGraphic(Std.int(smallCapsuleWidth), Std.int(120.0), 0xFFFFFFFF);
             }
         } catch(e:Dynamic) {
-            bg.makeGraphic(Std.int(smallCapsuleWidth), Std.int(smallCapsuleHeight), 0xFFFFFFFF);
+            bg.makeGraphic(Std.int(smallCapsuleWidth), Std.int(120.0), 0xFFFFFFFF);
         }
         
         if (bg.graphic != null) {
@@ -1086,11 +1106,13 @@ class KssetteMenuState extends ScriptedMusicBeatState {
     function fireFontClickAt(pos:FlxPoint) {
         for (i in 0...fontItems.length) {
             var item = fontItems[i];
-            if (pos.y >= fontItemsGroup.y + item.y && pos.y <= fontItemsGroup.y + item.y + item.height) {
-                fontSelectedIndex = i;
-                changeFontSelection(0);
-                selectCurrentFont();
+            if (item.bg != null && pos.x >= item.bg.x && pos.x <= item.bg.x + item.bg.width && pos.y >= item.bg.y && pos.y <= item.bg.y + item.bg.height) {
+                if (item.isHeader) continue;
+                selectedIndex = i;
+                changeSelection(0);
+                if (item.fire != null) item.fire(item);
                 holdTimer = 0.2;
+                FlxG.sound.play(Paths.sound('scrollMenu'), 0.5);
                 break;
             }
         }
@@ -1240,7 +1262,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         if (transitioningSide) {
             transitionTimer += elapsed;
             targetXBase = panelOnLeft ? -smallCapsuleWidth - 200 : FlxG.width + 200;
-            targetDescX = panelOnLeft ? -largeCapsuleWidth - 200 : FlxG.width + 200;
+            targetDescX = panelOnLeft ? FlxG.width + 200 : -largeCapsuleWidth - 200;
             targetFadeX = panelOnLeft ? -panelWidth - 200 : FlxG.width + 200;
 
             if (transitionTimer > 0.3) {
@@ -1248,7 +1270,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 transitioningSide = false;
                 
                 var startXBase = panelOnLeft ? -smallCapsuleWidth - 200 : FlxG.width + 200;
-                var startDescX = panelOnLeft ? -largeCapsuleWidth - 200 : FlxG.width + 200;
+                var startDescX = panelOnLeft ? FlxG.width + 200 : -largeCapsuleWidth - 200;
                 var startFadeX = panelOnLeft ? -panelWidth - 200 : FlxG.width + 200;
                 
                 if (descBg != null) descBg.x = startDescX;
@@ -1402,6 +1424,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 }
                 descValueText.x = vX;
                 descValueText.y = descBg.y + descValueOffsetY;
+                descValueText.color = getValueColor(descValueText.text);
             }
         }
 
