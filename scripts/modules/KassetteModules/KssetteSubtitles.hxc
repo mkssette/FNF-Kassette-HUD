@@ -4,8 +4,10 @@ import funkin.modding.module.Module;
 import funkin.modding.module.ModuleHandler;
 import funkin.play.PlayState;
 import flixel.FlxG;
+import flixel.FlxSprite;
 import flixel.text.FlxText;
 import flixel.text.FlxTextBorderStyle;
+import flixel.text.FlxTextFormat;
 import flixel.tweens.FlxTween;
 import flixel.tweens.FlxEase;
 import funkin.Conductor;
@@ -13,6 +15,7 @@ import funkin.Paths;
 import Math;
 import Std;
 import Reflect;
+import StringTools;
 
 class KssetteSubtitles extends Module {
     var apiModule:Dynamic = null;
@@ -39,6 +42,33 @@ class KssetteSubtitles extends Module {
     var localSubIndex:Int = 0;
     var lastTargetCam:Dynamic = null;
     
+    public var isPreview:Bool = false;
+    public var previewCam:flixel.FlxCamera = null;
+    var previewTimer:Float = 0.0;
+    var previewState:Int = 0;
+
+    var triviaArray:Array<String> = [
+        "Did you know? <font color=\"#00FF00\">Boyfriend is canonically 19 years old!</font>",
+        "Fun fact for you: <font color=\"#FF0000\">Girlfriend's parents are actual demons!</font>",
+        "Did you know? <font color=\"#00FFFF\">The game was created for Ludum Dare 47!</font>",
+        "Here's a secret: <i>Pico is from a classic Newgrounds game!</i>",
+        "Fun fact: <font color=\"#FFAA00\">Monster was added in Week 2 as a hidden track!</font>",
+        "Did you know? <font color=\"#FF00FF\">PhantomArcade animated everything in Adobe Animate!</font>",
+        "Hey there! <font color=\"#00FF00\">Kawai Sprite uses FL Studio for the music!</font>",
+        "Did you know? <font color=\"#FF0000\">Spirit is the manifestation of Senpai's hatred!</font>",
+        "Fun fact: <i>Skid and Pump originally come from Spooky Month!</i>",
+        "Did you know? <font color=\"#FFFF00\">Tankman is the mascot of Newgrounds!</font>",
+        
+        "It's more likely for <font color=\"#00FF00\">GTA VI</font> to release before <b>Week 8</b>.",
+        "This mod has no relation to <i>Cassette Girl</i>, but she is one of my favorite characters!",
+        "If you're on mobile using a keyboard, I highly suggest enabling <b><font color=\"#FFCC00\">'PC/HITBOX MODE'</font></b>!",
+        "Girlfriend's favorite drink is <font color=\"#FF0000\">Dr. Pepper Cherry</font>.",
+        "<i>Are you actually reading this?</i>",
+        "<font color=\"#0088FF\">'Psych Engine Supremacy'</font> is the funniest thing I've read. To this day, no spaghetti port looks identical to the base game.",
+        "I should've just made mods using <b>Codename Engine</b>.",
+        "If you have <font color=\"#00FFFF\">Sky Redux</font>, check out the compatibility module I made so it looks integrated!"
+    ];
+
     public function new() {
         super("KssetteSubtitles");
     }
@@ -53,31 +83,241 @@ class KssetteSubtitles extends Module {
         return val;
     }
 
-    override public function onSongRetry(event:Dynamic) {
-        super.onSongRetry(event);
+    function cleanUp() {
         if (currentTween != null) {
-            currentTween.cancel();
+            try { currentTween.cancel(); } catch(e:Dynamic) {}
             currentTween = null;
         }
         if (karaokeTween != null) {
-            karaokeTween.cancel();
+            try { karaokeTween.cancel(); } catch(e:Dynamic) {}
             karaokeTween = null;
         }
+        subText = null;
+        isShowing = false;
+    }
+
+    function createSubText(cam:flixel.FlxCamera) {
+        if (subText != null) {
+            cleanUp();
+            try { FlxG.state.remove(subText, true); } catch(e:Dynamic) {}
+            try { subText.destroy(); } catch(e:Dynamic) {}
+            subText = null;
+        }
+        
+        subText = new FlxText(0, 0, FlxG.width, "", 30);
+        subText.borderSize = 2; 
+        subText.visible = false;
+        subText.cameras = [cam];
+        subText.zIndex = 1010;
+        try { FlxG.state.add(subText); } catch(e:Dynamic) {}
+    }
+
+    function getVisibleTextLength(html:String):Int {
+        var len = 0;
+        var i = 0;
+        while (i < html.length) {
+            var char = html.charAt(i);
+            if (char == "<") {
+                var tagEnd = html.indexOf(">", i);
+                if (tagEnd != -1) {
+                    i = tagEnd + 1;
+                    continue;
+                }
+            }
+            len++;
+            i++;
+        }
+        return len;
+    }
+
+    function applyKaraokeToHTML(html:String, visibleChars:Int):String {
+        var result = "";
+        var charsAdded = 0;
+        var i = 0;
+        
+        while (i < html.length && charsAdded < visibleChars) {
+            var char = html.charAt(i);
+            if (char == "<") {
+                var tagEnd = html.indexOf(">", i);
+                if (tagEnd != -1) {
+                    result += html.substring(i, tagEnd + 1);
+                    i = tagEnd + 1;
+                    continue;
+                }
+            }
+            
+            result += char;
+            charsAdded++;
+            i++;
+        }
+        return result;
+    }
+
+    function stripHTML(html:String):String {
+        var result = "";
+        var inTag = false;
+        for (i in 0...html.length) {
+            var char = html.charAt(i);
+            if (char == "<") inTag = true;
+            else if (char == ">") inTag = false;
+            else if (!inTag) result += char;
+        }
+        return result;
+    }
+
+    function formatSubText(txt:FlxText, htmlStr:String, defaultFont:String, defaultSize:Int, defaultColor:Int) {
+        var plainText = stripHTML(htmlStr);
+        txt.setFormat(defaultFont, defaultSize, defaultColor, "center", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        txt.text = plainText; 
+        txt.borderSize = 2;
+        
+        try { txt.clearFormats(); } catch(e:Dynamic) {}
+        
+        var pText = "";
+        var i = 0;
+        var colorStack = [defaultColor];
+        var italicStack = [false];
+        var boldStack = [false];
+        
+        var segments = [];
+        var curStart = 0;
+        var curColor = defaultColor;
+        var curItalic = false;
+        var curBold = false;
+        
+        while (i < htmlStr.length) {
+            var char = htmlStr.charAt(i);
+            if (char == "<") {
+                var tagEnd = htmlStr.indexOf(">", i);
+                if (tagEnd != -1) {
+                    var tag = htmlStr.substring(i, tagEnd + 1).toLowerCase();
+                    var tagChanged = false;
+                    
+                    if (StringTools.startsWith(tag, "<font")) {
+                        var colIdx = tag.indexOf("color=\"");
+                        var pCol = colorStack[colorStack.length - 1];
+                        if (colIdx != -1) {
+                            var valEnd = tag.indexOf("\"", colIdx + 7);
+                            if (valEnd != -1) {
+                                var colStr = tag.substring(colIdx + 7, valEnd);
+                                if (StringTools.startsWith(colStr, "#")) colStr = "0xFF" + colStr.substring(1);
+                                var parsedCol = Std.parseInt(colStr);
+                                if (parsedCol != null) pCol = parsedCol;
+                            }
+                        }
+                        colorStack.push(pCol);
+                        tagChanged = true;
+                    } else if (tag == "</font>") {
+                        if (colorStack.length > 1) colorStack.pop();
+                        tagChanged = true;
+                    } else if (tag == "<i>") {
+                        italicStack.push(true);
+                        tagChanged = true;
+                    } else if (tag == "</i>") {
+                        if (italicStack.length > 1) italicStack.pop();
+                        tagChanged = true;
+                    } else if (tag == "<b>") {
+                        boldStack.push(true);
+                        tagChanged = true;
+                    } else if (tag == "</b>") {
+                        if (boldStack.length > 1) boldStack.pop();
+                        tagChanged = true;
+                    }
+                    
+                    if (tagChanged) {
+                        if (pText.length > curStart) {
+                            segments.push({
+                                start: curStart, 
+                                end: pText.length, 
+                                color: curColor, 
+                                italic: curItalic, 
+                                bold: curBold
+                            });
+                        }
+                        curStart = pText.length;
+                        curColor = colorStack[colorStack.length - 1];
+                        curItalic = italicStack[italicStack.length - 1];
+                        curBold = boldStack[boldStack.length - 1];
+                    }
+                    
+                    i = tagEnd + 1;
+                    continue;
+                }
+            }
+            pText += char;
+            i++;
+        }
+        
+        if (pText.length > curStart) {
+            segments.push({
+                start: curStart, 
+                end: pText.length, 
+                color: curColor, 
+                italic: curItalic, 
+                bold: curBold
+            });
+        }
+        
+        for (seg in segments) {
+            if (seg.start < seg.end) {
+                if (seg.color != defaultColor || seg.italic || seg.bold) {
+                    try {
+                        var txtFmt = new FlxTextFormat(seg.color, seg.bold, seg.italic, 0xFF000000);
+                        txt.addFormat(txtFmt, seg.start, seg.end);
+                    } catch(e:Dynamic) {}
+                }
+            }
+        }
+    }
+
+    public function buildPreview(cam:flixel.FlxCamera) {
+        isPreview = true;
+        previewCam = cam;
+        apiModule = ModuleHandler.getModule("KssetteApi");
+        
+        createSubText(cam);
+        
         lastText = "";
         lastRawText = "";
         isShowing = false;
+        
+        updatePreview();
+    }
+
+    public function updatePreview() {
+        if (!isPreview) return;
+        if (apiModule != null) {
+            cachedFont = apiModule.getHudFont();
+            if (cachedFont == null || cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
+            animType = Std.string(apiModule.getKssValue("kssette_subtitles_anim"));
+            if (animType == "Karaoke") animType = "Fade"; 
+            posType = Std.string(apiModule.getKssValue("kssette_subtitles_pos"));
+            smartKaraoke = apiModule.getKssValue("kssette_smart_karaoke") == true;
+        }
+        
+        previewTimer = 0.5;
+        previewState = 0;
+        lastRawText = "";
+        lastText = "";
+    }
+
+    override public function onSongRetry(event:Dynamic) {
+        super.onSongRetry(event);
+        cleanUp();
+        lastText = "";
+        lastRawText = "";
         localSubIndex = 0;
     }
     
     override public function onCountdownStart(event:Dynamic) {
         super.onCountdownStart(event);
+        isPreview = false;
         
         apiModule = ModuleHandler.getModule("KssetteApi");
         if (apiModule != null) {
             cachedFont = apiModule.getHudFont();
             if (cachedFont == null || cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
             animType = Std.string(apiModule.getKssValue("kssette_subtitles_anim"));
-            
             if (animType == "Karaoke") animType = "Fade"; 
             
             posType = Std.string(apiModule.getKssValue("kssette_subtitles_pos"));
@@ -87,27 +327,7 @@ class KssetteSubtitles extends Module {
         var state = PlayState.instance;
         if (state == null) return;
 
-        if (subText != null) {
-            if (currentTween != null) {
-                currentTween.cancel();
-                currentTween = null;
-            }
-            if (karaokeTween != null) {
-                karaokeTween.cancel();
-                karaokeTween = null;
-            }
-            state.remove(subText);
-            subText.destroy();
-            subText = null;
-        }
-
-        subText = new FlxText(0, 0, FlxG.width, "", 30);
-        subText.setFormat(cachedFont, 30, 0xFFFFFFFF, "center", FlxTextBorderStyle.OUTLINE, 0xFF000000);
-        subText.borderSize = 2;
-        subText.visible = false;
-        subText.cameras = [state.camHUD];
-        subText.zIndex = 1010;
-        state.add(subText);
+        createSubText(state.camHUD);
         
         lastText = "";
         lastRawText = "";
@@ -126,239 +346,245 @@ class KssetteSubtitles extends Module {
     
     override public function onUpdate(event:Dynamic) {
         super.onUpdate(event);
-        var state = PlayState.instance;
-        if (state == null || subText == null) return;
+        if (subText == null) return;
 
-        if (!checkedKssttl) {
-            kssttlModule = ModuleHandler.getModule("KssttLSubtitles");
-            checkedKssttl = true;
-        }
-
-        if (kssttlModule != null && kssttlModule.activeForSong && kssttlModule.disableKassetteSubs) {
-            if (subText.visible) subText.visible = false;
+        try {
+            if (!subText.exists || !subText.active) {
+                cleanUp();
+                return;
+            }
+            var dummy = subText.height; 
+        } catch(e:Dynamic) {
+            cleanUp();
             return;
         }
 
-        if (_nativeSubs == null) {
-            _nativeSubs = getFieldSafe(state, "subtitles");
-            if (_nativeSubs != null) {
-                _nativeBg = getFieldSafe(_nativeSubs, "background");
-                _nativeTextObj = getFieldSafe(_nativeSubs, "subtitleText");
-            }
-        }
-
-        if (_nativeSubs != null) {
-            var nCams:Dynamic = getFieldSafe(_nativeSubs, "cameras");
-            var targetCam:Dynamic = null;
-            
-            if (nCams != null && nCams.length > 0) {
-                targetCam = nCams[0];
-            } else {
-                var cOth = getFieldSafe(state, "camOther");
-                if (cOth != null) targetCam = cOth;
-                else targetCam = getFieldSafe(state, "camHUD");
-            }
-
-            if (targetCam != null && lastTargetCam != targetCam) {
-                lastTargetCam = targetCam;
-                subText.cameras = [targetCam];
-            }
-
-            try { _nativeSubs.visible = false; _nativeSubs.alpha = 0; } catch(e:Dynamic) {}
-            
-            if (_nativeBg != null) {
-                try { _nativeBg.visible = false; _nativeBg.alpha = 0; } catch(e:Dynamic) {}
-            }
-            
-            if (_nativeTextObj != null) {
-                try { _nativeTextObj.visible = false; _nativeTextObj.alpha = 0; } catch(e:Dynamic) {}
-            }
-
-            var newData = getFieldSafe(_nativeSubs, "subtitlesData");
-            if (_cachedEntries != newData) {
-                _cachedEntries = newData;
-                localSubIndex = 0;
-                lastRawText = "";
-                lastText = "";
-            }
-        }
-        
         var rawTargetText:String = "";
         var activeEntry:Dynamic = null;
         var isCutscene:Bool = false;
         var currentSubsTime:Float = -1000;
-        var sLengthMs:Float = state.currentSongLengthMs;
 
-        if (sLengthMs <= 0) isCutscene = true;
-        
-        if (_nativeSubs != null) {
-            var snd = getFieldSafe(_nativeSubs, "assignedSound");
-            if (snd != null) {
-                var sTime = getFieldSafe(snd, "time");
-                if (sTime != null) currentSubsTime = sTime;
+        if (isPreview) {
+            previewTimer -= event.elapsed;
+            if (previewTimer <= 0) {
+                previewState++;
+                if (previewState > 3) {
+                    previewState = 0;
+                }
                 
-                var sndLen = getFieldSafe(snd, "length");
-                if (sndLen != null && sLengthMs > 0) {
-                    var diffVal = Math.abs(Std.parseFloat(Std.string(sndLen)) - sLengthMs);
-                    if (diffVal > 5000) {
-                        isCutscene = true;
+                if (previewState == 0) {
+                    previewTimer = 1.0; 
+                    lastRawText = ""; 
+                    lastText = "";
+                } else if (previewState == 1) {
+                    rawTargetText = triviaArray[FlxG.random.int(0, triviaArray.length - 1)];
+                    previewTimer = 4.0;
+                } else if (previewState == 2) {
+                    previewTimer = 1.0;
+                    lastRawText = ""; 
+                    lastText = "";
+                } else if (previewState == 3) {
+                    rawTargetText = "<font size=\"40\" color=\"#FF0000\" face=\"pixel.otf\">Testing Size, Color & Custom Fonts!</font>";
+                    previewTimer = 4.0;
+                }
+            } else if (previewState == 1 || previewState == 3) {
+                rawTargetText = lastRawText;
+            } else {
+                rawTargetText = "";
+            }
+            
+            isCutscene = false;
+
+            if (previewCam != null && (subText.cameras == null || subText.cameras[0] != previewCam)) {
+                try { subText.cameras = [previewCam]; } catch(e:Dynamic) {}
+            }
+        } else {
+            var state = PlayState.instance;
+            if (state == null) return;
+
+            if (!checkedKssttl) {
+                kssttlModule = ModuleHandler.getModule("KssttLSubtitles");
+                checkedKssttl = true;
+            }
+
+            if (kssttlModule != null && kssttlModule.activeForSong && kssttlModule.disableKassetteSubs) {
+                if (subText.visible) subText.visible = false;
+                return;
+            }
+
+            if (_nativeSubs == null) {
+                _nativeSubs = getFieldSafe(state, "subtitles");
+                if (_nativeSubs != null) {
+                    _nativeBg = getFieldSafe(_nativeSubs, "background");
+                    _nativeTextObj = getFieldSafe(_nativeSubs, "subtitleText");
+                }
+            }
+
+            if (_nativeSubs != null) {
+                var nCams:Dynamic = getFieldSafe(_nativeSubs, "cameras");
+                var targetCam:Dynamic = null;
+                
+                if (nCams != null && nCams.length > 0) {
+                    targetCam = nCams[0];
+                } else {
+                    var cOth = getFieldSafe(state, "camOther");
+                    if (cOth != null) targetCam = cOth;
+                    else targetCam = getFieldSafe(state, "camHUD");
+                }
+
+                if (targetCam != null && lastTargetCam != targetCam) {
+                    lastTargetCam = targetCam;
+                    try { subText.cameras = [targetCam]; } catch(e:Dynamic) {}
+                }
+
+                try { _nativeSubs.visible = false; _nativeSubs.alpha = 0; } catch(e:Dynamic) {}
+                if (_nativeBg != null) {
+                    try { _nativeBg.visible = false; _nativeBg.alpha = 0; } catch(e:Dynamic) {}
+                }
+                if (_nativeTextObj != null) {
+                    try { _nativeTextObj.visible = false; _nativeTextObj.alpha = 0; } catch(e:Dynamic) {}
+                }
+
+                var newData = getFieldSafe(_nativeSubs, "subtitlesData");
+                if (_cachedEntries != newData) {
+                    _cachedEntries = newData;
+                    localSubIndex = 0;
+                    lastRawText = "";
+                    lastText = "";
+                }
+            }
+            
+            var sLengthMs:Float = state.currentSongLengthMs;
+            if (sLengthMs <= 0) isCutscene = true;
+            
+            if (_nativeSubs != null) {
+                var snd = getFieldSafe(_nativeSubs, "assignedSound");
+                if (snd != null) {
+                    var sTime = getFieldSafe(snd, "time");
+                    if (sTime != null) currentSubsTime = sTime;
+                    
+                    var sndLen = getFieldSafe(snd, "length");
+                    if (sndLen != null && sLengthMs > 0) {
+                        var diffVal = Math.abs(Std.parseFloat(Std.string(sndLen)) - sLengthMs);
+                        if (diffVal > 5000) {
+                            isCutscene = true;
+                        }
                     }
+                } else if (Conductor.instance != null) {
+                    currentSubsTime = Conductor.instance.songPosition;
                 }
             } else if (Conductor.instance != null) {
                 currentSubsTime = Conductor.instance.songPosition;
             }
-        } else if (Conductor.instance != null) {
-            currentSubsTime = Conductor.instance.songPosition;
-        }
 
-        if (currentSubsTime < 0) isCutscene = true;
+            if (currentSubsTime < 0) isCutscene = true;
 
-        if (_cachedEntries != null) {
-            var len:Int = 0;
-            try { len = _cachedEntries.length; } catch(e:Dynamic) {}
-            
-            if (len > 0) {
-                if (localSubIndex > 0) {
+            if (_cachedEntries != null) {
+                var len:Int = 0;
+                try { len = _cachedEntries.length; } catch(e:Dynamic) {}
+                
+                if (len > 0) {
+                    if (localSubIndex > 0) {
+                        try {
+                            if (currentSubsTime < getFieldSafe(_cachedEntries[localSubIndex - 1], "end")) {
+                                localSubIndex = 0;
+                            }
+                        } catch(e:Dynamic) { localSubIndex = 0; }
+                    }
+
                     try {
-                        if (currentSubsTime < getFieldSafe(_cachedEntries[localSubIndex - 1], "end")) {
-                            localSubIndex = 0;
+                        while (localSubIndex < len && getFieldSafe(_cachedEntries[localSubIndex], "end") < currentSubsTime) {
+                            localSubIndex++;
                         }
-                    } catch(e:Dynamic) { localSubIndex = 0; }
-                }
+                    } catch(e:Dynamic) {}
 
-                try {
-                    while (localSubIndex < len && getFieldSafe(_cachedEntries[localSubIndex], "end") < currentSubsTime) {
-                        localSubIndex++;
-                    }
-                } catch(e:Dynamic) {}
-
-                var tempIdx = localSubIndex;
-                var texts:Array<String> = [];
-                
-                try {
-                    while (tempIdx < len && getFieldSafe(_cachedEntries[tempIdx], "start") <= currentSubsTime) {
-                        var entry = _cachedEntries[tempIdx];
-                        if (currentSubsTime <= getFieldSafe(entry, "end")) {
-                            var eText = getFieldSafe(entry, "text");
-                            if (eText != null) texts.push(Std.string(eText));
-                            if (activeEntry == null) activeEntry = entry;
+                    var tempIdx = localSubIndex;
+                    var texts:Array<String> = [];
+                    
+                    try {
+                        while (tempIdx < len && getFieldSafe(_cachedEntries[tempIdx], "start") <= currentSubsTime) {
+                            var entry = _cachedEntries[tempIdx];
+                            if (currentSubsTime <= getFieldSafe(entry, "end")) {
+                                var eText = getFieldSafe(entry, "text");
+                                if (eText != null) texts.push(Std.string(eText));
+                                if (activeEntry == null) activeEntry = entry;
+                            }
+                            tempIdx++;
                         }
-                        tempIdx++;
+                    } catch(e:Dynamic) {}
+                    
+                    if (texts.length > 0) {
+                        rawTargetText = texts.join(" "); 
                     }
-                } catch(e:Dynamic) {}
-                
-                if (texts.length > 0) {
-                    rawTargetText = texts.join("\n");
                 }
-            }
-        } 
-        
-        if (rawTargetText == "" && _nativeTextObj != null) {
-            var fallbackText = getFieldSafe(_nativeTextObj, "text");
-            var fallbackHtml = getFieldSafe(_nativeTextObj, "htmlText");
+            } 
             
-            if (fallbackText != null && Std.string(fallbackText) != "" && Std.string(fallbackText) != "null") {
-                rawTargetText = Std.string(fallbackText);
-            } else if (fallbackHtml != null && Std.string(fallbackHtml) != "" && Std.string(fallbackHtml) != "null") {
-                rawTargetText = Std.string(fallbackHtml);
+            if (rawTargetText == "" && _nativeTextObj != null) {
+                var fallbackText = getFieldSafe(_nativeTextObj, "text");
+                var fallbackHtml = getFieldSafe(_nativeTextObj, "htmlText");
+                
+                if (fallbackText != null && Std.string(fallbackText) != "" && Std.string(fallbackText) != "null") {
+                    rawTargetText = Std.string(fallbackText);
+                } else if (fallbackHtml != null && Std.string(fallbackHtml) != "" && Std.string(fallbackHtml) != "null") {
+                    rawTargetText = Std.string(fallbackHtml);
+                }
             }
         }
 
-        if (rawTargetText == lastRawText) return;
+        if (rawTargetText == lastRawText) {
+            return;
+        }
+        
         lastRawText = rawTargetText;
 
         var displayFont:String = cachedFont;
         var displaySize:Int = 30;
         var displayColor:Int = 0xFFFFFFFF;
-        var cleanedText:String = rawTargetText;
+        var htmlTextToProcess:String = rawTargetText;
 
-        if (cleanedText != "" && cleanedText != "null") {
-            var braceStart = cleanedText.indexOf("{font ");
-            while (braceStart != -1) {
-                var braceEnd = cleanedText.indexOf("}", braceStart);
-                if (braceEnd != -1) {
-                    var tagContent = cleanedText.substring(braceStart + 6, braceEnd);
-                    var faceIdx = tagContent.indexOf("face=\"");
-                    if (faceIdx != -1) {
-                        var valEnd = tagContent.indexOf("\"", faceIdx + 6);
-                        if (valEnd != -1) displayFont = tagContent.substring(faceIdx + 6, valEnd);
-                    }
-                    cleanedText = cleanedText.substring(0, braceStart) + cleanedText.substring(braceEnd + 1);
-                } else {
-                    break;
+        if (htmlTextToProcess != "" && htmlTextToProcess != "null") {
+            var sizeIdx = htmlTextToProcess.indexOf("size=\"");
+            if (sizeIdx != -1) {
+                var valEnd = htmlTextToProcess.indexOf("\"", sizeIdx + 6);
+                if (valEnd != -1) {
+                    var sizeStr = htmlTextToProcess.substring(sizeIdx + 6, valEnd).split("px").join("");
+                    var pSize = Std.parseInt(sizeStr);
+                    if (pSize != null) displaySize = pSize;
                 }
-                braceStart = cleanedText.indexOf("{font ");
             }
-
-            var fontStart = cleanedText.indexOf("<font ");
-            while (fontStart != -1) {
-                var tagEnd = cleanedText.indexOf(">", fontStart);
-                if (tagEnd != -1) {
-                    var tagContent = cleanedText.substring(fontStart + 6, tagEnd);
-                    
-                    var faceIdx = tagContent.indexOf("face=\"");
-                    if (faceIdx != -1) {
-                        var valEnd = tagContent.indexOf("\"", faceIdx + 6);
-                        if (valEnd != -1) displayFont = tagContent.substring(faceIdx + 6, valEnd);
-                    }
-
-                    var sizeIdx = tagContent.indexOf("size=\"");
-                    if (sizeIdx != -1) {
-                        var valEnd = tagContent.indexOf("\"", sizeIdx + 6);
-                        if (valEnd != -1) {
-                            var sizeStr = tagContent.substring(sizeIdx + 6, valEnd).split("px").join("");
-                            var pSize = Std.parseInt(sizeStr);
-                            if (pSize != null) displaySize = pSize;
-                        }
-                    }
-                    var colIdx = tagContent.indexOf("color=\"");
-                    if (colIdx != -1) {
-                        var valEnd = tagContent.indexOf("\"", colIdx + 7);
-                        if (valEnd != -1) {
-                            var colStr = tagContent.substring(colIdx + 7, valEnd);
-                            if (colStr.indexOf("#") == 0) colStr = "0xFF" + colStr.substring(1);
-                            var pCol = Std.parseInt(colStr);
-                            if (pCol != null) displayColor = pCol;
-                        }
-                    }
-                    cleanedText = cleanedText.substring(0, fontStart) + cleanedText.substring(tagEnd + 1);
-                } else {
-                    break;
-                }
-                fontStart = cleanedText.indexOf("<font ");
+            var faceIdx = htmlTextToProcess.indexOf("face=\"");
+            if (faceIdx != -1) {
+                var valEnd = htmlTextToProcess.indexOf("\"", faceIdx + 6);
+                if (valEnd != -1) displayFont = htmlTextToProcess.substring(faceIdx + 6, valEnd);
             }
-
-            cleanedText = cleanedText.split("</font>").join("");
-            cleanedText = cleanedText.split("{/font}").join("");
         }
         
-        var shouldShow = (cleanedText != "" && cleanedText != "null");
+        var shouldShow = (htmlTextToProcess != "" && htmlTextToProcess != "null");
 
         if (shouldShow) {
             var isAppend:Bool = false;
-            if (lastText != "" && cleanedText.indexOf(lastText) == 0 && cleanedText.length > lastText.length) {
+            if (lastText != "" && htmlTextToProcess.indexOf(lastText) == 0 && htmlTextToProcess.length > lastText.length) {
                 isAppend = true;
             }
             
-            var prevLen = lastText.length;
-            lastText = cleanedText;
+            var prevLen = getVisibleTextLength(lastText);
+            lastText = htmlTextToProcess;
 
-            subText.text = cleanedText;
-            subText.setFormat(displayFont, displaySize, displayColor, "center", FlxTextBorderStyle.OUTLINE, 0xFF000000);
-            subText.borderSize = 2;
+            formatSubText(subText, htmlTextToProcess, displayFont, displaySize, displayColor);
+            var realHeight = subText.height;
 
             var targetX:Float = 0; 
-            var targetY:Float = (posType == "Top") ? 220 : (FlxG.height - subText.height - 220);
+            var targetY:Float = (posType == "Top") ? 150 : (FlxG.height - realHeight - 190);
             
             var useKaraoke:Bool = smartKaraoke && !isCutscene;
 
             if (useKaraoke) {
                 var startIdx:Int = isAppend ? prevLen : 0;
-                var endIdx:Int = cleanedText.length;
+                var endIdx:Int = getVisibleTextLength(htmlTextToProcess);
                 var durK:Float = 0.35;
                 var hasExactTiming:Bool = false;
 
-                if (activeEntry != null) {
+                if (!isPreview && activeEntry != null) {
                     var exactEnd:Dynamic = getFieldSafe(activeEntry, "end");
                     if (exactEnd != null) {
                         var currentPosSnd:Float = 0;
@@ -387,176 +613,187 @@ class KssetteSubtitles extends Module {
                     }
                 }
 
-                subText.text = cleanedText.substring(0, startIdx);
+                formatSubText(subText, applyKaraokeToHTML(htmlTextToProcess, startIdx), displayFont, displaySize, displayColor);
                 
                 if (karaokeTween != null) {
-                    karaokeTween.cancel();
+                    try { karaokeTween.cancel(); } catch(e:Dynamic) {}
                     karaokeTween = null;
                 }
                 
-                karaokeTween = FlxTween.num(startIdx, endIdx, durK, {
-                    ease: FlxEase.sineOut, 
-                    onComplete: function(t:FlxTween) {
-                        if (subText != null) subText.text = cleanedText;
-                    }
-                }, function(v:Float) {
-                    if (subText != null) subText.text = cleanedText.substring(0, Math.round(v));
-                });
+                try {
+                    var lastKaraokeLen:Int = -1;
+                    karaokeTween = FlxTween.num(startIdx, endIdx, durK, {
+                        ease: FlxEase.sineOut, 
+                        onComplete: function(t:FlxTween) {
+                            try { if (subText != null && subText.exists) formatSubText(subText, htmlTextToProcess, displayFont, displaySize, displayColor); } catch(e:Dynamic) {}
+                        }
+                    }, function(v:Float) {
+                        var currentLen = Math.round(v);
+                        if (currentLen != lastKaraokeLen) {
+                            lastKaraokeLen = currentLen;
+                            try { if (subText != null && subText.exists) formatSubText(subText, applyKaraokeToHTML(htmlTextToProcess, currentLen), displayFont, displaySize, displayColor); } catch(e:Dynamic) {}
+                        }
+                    });
+                } catch(e:Dynamic) {}
             } else {
                 if (karaokeTween != null) {
-                    karaokeTween.cancel();
+                    try { karaokeTween.cancel(); } catch(e:Dynamic) {}
                     karaokeTween = null;
                 }
-                subText.text = cleanedText;
             }
             
             if (currentTween != null) {
-                currentTween.cancel();
+                try { currentTween.cancel(); } catch(e:Dynamic) {}
                 currentTween = null;
             }
             subText.scale.set(1, 1);
             
-            if (animType == "Slide") {
-                var dur:Float = 0.35;
-                if (!isShowing) {
-                    subText.x = -80; 
-                    subText.alpha = 0;
-                    dur = 0.35;
-                } else if (isAppend) {
-                    subText.x = targetX + 30; 
-                    subText.alpha = 0.7;
-                    dur = 0.15;
-                } else {
-                    subText.x = -50;
-                    subText.alpha = 0;
-                    dur = 0.2;
-                }
-                subText.y = targetY; 
-                subText.visible = true;
-                isShowing = true;
-                currentTween = FlxTween.tween(subText, {x: targetX, alpha: 1}, dur, {ease: FlxEase.expoOut});
-                
-            } else if (animType == "Fade") {
-                var dur:Float = 0.35;
-                if (!isShowing) {
-                    subText.x = targetX;
-                    subText.alpha = 0;
-                    dur = 0.35;
-                } else if (isAppend) {
-                    subText.x = targetX + 20; 
-                    subText.alpha = 0.5;
-                    dur = 0.15;
-                } else {
-                    subText.x = targetX;
-                    subText.alpha = 0;
-                    dur = 0.2;
-                }
-                subText.y = targetY;
-                subText.visible = true;
-                isShowing = true;
-                currentTween = FlxTween.tween(subText, {x: targetX, alpha: 1}, dur, {ease: FlxEase.quadOut});
-                
-            } else if (animType == "Vertical") {
-                var dur:Float = 0.35;
-                var smallOffset:Float = (posType == "Top") ? -40 : 40;
-                var edgeY:Float = (posType == "Top") ? -subText.height - 20 : FlxG.height + 20;
-                var easeF:Dynamic = FlxEase.expoOut;
-                
-                if (!isShowing) {
-                    subText.x = targetX;
-                    subText.y = edgeY; 
-                    subText.alpha = 0;
-                    dur = 0.35;
-                } else if (isAppend) {
-                    subText.x = targetX + 25; 
+            try {
+                if (animType == "Slide") {
+                    var dur:Float = 0.35;
+                    if (!isShowing) {
+                        subText.x = -80; 
+                        subText.alpha = 0;
+                        dur = 0.35;
+                    } else if (isAppend) {
+                        subText.x = targetX + 30; 
+                        subText.alpha = 0.7;
+                        dur = 0.15;
+                    } else {
+                        subText.x = -50;
+                        subText.alpha = 0;
+                        dur = 0.2;
+                    }
                     subText.y = targetY; 
-                    subText.alpha = 0.7;
-                    dur = 0.15;
-                    easeF = FlxEase.expoOut;
+                    subText.visible = true;
+                    isShowing = true;
+                    currentTween = FlxTween.tween(subText, {x: targetX, alpha: 1}, dur, {ease: FlxEase.expoOut});
+                    
+                } else if (animType == "Fade") {
+                    var dur:Float = 0.35;
+                    if (!isShowing) {
+                        subText.x = targetX;
+                        subText.alpha = 0;
+                        dur = 0.35;
+                    } else if (isAppend) {
+                        subText.x = targetX + 20; 
+                        subText.alpha = 0.5;
+                        dur = 0.15;
+                    } else {
+                        subText.x = targetX;
+                        subText.alpha = 0;
+                        dur = 0.2;
+                    }
+                    subText.y = targetY;
+                    subText.visible = true;
+                    isShowing = true;
+                    currentTween = FlxTween.tween(subText, {x: targetX, alpha: 1}, dur, {ease: FlxEase.quadOut});
+                    
+                } else if (animType == "Vertical") {
+                    var dur:Float = 0.35;
+                    var smallOffset:Float = (posType == "Top") ? -40 : 40;
+                    var edgeY:Float = (posType == "Top") ? -realHeight - 20 : FlxG.height + 20;
+                    var easeF:Dynamic = FlxEase.expoOut;
+                    
+                    if (!isShowing) {
+                        subText.x = targetX;
+                        subText.y = edgeY; 
+                        subText.alpha = 0;
+                        dur = 0.35;
+                    } else if (isAppend) {
+                        subText.x = targetX + 25; 
+                        subText.y = targetY; 
+                        subText.alpha = 0.7;
+                        dur = 0.15;
+                        easeF = FlxEase.expoOut;
+                    } else {
+                        subText.x = targetX;
+                        subText.y = targetY + smallOffset; 
+                        subText.alpha = 0;
+                        dur = 0.2;
+                    }
+                    subText.visible = true;
+                    isShowing = true;
+                    currentTween = FlxTween.tween(subText, {x: targetX, y: targetY, alpha: 1}, dur, {ease: easeF});
+                    
+                } else if (animType == "Zoom") {
+                    var dur:Float = 0.35;
+                    if (!isShowing) {
+                        subText.x = targetX;
+                        subText.scale.set(0.1, 0.1); 
+                        subText.alpha = 0;
+                        dur = 0.35;
+                    } else if (isAppend) {
+                        subText.x = targetX + 15; 
+                        subText.scale.set(1.15, 1.15); 
+                        subText.alpha = 0.7;
+                        dur = 0.15;
+                    } else {
+                        subText.x = targetX;
+                        subText.scale.set(0.6, 0.6); 
+                        subText.alpha = 0;
+                        dur = 0.2;
+                    }
+                    subText.y = targetY;
+                    subText.visible = true;
+                    isShowing = true;
+                    try { FlxTween.tween(subText.scale, {x: 1, y: 1}, dur, {ease: FlxEase.backOut}); } catch(e:Dynamic) {}
+                    currentTween = FlxTween.tween(subText, {x: targetX, alpha: 1}, dur, {ease: FlxEase.expoOut});
+                    
                 } else {
                     subText.x = targetX;
-                    subText.y = targetY + smallOffset; 
-                    subText.alpha = 0;
-                    dur = 0.2;
+                    subText.y = targetY;
+                    subText.alpha = 1;
+                    subText.visible = true;
+                    isShowing = true;
                 }
-                subText.visible = true;
-                isShowing = true;
-                currentTween = FlxTween.tween(subText, {x: targetX, y: targetY, alpha: 1}, dur, {ease: easeF});
-                
-            } else if (animType == "Zoom") {
-                var dur:Float = 0.35;
-                if (!isShowing) {
-                    subText.x = targetX;
-                    subText.scale.set(0.1, 0.1); 
-                    subText.alpha = 0;
-                    dur = 0.35;
-                } else if (isAppend) {
-                    subText.x = targetX + 15; 
-                    subText.scale.set(1.15, 1.15); 
-                    subText.alpha = 0.7;
-                    dur = 0.15;
-                } else {
-                    subText.x = targetX;
-                    subText.scale.set(0.6, 0.6); 
-                    subText.alpha = 0;
-                    dur = 0.2;
-                }
-                subText.y = targetY;
-                subText.visible = true;
-                isShowing = true;
-                FlxTween.tween(subText.scale, {x: 1, y: 1}, dur, {ease: FlxEase.backOut});
-                currentTween = FlxTween.tween(subText, {x: targetX, alpha: 1}, dur, {ease: FlxEase.expoOut});
-                
-            } else {
-                subText.x = targetX;
-                subText.y = targetY;
-                subText.alpha = 1;
-                subText.visible = true;
-                isShowing = true;
-            }
+            } catch(e:Dynamic) {}
         } else if (isShowing) {
             lastText = "";
+            lastRawText = ""; 
             if (currentTween != null) {
-                currentTween.cancel();
+                try { currentTween.cancel(); } catch(e:Dynamic) {}
                 currentTween = null;
             }
             if (karaokeTween != null) {
-                karaokeTween.cancel();
+                try { karaokeTween.cancel(); } catch(e:Dynamic) {}
                 karaokeTween = null;
             }
             
-            if (animType == "Slide") {
-                currentTween = FlxTween.tween(subText, {x: 80, alpha: 0}, 0.3, {ease: FlxEase.expoIn, onComplete: function(t:FlxTween) {
-                    subText.visible = false;
-                    isShowing = false;
-                }});
-            } else if (animType == "Fade") {
-                currentTween = FlxTween.tween(subText, {alpha: 0}, 0.3, {ease: FlxEase.quadIn, onComplete: function(t:FlxTween) {
-                    subText.visible = false;
-                    isShowing = false;
-                }});
-            } else if (animType == "Vertical") {
-                var edgeY:Float = (posType == "Top") ? -subText.height - 20 : FlxG.height + 20;
-                currentTween = FlxTween.tween(subText, {y: edgeY, alpha: 0}, 0.3, {ease: FlxEase.expoIn, onComplete: function(t:FlxTween) {
-                    subText.visible = false;
-                    isShowing = false;
-                }});
-            } else if (animType == "Zoom") {
-                FlxTween.tween(subText.scale, {x: 0.1, y: 0.1}, 0.3, {ease: FlxEase.backIn}); 
-                currentTween = FlxTween.tween(subText, {alpha: 0}, 0.3, {ease: FlxEase.expoIn, onComplete: function(t:FlxTween) {
-                    subText.visible = false;
-                    isShowing = false;
-                    subText.scale.set(1, 1); 
-                }});
-            } else {
-                var baseTargetY:Float = (posType == "Top") ? 220 : (FlxG.height - subText.height - 220);
-                var endY:Float = (posType == "Top") ? baseTargetY - 20 : baseTargetY + 20;
-                
-                currentTween = FlxTween.tween(subText, {y: endY, alpha: 0}, 0.25, {onComplete: function(t:FlxTween) {
-                    subText.visible = false;
-                    isShowing = false;
-                }});
-            }
+            try {
+                if (animType == "Slide") {
+                    currentTween = FlxTween.tween(subText, {x: 80, alpha: 0}, 0.3, {ease: FlxEase.expoIn, onComplete: function(t:FlxTween) {
+                        try { if (subText != null) subText.visible = false; isShowing = false; } catch(e:Dynamic) {}
+                    }});
+                } else if (animType == "Fade") {
+                    currentTween = FlxTween.tween(subText, {alpha: 0}, 0.3, {ease: FlxEase.quadIn, onComplete: function(t:FlxTween) {
+                        try { if (subText != null) subText.visible = false; isShowing = false; } catch(e:Dynamic) {}
+                    }});
+                } else if (animType == "Vertical") {
+                    var edgeY:Float = (posType == "Top") ? -subText.height - 20 : FlxG.height + 20;
+                    currentTween = FlxTween.tween(subText, {y: edgeY, alpha: 0}, 0.3, {ease: FlxEase.expoIn, onComplete: function(t:FlxTween) {
+                        try { if (subText != null) subText.visible = false; isShowing = false; } catch(e:Dynamic) {}
+                    }});
+                } else if (animType == "Zoom") {
+                    try { FlxTween.tween(subText.scale, {x: 0.1, y: 0.1}, 0.3, {ease: FlxEase.backIn}); } catch(e:Dynamic) {}
+                    currentTween = FlxTween.tween(subText, {alpha: 0}, 0.3, {ease: FlxEase.expoIn, onComplete: function(t:FlxTween) {
+                        try { 
+                            if (subText != null) {
+                                subText.visible = false;
+                                subText.scale.set(1, 1); 
+                            }
+                            isShowing = false;
+                        } catch(e:Dynamic) {}
+                    }});
+                } else {
+                    var baseTargetY:Float = (posType == "Top") ? 150 : (FlxG.height - subText.height - 190);
+                    var endY:Float = (posType == "Top") ? baseTargetY - 20 : baseTargetY + 20;
+                    
+                    currentTween = FlxTween.tween(subText, {y: endY, alpha: 0}, 0.25, {onComplete: function(t:FlxTween) {
+                        try { if (subText != null) subText.visible = false; isShowing = false; } catch(e:Dynamic) {}
+                    }});
+                }
+            } catch(e:Dynamic) {}
         }
     }
 }
