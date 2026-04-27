@@ -24,7 +24,6 @@ class KssetteSubtitles extends Module {
     var posType:String = "Bottom";
     var smartKaraoke:Bool = false;
     
-    var lastText:String = "";
     var lastRawText:String = "";
     var currentTween:FlxTween = null;
     var karaokeTween:FlxTween = null;
@@ -46,6 +45,10 @@ class KssetteSubtitles extends Module {
     public var previewCam:flixel.FlxCamera = null;
     var previewTimer:Float = 0.0;
     var previewState:Int = 0;
+
+    var cachedPlainText:String = "";
+    var cachedFormats:Array<Dynamic> = [];
+    var lastKaraokeLen:Int = -1;
 
     var triviaArray:Array<String> = [
         "Did you know? <font color=\"#00FF00\">Boyfriend is canonically 19 years old!</font>",
@@ -112,74 +115,15 @@ class KssetteSubtitles extends Module {
         try { FlxG.state.add(subText); } catch(e:Dynamic) {}
     }
 
-    function getVisibleTextLength(html:String):Int {
-        var len = 0;
-        var i = 0;
-        while (i < html.length) {
-            var char = html.charAt(i);
-            if (char == "<") {
-                var tagEnd = html.indexOf(">", i);
-                if (tagEnd != -1) {
-                    i = tagEnd + 1;
-                    continue;
-                }
-            }
-            len++;
-            i++;
-        }
-        return len;
-    }
-
-    function applyKaraokeToHTML(html:String, visibleChars:Int):String {
-        var result = "";
-        var charsAdded = 0;
-        var i = 0;
+    function compileHTML(htmlStr:String, defaultColor:Int) {
+        cachedPlainText = "";
+        cachedFormats = [];
         
-        while (i < html.length && charsAdded < visibleChars) {
-            var char = html.charAt(i);
-            if (char == "<") {
-                var tagEnd = html.indexOf(">", i);
-                if (tagEnd != -1) {
-                    result += html.substring(i, tagEnd + 1);
-                    i = tagEnd + 1;
-                    continue;
-                }
-            }
-            
-            result += char;
-            charsAdded++;
-            i++;
-        }
-        return result;
-    }
-
-    function stripHTML(html:String):String {
-        var result = "";
-        var inTag = false;
-        for (i in 0...html.length) {
-            var char = html.charAt(i);
-            if (char == "<") inTag = true;
-            else if (char == ">") inTag = false;
-            else if (!inTag) result += char;
-        }
-        return result;
-    }
-
-    function formatSubText(txt:FlxText, htmlStr:String, defaultFont:String, defaultSize:Int, defaultColor:Int) {
-        var plainText = stripHTML(htmlStr);
-        txt.setFormat(defaultFont, defaultSize, defaultColor, "center", FlxTextBorderStyle.OUTLINE, 0xFF000000);
-        txt.text = plainText; 
-        txt.borderSize = 2;
-        
-        try { txt.clearFormats(); } catch(e:Dynamic) {}
-        
-        var pText = "";
         var i = 0;
         var colorStack = [defaultColor];
         var italicStack = [false];
         var boldStack = [false];
         
-        var segments = [];
         var curStart = 0;
         var curColor = defaultColor;
         var curItalic = false;
@@ -194,14 +138,19 @@ class KssetteSubtitles extends Module {
                     var tagChanged = false;
                     
                     if (StringTools.startsWith(tag, "<font")) {
-                        var colIdx = tag.indexOf("color=\"");
+                        var colIdx = tag.indexOf("color=");
                         var pCol = colorStack[colorStack.length - 1];
                         if (colIdx != -1) {
-                            var valEnd = tag.indexOf("\"", colIdx + 7);
+                            var quoteChar = tag.charAt(colIdx + 6);
+                            var valEnd = tag.indexOf(quoteChar, colIdx + 7);
                             if (valEnd != -1) {
-                                var colStr = tag.substring(colIdx + 7, valEnd);
-                                if (StringTools.startsWith(colStr, "#")) colStr = "0xFF" + colStr.substring(1);
-                                var parsedCol = Std.parseInt(colStr);
+                                var colStr = htmlStr.substring(i + colIdx + 7, i + valEnd);
+                                var parsedCol:Null<Int> = null;
+                                try { parsedCol = flixel.util.FlxColor.fromString(colStr); } catch(e:Dynamic) {}
+                                if (parsedCol == null) {
+                                    if (StringTools.startsWith(colStr, "#")) colStr = "0xFF" + colStr.substring(1);
+                                    parsedCol = Std.parseInt(colStr);
+                                }
                                 if (parsedCol != null) pCol = parsedCol;
                             }
                         }
@@ -225,16 +174,15 @@ class KssetteSubtitles extends Module {
                     }
                     
                     if (tagChanged) {
-                        if (pText.length > curStart) {
-                            segments.push({
-                                start: curStart, 
-                                end: pText.length, 
-                                color: curColor, 
-                                italic: curItalic, 
-                                bold: curBold
-                            });
+                        if (cachedPlainText.length > curStart) {
+                            if (curColor != defaultColor || curItalic || curBold) {
+                                try {
+                                    var fmt = new flixel.text.FlxTextFormat(curColor, curBold, curItalic, 0xFF000000);
+                                    cachedFormats.push({start: curStart, end: cachedPlainText.length, format: fmt});
+                                } catch(e:Dynamic) {}
+                            }
                         }
-                        curStart = pText.length;
+                        curStart = cachedPlainText.length;
                         curColor = colorStack[colorStack.length - 1];
                         curItalic = italicStack[italicStack.length - 1];
                         curBold = boldStack[boldStack.length - 1];
@@ -244,27 +192,31 @@ class KssetteSubtitles extends Module {
                     continue;
                 }
             }
-            pText += char;
+            cachedPlainText += char;
             i++;
         }
         
-        if (pText.length > curStart) {
-            segments.push({
-                start: curStart, 
-                end: pText.length, 
-                color: curColor, 
-                italic: curItalic, 
-                bold: curBold
-            });
+        if (cachedPlainText.length > curStart) {
+            if (curColor != defaultColor || curItalic || curBold) {
+                try {
+                    var fmt = new flixel.text.FlxTextFormat(curColor, curBold, curItalic, 0xFF000000);
+                    cachedFormats.push({start: curStart, end: cachedPlainText.length, format: fmt});
+                } catch(e:Dynamic) {}
+            }
         }
+    }
+
+    function updateTextDisplay(visibleLen:Int) {
+        if (subText == null || !subText.exists) return;
         
-        for (seg in segments) {
-            if (seg.start < seg.end) {
-                if (seg.color != defaultColor || seg.italic || seg.bold) {
-                    try {
-                        var txtFmt = new FlxTextFormat(seg.color, seg.bold, seg.italic, 0xFF000000);
-                        txt.addFormat(txtFmt, seg.start, seg.end);
-                    } catch(e:Dynamic) {}
+        subText.text = cachedPlainText.substring(0, visibleLen);
+        try { subText.clearFormats(); } catch(e:Dynamic) {}
+        
+        for (fData in cachedFormats) {
+            if (fData.start < visibleLen) {
+                var endP = Math.min(fData.end, visibleLen);
+                if (fData.start < endP) {
+                    try { subText.addFormat(fData.format, fData.start, Std.int(endP)); } catch(e:Dynamic) {}
                 }
             }
         }
@@ -277,7 +229,6 @@ class KssetteSubtitles extends Module {
         
         createSubText(cam);
         
-        lastText = "";
         lastRawText = "";
         isShowing = false;
         
@@ -298,13 +249,11 @@ class KssetteSubtitles extends Module {
         previewTimer = 0.5;
         previewState = 0;
         lastRawText = "";
-        lastText = "";
     }
 
     override public function onSongRetry(event:Dynamic) {
         super.onSongRetry(event);
         cleanUp();
-        lastText = "";
         lastRawText = "";
         localSubIndex = 0;
     }
@@ -329,7 +278,6 @@ class KssetteSubtitles extends Module {
 
         createSubText(state.camHUD);
         
-        lastText = "";
         lastRawText = "";
         isShowing = false;
         
@@ -359,6 +307,29 @@ class KssetteSubtitles extends Module {
             return;
         }
 
+        var dynamicTopY:Float = 100;
+        try {
+            if (apiModule != null) {
+                var infoPosRaw = apiModule.getKssValue("kssette_info_pos");
+                var infoPos = infoPosRaw != null ? Std.string(infoPosRaw) : "";
+                
+                var isDownscroll = false;
+                try { isDownscroll = funkin.Preferences.downscroll; } catch(e:Dynamic) {}
+                
+                try {
+                    if (Reflect.hasField(apiModule, "isMobileMode") && Reflect.hasField(apiModule, "isMobileLikePC")) {
+                        var isMob = Reflect.field(apiModule, "isMobileMode");
+                        var isMobPC = Reflect.callMethod(apiModule, Reflect.field(apiModule, "isMobileLikePC"), []);
+                        if (isMob && !isMobPC) isDownscroll = true;
+                    }
+                } catch(e:Dynamic) {}
+                
+                if ((infoPos == "Below Score" || infoPos == "") && isDownscroll) {
+                    dynamicTopY = 160;
+                }
+            }
+        } catch(e:Dynamic) {}
+
         var rawTargetText:String = "";
         var activeEntry:Dynamic = null;
         var isCutscene:Bool = false;
@@ -375,14 +346,12 @@ class KssetteSubtitles extends Module {
                 if (previewState == 0) {
                     previewTimer = 1.0; 
                     lastRawText = ""; 
-                    lastText = "";
                 } else if (previewState == 1) {
                     rawTargetText = triviaArray[FlxG.random.int(0, triviaArray.length - 1)];
                     previewTimer = 4.0;
                 } else if (previewState == 2) {
                     previewTimer = 1.0;
                     lastRawText = ""; 
-                    lastText = "";
                 } else if (previewState == 3) {
                     rawTargetText = "<font size=\"40\" color=\"#FF0000\" face=\"pixel.otf\">Testing Size, Color & Custom Fonts!</font>";
                     previewTimer = 4.0;
@@ -450,7 +419,6 @@ class KssetteSubtitles extends Module {
                     _cachedEntries = newData;
                     localSubIndex = 0;
                     lastRawText = "";
-                    lastText = "";
                 }
             }
             
@@ -502,9 +470,12 @@ class KssetteSubtitles extends Module {
                     var texts:Array<String> = [];
                     
                     try {
-                        while (tempIdx < len && getFieldSafe(_cachedEntries[tempIdx], "start") <= currentSubsTime) {
-                            var entry = _cachedEntries[tempIdx];
-                            if (currentSubsTime <= getFieldSafe(entry, "end")) {
+                        while (tempIdx < len) {
+                            var entry = getFieldSafe(_cachedEntries[tempIdx], "start") > currentSubsTime ? null : _cachedEntries[tempIdx];
+                            if (entry == null) break;
+                            
+                            var eEnd = getFieldSafe(entry, "end");
+                            if (currentSubsTime <= eEnd) {
                                 var eText = getFieldSafe(entry, "text");
                                 if (eText != null) texts.push(Std.string(eText));
                                 if (activeEntry == null) activeEntry = entry;
@@ -535,6 +506,13 @@ class KssetteSubtitles extends Module {
             return;
         }
         
+        var isAppend:Bool = false;
+        var prevPlainLen = cachedPlainText.length;
+        
+        if (lastRawText != "" && rawTargetText.indexOf(lastRawText) == 0 && rawTargetText.length > lastRawText.length) {
+            isAppend = true;
+        }
+        
         lastRawText = rawTargetText;
 
         var displayFont:String = cachedFont;
@@ -562,25 +540,22 @@ class KssetteSubtitles extends Module {
         var shouldShow = (htmlTextToProcess != "" && htmlTextToProcess != "null");
 
         if (shouldShow) {
-            var isAppend:Bool = false;
-            if (lastText != "" && htmlTextToProcess.indexOf(lastText) == 0 && htmlTextToProcess.length > lastText.length) {
-                isAppend = true;
-            }
+            try { subText.setFormat(displayFont, displaySize, displayColor, "center", FlxTextBorderStyle.OUTLINE, 0xFF000000); } catch(e:Dynamic) {}
+            subText.borderSize = 2;
             
-            var prevLen = getVisibleTextLength(lastText);
-            lastText = htmlTextToProcess;
-
-            formatSubText(subText, htmlTextToProcess, displayFont, displaySize, displayColor);
+            compileHTML(htmlTextToProcess, displayColor);
+            
+            updateTextDisplay(cachedPlainText.length);
             var realHeight = subText.height;
 
             var targetX:Float = 0; 
-            var targetY:Float = (posType == "Top") ? 150 : (FlxG.height - realHeight - 190);
+            var targetY:Float = (posType == "Top") ? dynamicTopY : (FlxG.height - realHeight - 190);
             
             var useKaraoke:Bool = smartKaraoke && !isCutscene;
 
             if (useKaraoke) {
-                var startIdx:Int = isAppend ? prevLen : 0;
-                var endIdx:Int = getVisibleTextLength(htmlTextToProcess);
+                var startIdx:Int = isAppend ? prevPlainLen : 0;
+                var endIdx:Int = cachedPlainText.length;
                 var durK:Float = 0.35;
                 var hasExactTiming:Bool = false;
 
@@ -613,7 +588,7 @@ class KssetteSubtitles extends Module {
                     }
                 }
 
-                formatSubText(subText, applyKaraokeToHTML(htmlTextToProcess, startIdx), displayFont, displaySize, displayColor);
+                updateTextDisplay(startIdx);
                 
                 if (karaokeTween != null) {
                     try { karaokeTween.cancel(); } catch(e:Dynamic) {}
@@ -621,17 +596,17 @@ class KssetteSubtitles extends Module {
                 }
                 
                 try {
-                    var lastKaraokeLen:Int = -1;
+                    lastKaraokeLen = -1;
                     karaokeTween = FlxTween.num(startIdx, endIdx, durK, {
                         ease: FlxEase.sineOut, 
                         onComplete: function(t:FlxTween) {
-                            try { if (subText != null && subText.exists) formatSubText(subText, htmlTextToProcess, displayFont, displaySize, displayColor); } catch(e:Dynamic) {}
+                            try { if (subText != null && subText.exists) updateTextDisplay(cachedPlainText.length); } catch(e:Dynamic) {}
                         }
                     }, function(v:Float) {
                         var currentLen = Math.round(v);
                         if (currentLen != lastKaraokeLen) {
                             lastKaraokeLen = currentLen;
-                            try { if (subText != null && subText.exists) formatSubText(subText, applyKaraokeToHTML(htmlTextToProcess, currentLen), displayFont, displaySize, displayColor); } catch(e:Dynamic) {}
+                            try { if (subText != null && subText.exists) updateTextDisplay(currentLen); } catch(e:Dynamic) {}
                         }
                     });
                 } catch(e:Dynamic) {}
@@ -640,6 +615,7 @@ class KssetteSubtitles extends Module {
                     try { karaokeTween.cancel(); } catch(e:Dynamic) {}
                     karaokeTween = null;
                 }
+                updateTextDisplay(cachedPlainText.length);
             }
             
             if (currentTween != null) {
@@ -749,7 +725,6 @@ class KssetteSubtitles extends Module {
                 }
             } catch(e:Dynamic) {}
         } else if (isShowing) {
-            lastText = "";
             lastRawText = ""; 
             if (currentTween != null) {
                 try { currentTween.cancel(); } catch(e:Dynamic) {}
@@ -786,7 +761,7 @@ class KssetteSubtitles extends Module {
                         } catch(e:Dynamic) {}
                     }});
                 } else {
-                    var baseTargetY:Float = (posType == "Top") ? 150 : (FlxG.height - subText.height - 190);
+                    var baseTargetY:Float = (posType == "Top") ? dynamicTopY : (FlxG.height - subText.height - 190);
                     var endY:Float = (posType == "Top") ? baseTargetY - 20 : baseTargetY + 20;
                     
                     currentTween = FlxTween.tween(subText, {y: endY, alpha: 0}, 0.25, {onComplete: function(t:FlxTween) {

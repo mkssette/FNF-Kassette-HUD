@@ -109,6 +109,12 @@ class KssetteMenuState extends ScriptedMusicBeatState {
     var touchHoldY:Float = 0;
     var isDragging:Bool = false;
 
+    // Cache de sonidos en RAM
+    var sndScroll:Dynamic;
+    var sndOn:Dynamic;
+    var sndOff:Dynamic;
+    var sndCancel:Dynamic;
+
     override public function create():Void {
         largeCapsulePath = "ui/capsules/DescCapsule";
         largeCapsuleWidth = 800.0;
@@ -132,13 +138,12 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         
         super.create();
 
-        // Audio Pre-Caching: Load sounds into RAM to prevent 15 FPS micro-stutters during high speed scrolling
         try {
-            Paths.sound('ui/khud_scroll');
-            Paths.sound('ui/khud_on');
-            Paths.sound('ui/khud_off');
-            Paths.sound('cancelMenu');
-            Paths.sound('confirmMenu');
+            sndScroll = Paths.sound('ui/khud_scroll');
+            sndOn = Paths.sound('ui/khud_on');
+            sndOff = Paths.sound('ui/khud_off');
+            sndCancel = Paths.sound('cancelMenu');
+            Paths.sound('confirmMenu'); 
         } catch(e:Dynamic) {}
         
         apiRef = ModuleHandler.getModule("KssetteApi");
@@ -271,7 +276,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         FlxG.camera.fade(FlxColor.BLACK, 0.4, false, function() {
             FlxG.cameras.reset(new FlxCamera());
             FlxG.switchState(new OptionsState());
-            FlxG.sound.playMusic(Paths.music('freakyMenu'), 1.0, true);
+            try { FlxG.sound.playMusic(Paths.music('freakyMenu'), 1.0, true); } catch(e:Dynamic) {}
         });
     }
 
@@ -325,14 +330,14 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 if (accMod.timeText != null) { FlxG.state.remove(accMod.timeText, true); FlxG.state.add(accMod.timeText); }
                 if (accMod.modeText != null) { FlxG.state.remove(accMod.modeText, true); FlxG.state.add(accMod.modeText); }
                 if (accMod.judgeLabels != null) {
-                    var labels = accMod.judgeLabels;
+                    var labels:Array<Dynamic> = accMod.judgeLabels;
                     for (i in 0...labels.length) {
                         var l = labels[i];
                         if (l != null) { FlxG.state.remove(l, true); FlxG.state.add(l); }
                     }
                 }
                 if (accMod.judgeValues != null) {
-                    var vals = accMod.judgeValues;
+                    var vals:Array<Dynamic> = accMod.judgeValues;
                     for (i in 0...vals.length) {
                         var v = vals[i];
                         if (v != null) { FlxG.state.remove(v, true); FlxG.state.add(v); }
@@ -353,7 +358,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         if (breakMod != null) {
             try {
                 if (breakMod.borders != null) {
-                    var brds = breakMod.borders;
+                    var brds:Array<Dynamic> = breakMod.borders;
                     for (i in 0...brds.length) {
                         var b = brds[i];
                         if (b != null) { FlxG.state.remove(b, true); FlxG.state.add(b); }
@@ -642,7 +647,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             kssBackButton = new FunkinBackButton(15, 15, 0xFFFFFFFF, function() {
                 if (isFontMenuOpen) {
                     closeFontSelector();
-                    try { FlxG.sound.play(Paths.sound('cancelMenu'), 0.7); } catch(e:Dynamic) {}
+                    if (sndCancel != null) try { FlxG.sound.play(sndCancel, 0.7); } catch(e:Dynamic) {}
                 } else {
                     exitMenu();
                 }
@@ -757,8 +762,8 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 
                 if (self.textDisplay != null) {
                     self.textDisplay.text = menuInst.formatShortValue(newVal);
-                    var tCol = menuInst.getValueColor(self.textDisplay.text);
-                    if (self.textDisplay.color != tCol) self.textDisplay.color = tCol;
+                    var tColor = menuInst.getValueColor(self.textDisplay.text);
+                    if (self.textDisplay.color != tColor) self.textDisplay.color = tColor;
                     
                     if (self.textDisplay.width > menuInst.valueMaxWidth) {
                         self.textDisplay.x = menuInst.smallCapsuleWidth - self.valOffX - menuInst.valueMaxWidth;
@@ -783,9 +788,9 @@ class KssetteMenuState extends ScriptedMusicBeatState {
 
                 var upperVal = Std.string(newVal).toUpperCase();
                 if (upperVal == "OFF" || upperVal == "DISABLED" || upperVal == "FALSE") {
-                    try { FlxG.sound.play(Paths.sound('ui/khud_off'), 0.6); } catch(e:Dynamic) {}
+                    if (menuInst.sndOff != null) try { FlxG.sound.play(menuInst.sndOff, 0.6); } catch(e:Dynamic) {}
                 } else {
-                    try { FlxG.sound.play(Paths.sound('ui/khud_on'), 0.6); } catch(e:Dynamic) {}
+                    if (menuInst.sndOn != null) try { FlxG.sound.play(menuInst.sndOn, 0.6); } catch(e:Dynamic) {}
                 }
 
                 Save.instance.flush();
@@ -848,7 +853,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 self.flashTimer = 1.0;
                 menuInst.descSlideVerticalTimer = 0.0;
                 menuInst.descValueSlideTimer = 0.0;
-                try { FlxG.sound.play(Paths.sound('ui/khud_on'), 0.6); } catch(e:Dynamic) {}
+                if (menuInst.sndOn != null) try { FlxG.sound.play(menuInst.sndOn, 0.6); } catch(e:Dynamic) {}
                 menuInst.openFontSelector(self.key, null); 
             }
         });
@@ -1099,14 +1104,14 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 descTextDisplay.text = selItem.desc;
                 if (descValueText != null) {
                     descValueText.text = formatLongValue(selFile);
-                    var valColor = getValueColor(descValueText.text);
-                    if (descValueText.color != valColor) descValueText.color = valColor;
+                    var targetColor = getValueColor(descValueText.text);
+                    if (descValueText.color != targetColor) descValueText.color = targetColor;
                     descValueSlideTimer = 0.0;
                 }
                 descSlideVerticalTimer = 0.0;
             }
 
-            try { FlxG.sound.play(Paths.sound('ui/khud_on'), 0.6); } catch(e:Dynamic) {}
+            if (sndOn != null) try { FlxG.sound.play(sndOn, 0.6); } catch(e:Dynamic) {}
             
             try { updatePreviews(); } catch(e:Dynamic) {}
         }
@@ -1134,7 +1139,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         }
 
         if (change != 0) {
-            try { FlxG.sound.play(Paths.sound('ui/khud_scroll'), 0.5); } catch(e:Dynamic) {}
+            if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
         }
 
         if (fontItems.length > 0) {
@@ -1158,6 +1163,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         if (isFin) char.dance();
     }
 
+    // OPTIMIZATION: Instead of FlxRect.get(), we just directly manipulate properties of a single FlxRect instance per text 
     function updateTextSlide(txt:FlxText, maxWidth:Float, timer:Float) {
         if (txt == null) return;
         if (txt.offset == null) txt.offset = new FlxPoint(0, 0);
@@ -1198,7 +1204,10 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 txt.clipRect = new FlxRect(currentOffset, 0, maxWidth, txt.height + 5);
             } else {
                 var rect = txt.clipRect;
-                rect.set(currentOffset, 0, maxWidth, txt.height + 5);
+                rect.x = currentOffset;
+                rect.y = 0;
+                rect.width = maxWidth;
+                rect.height = txt.height + 5;
                 txt.clipRect = rect; 
             }
         }
@@ -1244,7 +1253,10 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 txt.clipRect = new FlxRect(0, currentOffset, txt.width + 5, maxHeight);
             } else {
                 var rect = txt.clipRect;
-                rect.set(0, currentOffset, txt.width + 5, maxHeight);
+                rect.x = 0;
+                rect.y = currentOffset;
+                rect.width = txt.width + 5;
+                rect.height = maxHeight;
                 txt.clipRect = rect;
             }
         }
@@ -1280,7 +1292,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         if (esc) {
             if (isFontMenuOpen) {
                 closeFontSelector();
-                try { FlxG.sound.play(Paths.sound('cancelMenu'), 0.7); } catch(e:Dynamic) {}
+                if (sndCancel != null) try { FlxG.sound.play(sndCancel, 0.7); } catch(e:Dynamic) {}
             } else {
                 exitMenu();
             }
@@ -1306,7 +1318,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
 
         var targetMarqueeY:Float = panelHidden ? -50 : 0;
         if (marqueeBg != null) {
-            marqueeBg.y = FlxMath.lerp(marqueeBg.y, targetMarqueeY, elapsed * 12);
+            if (marqueeBg.y != targetMarqueeY) marqueeBg.y = FlxMath.lerp(marqueeBg.y, targetMarqueeY, elapsed * 12);
         }
 
         if (marqueeText1 != null && marqueeText2 != null) {
@@ -1376,32 +1388,33 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         }
 
         if (capsuleFadeBg != null) {
-            capsuleFadeBg.x = FlxMath.lerp(capsuleFadeBg.x, targetFadeX, elapsed * 12);
-            capsuleFadeBg.flipX = panelOnLeft;
+            if (capsuleFadeBg.x != targetFadeX) capsuleFadeBg.x = FlxMath.lerp(capsuleFadeBg.x, targetFadeX, elapsed * 12);
+            if (capsuleFadeBg.flipX != panelOnLeft) capsuleFadeBg.flipX = panelOnLeft;
         }
 
+        // OPTIMIZATION: CULLING (Skip drawing and heavy math for items off-screen)
         var screenTop = -150.0;
         var screenBottom = FlxG.height + 150.0;
-        
+
         for (i in 0...optionItems.length) {
             var item = optionItems[i];
             var diff = i - curSelectedFloat;
             
-            var curveOffset = Math.abs(diff) * 45;
-            var targetX = panelOnLeft ? (targetXBase - curveOffset) : (targetXBase + curveOffset);
-            
-            if (!item.isHeader && i == selectedIndex) {
-                targetX += panelOnLeft ? 40 : -40;
-            }
-            
             var targetY = (FlxG.height / 2) + (diff * capsuleSpacing) - 50; 
-            var isVisible = (targetY > screenTop && targetY < screenBottom);
             
-            if (item.bg != null) item.bg.visible = isVisible;
-            if (item.labelDisplay != null) item.labelDisplay.visible = isVisible;
-            if (item.textDisplay != null) item.textDisplay.visible = isVisible;
+            var isVisible = (targetY > screenTop && targetY < screenBottom);
+            if (item.bg.visible != isVisible) {
+                item.bg.visible = isVisible;
+                if (item.labelDisplay != null) item.labelDisplay.visible = isVisible;
+                if (item.textDisplay != null) item.textDisplay.visible = isVisible;
+            }
 
             if (!isVisible) {
+                // Just force the position to match math (to avoid flying around if you scroll too fast)
+                var curveOffset = Math.abs(diff) * 45;
+                var targetX = panelOnLeft ? (targetXBase - curveOffset) : (targetXBase + curveOffset);
+                if (!item.isHeader && i == selectedIndex) targetX += panelOnLeft ? 40 : -40;
+
                 if (item.bg != null) {
                     item.bg.x = targetX;
                     item.bg.y = targetY;
@@ -1417,7 +1430,14 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                     item.textDisplay.y = targetY + valueOffsetY;
                 }
                 item.slideTimer = 0.0;
-                continue;
+                continue; // SKIP ALL MATH LERPS & SLIDING
+            }
+
+            var curveOffset = Math.abs(diff) * 45;
+            var targetX = panelOnLeft ? (targetXBase - curveOffset) : (targetXBase + curveOffset);
+            
+            if (!item.isHeader && i == selectedIndex) {
+                targetX += panelOnLeft ? 40 : -40;
             }
             
             if (item.bg != null) {
@@ -1430,22 +1450,18 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                         item.labelDisplay.y = item.bg.y + (item.bg.height - item.labelDisplay.height) / 2;
                     }
                 } else {
-                    if (i == selectedIndex) {
-                        item.slideTimer += elapsed;
-                        if (item.bg.alpha != 1.0) item.bg.alpha = 1.0;
-                        if (item.textDisplay != null && item.textDisplay.alpha != 1.0) item.textDisplay.alpha = 1.0; 
-                        if (item.labelDisplay != null) {
-                            if (item.labelDisplay.color != FlxColor.YELLOW) item.labelDisplay.color = FlxColor.YELLOW;
-                            if (item.labelDisplay.alpha != 1.0) item.labelDisplay.alpha = 1.0;
-                        }
-                    } else {
-                        item.slideTimer = 0.0;
-                        if (item.bg.alpha != 1.0) item.bg.alpha = 1.0;
-                        if (item.textDisplay != null && item.textDisplay.alpha != 0.6) item.textDisplay.alpha = 0.6; 
-                        if (item.labelDisplay != null) {
-                            if (item.labelDisplay.color != FlxColor.WHITE) item.labelDisplay.color = FlxColor.WHITE;
-                            if (item.labelDisplay.alpha != 0.6) item.labelDisplay.alpha = 0.6;
-                        }
+                    var isSel = (i == selectedIndex);
+                    var targetAlpha = isSel ? 1.0 : 0.6;
+                    var targetColor = isSel ? FlxColor.YELLOW : FlxColor.WHITE;
+
+                    if (isSel) item.slideTimer += elapsed; else item.slideTimer = 0.0;
+
+                    // OPTIMIZATION: Prevent redundant property setting
+                    if (item.bg.alpha != 1.0) item.bg.alpha = 1.0;
+                    if (item.textDisplay != null && item.textDisplay.alpha != targetAlpha) item.textDisplay.alpha = targetAlpha; 
+                    if (item.labelDisplay != null) {
+                        if (item.labelDisplay.color != targetColor) item.labelDisplay.color = targetColor;
+                        if (item.labelDisplay.alpha != targetAlpha) item.labelDisplay.alpha = targetAlpha;
                     }
                     
                     if (item.flashTimer != null && item.flashTimer > 0) {
@@ -1453,14 +1469,14 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                         if (item.flashTimer < 0) item.flashTimer = 0;
                         
                         var flashOn = (Math.floor(item.flashTimer * 10) % 2 == 0);
-                        var tBgCol = flashOn ? FlxColor.WHITE : FlxColor.YELLOW;
-                        var tLblCol = flashOn ? FlxColor.YELLOW : FlxColor.WHITE;
-                        
-                        if (item.bg.color != tBgCol) item.bg.color = tBgCol;
-                        if (item.labelDisplay != null && item.labelDisplay.color != tLblCol) item.labelDisplay.color = tLblCol;
+                        var targetBgColor = flashOn ? FlxColor.WHITE : FlxColor.YELLOW;
+                        var targetLblColor = flashOn ? FlxColor.YELLOW : FlxColor.WHITE;
+
+                        if (item.bg.color != targetBgColor) item.bg.color = targetBgColor;
+                        if (item.labelDisplay != null && item.labelDisplay.color != targetLblColor) item.labelDisplay.color = targetLblColor;
                     } else {
-                        var tBgCol = (i == selectedIndex) ? FlxColor.WHITE : 0xFF555555;
-                        if (item.bg.color != tBgCol) item.bg.color = tBgCol;
+                        var targetBgColor = isSel ? FlxColor.WHITE : 0xFF555555;
+                        if (item.bg.color != targetBgColor) item.bg.color = targetBgColor;
                     }
 
                     if (item.labelDisplay != null) {
@@ -1492,12 +1508,15 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 fontItemsGroup.x = FlxMath.lerp(fontItemsGroup.x, targetFontX, elapsed * 12);
                 fontItemsGroup.y = FlxMath.lerp(fontItemsGroup.y, 55 - fontTargetScrollY, elapsed * 15);
                 
+                // Font Menu Culling
                 var grpY = fontItemsGroup.y;
                 for (item in fontItems) {
                     var absY = grpY + item.y;
                     var isVis = (absY > -100 && absY < FlxG.height + 100);
-                    if (item.bg != null) item.bg.visible = isVis;
-                    if (item.text != null) item.text.visible = isVis;
+                    if (item.bg != null && item.bg.visible != isVis) {
+                        item.bg.visible = isVis;
+                        if (item.text != null) item.text.visible = isVis;
+                    }
                 }
             }
 
@@ -1522,7 +1541,6 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 }
                 descValueText.x = vX;
                 descValueText.y = descBg.y + descValueOffsetY;
-                descValueText.color = getValueColor(descValueText.text);
             }
         }
 
@@ -1568,6 +1586,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 descTextDisplay.text = selItem.desc;
                 if (descValueText != null) {
                     descValueText.text = formatLongValue(curVal);
+                    // OPTIMIZATION: Assing color ONLY when selection changes
                     var targetColor = getValueColor(descValueText.text);
                     if (descValueText.color != targetColor) descValueText.color = targetColor;
                 }
@@ -1577,7 +1596,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         }
 
         if (change != 0) {
-            try { FlxG.sound.play(Paths.sound('ui/khud_scroll'), 0.5); } catch(e:Dynamic) {}
+            if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
         }
     }
 
@@ -1635,7 +1654,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             if (!isDragging && !hasSwiped && holdTimer <= 0) {
                 if (isOverPreviewZone) {
                     closeFontSelector();
-                    try { FlxG.sound.play(Paths.sound('cancelMenu'), 0.7); } catch(e:Dynamic) {}
+                    if (sndCancel != null) try { FlxG.sound.play(sndCancel, 0.7); } catch(e:Dynamic) {}
                 } else {
                     fireFontClickAt();
                 }
@@ -1692,7 +1711,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         
         if (!clickedItem) {
             closeFontSelector();
-            try { FlxG.sound.play(Paths.sound('cancelMenu'), 0.7); } catch(e:Dynamic) {}
+            if (sndCancel != null) try { FlxG.sound.play(sndCancel, 0.7); } catch(e:Dynamic) {}
         }
     }
 
@@ -1760,7 +1779,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                     
                 } else if (isOverPreviewZone) {
                     panelHidden = !panelHidden;
-                    try { FlxG.sound.play(Paths.sound('ui/khud_scroll'), 0.5); } catch(e:Dynamic) {}
+                    if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
                 } else if (!panelHidden) {
                     fireClickAt();
                 }
