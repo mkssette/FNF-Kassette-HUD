@@ -103,10 +103,6 @@ class KssetteMenuState extends ScriptedMusicBeatState {
     var touchStartX:Float = 0;
     var isDragging:Bool = false;
     
-    var preloadedAllFonts:Array<Dynamic> = [];
-    var preloadedFamiliesData:Array<Dynamic> = [];
-    var fontsPreloaded:Bool = false;
-    
     var previewHoldTimer:Float = 0.0;
     var previewActionFired:Bool = false;
 
@@ -127,8 +123,6 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         } catch(e:Dynamic) {}
         
         apiRef = ModuleHandler.getModule("KssetteApi");
-        
-        preloadFonts();
         
         stageCam = new FunkinCamera('stageCam', 0, 0, FlxG.width, FlxG.height);
         stageCam.bgColor = FlxColor.BLACK;
@@ -230,97 +224,6 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         
         initPreviews();
         updatePreviews();
-    }
-    
-    function preloadFonts() {
-        if (fontsPreloaded) return;
-        var fontMap:Dynamic = null;
-        try { fontMap = apiRef.getAvailableFonts(); } catch(e:Dynamic) {}
-        
-        if (fontMap != null) {
-            var keys:Array<String> = [];
-            var kIter = fontMap.keys();
-            for (k in kIter) keys.push(Std.string(k));
-            
-            var allFonts:Array<Dynamic> = [];
-            for (k in keys) {
-                var fFile = fontMap.get(k);
-                var fPath = "VCR OSD Mono";
-                try { fPath = apiRef.resolveCustomFont(fFile); } catch(e:Dynamic) {}
-
-                var rawName = k;
-                var exts = [".ttf", ".otf"];
-                var lowerK = k.toLowerCase();
-                for (ext in exts) {
-                    if (StringTools.endsWith(lowerK, ext)) {
-                        rawName = k.substr(0, k.length - 4);
-                        break;
-                    }
-                }
-
-                var familyRaw = rawName;
-                var variantName = "Regular";
-                var variantParts = ["-bold", "-italic", "-regular", "-light", "-medium", "-semibold", "-black", "_bold", "_italic", "_regular", " bold", " italic", " regular"];
-                
-                for (v in variantParts) {
-                    var vIdx = rawName.toLowerCase().lastIndexOf(v);
-                    if (vIdx != -1 && vIdx > 0) {
-                        familyRaw = rawName.substr(0, vIdx);
-                        var vRaw = rawName.substr(vIdx + 1);
-                        var cleanV = "";
-                        for (i in 0...vRaw.length) {
-                            var char = vRaw.charAt(i);
-                            if (char != "-" && char != "_" && char != " ") cleanV += char;
-                        }
-                        if (cleanV.length > 0) {
-                            variantName = cleanV.substr(0,1).toUpperCase() + cleanV.substr(1);
-                        } else {
-                            variantName = vRaw;
-                        }
-                        break;
-                    }
-                }
-
-                if (familyRaw.toLowerCase() == "vcr" || k == "VCR (Default)") { familyRaw = "VCR OSD Mono"; variantName = "Default"; }
-                if (familyRaw.toLowerCase() == "pixel" || k == "Senpai Pixel (Default)") { familyRaw = "Senpai Pixel"; variantName = "Default"; }
-
-                allFonts.push({
-                    key: k,
-                    file: fFile,
-                    path: fPath,
-                    family: familyRaw,
-                    variant: variantName
-                });
-            }
-
-            var familiesData:Array<Dynamic> = [];
-            for (f in allFonts) {
-                var fam = f.family;
-                var found = false;
-                for (fd in familiesData) {
-                    if (fd.name == fam) {
-                        fd.variants.push(f);
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    familiesData.push({name: fam, variants: [f]});
-                }
-            }
-
-            familiesData.sort(function(a:Dynamic, b:Dynamic):Int {
-                var nameA:String = a.name.toLowerCase();
-                var nameB:String = b.name.toLowerCase();
-                if (nameA < nameB) return -1;
-                if (nameA > nameB) return 1;
-                return 0;
-            });
-            
-            preloadedAllFonts = allFonts;
-            preloadedFamiliesData = familiesData;
-        }
-        fontsPreloaded = true;
     }
 
     function exitMenu() {
@@ -943,7 +846,10 @@ class KssetteMenuState extends ScriptedMusicBeatState {
 
         var fY:Float = 0;
 
-        for (famData in preloadedFamiliesData) {
+        var famDataList:Array<Dynamic> = [];
+        try { famDataList = apiRef.preloadedFamiliesData; } catch(e:Dynamic) {}
+
+        for (famData in famDataList) {
             var fam = famData.name;
             var variants:Array<Dynamic> = famData.variants;
             
