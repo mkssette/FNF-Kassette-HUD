@@ -141,25 +141,25 @@ class KssetteAccuracy extends Module {
         uiText = new FlxText(0, 0, 0, "", 18);
         uiText.setFormat(cachedFont, 18, FlxColor.WHITE, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
         uiText.updateHitbox();
-        uiText.zIndex = 1000;
+        uiText.zIndex = 1020;
         uiText.cameras = [cam];
         FlxG.state.add(uiText);
 
         timeText = new FlxText(0, 0, FlxG.width / 2 - 10, "", 28);
         timeText.setFormat(cachedFont, 28, FlxColor.WHITE, "right", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
-        timeText.zIndex = 1000;
+        timeText.zIndex = 1020;
         timeText.cameras = [cam];
         FlxG.state.add(timeText);
 
         infoText = new FlxText(0, 0, FlxG.width / 2 - 10, "", 16);
         infoText.setFormat(cachedFont, 16, FlxColor.WHITE, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
-        infoText.zIndex = 1000;
+        infoText.zIndex = 1020;
         infoText.cameras = [cam];
         FlxG.state.add(infoText);
 
         modeText = new FlxText(FlxG.width, 200, 0, "", 24);
         modeText.setFormat(cachedFont, 24, FlxColor.WHITE, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
-        modeText.zIndex = 1000;
+        modeText.zIndex = 1020;
         modeText.cameras = [cam];
         FlxG.state.add(modeText);
 
@@ -169,13 +169,13 @@ class KssetteAccuracy extends Module {
         for (i in 0...judgeNames.length) {
             var label = new FlxText(0, 0, 200, getJudgeName(judgeNames[i]), 20);
             label.setFormat(cachedFont, 20, FlxColor.WHITE, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
-            label.zIndex = 1000;
+            label.zIndex = 1020;
             label.cameras = [cam];
             FlxG.state.add(label); judgeLabels.push(label);
 
             var val = new FlxText(0, 0, 200, "0", 20);
             val.setFormat(cachedFont, 20, FlxColor.WHITE, "right", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
-            val.zIndex = 1000;
+            val.zIndex = 1020;
             val.cameras = [cam];
             FlxG.state.add(val); judgeValues.push(val);
         }
@@ -218,6 +218,27 @@ class KssetteAccuracy extends Module {
             isPreview = false;
             
             if (state.scoreText != null) state.scoreText.visible = false;
+
+            if (state.healthBarBG != null) {
+                state.healthBarBG.zIndex = 1015;
+                FlxG.state.remove(state.healthBarBG, true);
+                FlxG.state.add(state.healthBarBG);
+            }
+            if (state.healthBar != null) {
+                state.healthBar.zIndex = 1016;
+                FlxG.state.remove(state.healthBar, true);
+                FlxG.state.add(state.healthBar);
+            }
+            if (state.iconP1 != null) {
+                state.iconP1.zIndex = 1017;
+                FlxG.state.remove(state.iconP1, true);
+                FlxG.state.add(state.iconP1);
+            }
+            if (state.iconP2 != null) {
+                state.iconP2.zIndex = 1017;
+                FlxG.state.remove(state.iconP2, true);
+                FlxG.state.add(state.iconP2);
+            }
 
             setupUI(state.camHUD);
             updateSettings();

@@ -44,14 +44,14 @@ class KssetteTimeBar extends Module {
         timeBarBG = new FlxSprite(0, 0).makeGraphic(FlxG.width, Std.int(barSize + 4), 0xFF000000);
         timeBarBG.origin.set(0, 0); 
         timeBarBG.scrollFactor.set(0, 0); 
-        timeBarBG.zIndex = 998;
+        timeBarBG.zIndex = 1018;
         timeBarBG.cameras = [cam];
         FlxG.state.add(timeBarBG);
         
         timeBar = new FlxSprite(0, 2).makeGraphic(FlxG.width, Std.int(barSize), 0xFFFFFFFF);
         timeBar.origin.set(0, 0); 
         timeBar.scrollFactor.set(0, 0); 
-        timeBar.zIndex = 999;
+        timeBar.zIndex = 1019;
         timeBar.cameras = [cam];
         FlxG.state.add(timeBar);
     }
