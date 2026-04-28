@@ -183,21 +183,24 @@ class KssetteHUDPreview extends Module {
         if (apiModule == null) apiModule = ModuleHandler.getModule("KssetteApi");
         if (apiModule == null) return;
 
-        var forceDownscrollLook = false;
+        var isMob = false;
+        var isMobPC = false;
         try {
-            if (Reflect.hasField(apiModule, "isMobileMode") && Reflect.hasField(apiModule, "isMobileLikePC")) {
-                var isMob = Reflect.field(apiModule, "isMobileMode");
-                var isMobPC = Reflect.callMethod(apiModule, Reflect.field(apiModule, "isMobileLikePC"), []);
-                forceDownscrollLook = (isMob && !isMobPC);
+            if (apiModule != null) {
+                isMob = apiModule.isMobileMode == true;
+                isMobPC = apiModule.isMobileLikePC() == true;
             }
         } catch(e:Dynamic) {}
 
+        var forceDownscrollLook = (isMob && !isMobPC);
         var downscroll = Preferences.downscroll || forceDownscrollLook;
+        
         var rawMs:Dynamic = apiModule.getKssValue("kssette_middlescroll");
         var ms:String = "";
         if (rawMs == true) ms = "On";
         else if (rawMs == false) ms = "Off";
         else ms = Std.string(rawMs);
+        
         var oppPos = Std.string(apiModule.getKssValue("kssette_opponent_pos"));
         var coloredHB = apiModule.getKssValue("kssette_colored_healthbar") == true;
 
@@ -252,68 +255,104 @@ class KssetteHUDPreview extends Module {
         var sxOff = 50.0;
         try { sxOff = Constants.STRUMLINE_X_OFFSET; } catch(e:Dynamic) {}
 
-        if (msOn) {
-            playerStrumPreview.x = (FlxG.width - playerStrumPreview.width) / 2.0;
-        } else {
-            playerStrumPreview.x = (halfW + sxOff) + (cutoutSize / 2.0);
+        var isArrowsScheme = false;
+        if (isMob && !isMobPC) {
+            try {
+                if (Std.string(Preferences.controlsScheme) == "Arrows") isArrowsScheme = true;
+            } catch(e:Dynamic) {}
         }
 
-        if (showOpp && opponentStrumPreview != null && opponentStrumPreview.exists) {
-            if (!msOn) {
-                opponentStrumPreview.x = sxOff + cutoutSize;
+        if (isArrowsScheme) {
+            playerStrumPreview.x = 0;
+            var pNotes:Array<Dynamic> = null;
+            try { pNotes = playerStrumPreview.strumlineNotes.members; } catch(e:Dynamic) {}
+            
+            if (pNotes != null) {
+                var hintW = 146.0;
+                var space = 80.0;
+                var stX = Math.floor((FlxG.width - ((hintW + space) * 4.0)) / 2.0);
+                
+                for (i in 0...pNotes.length) {
+                    var n = pNotes[i];
+                    if (n != null && n.exists) {
+                        var hCx = stX + (i * hintW) + (space * i) + (hintW / 2.0);
+                        n.x = hCx - (n.width / 2.0);
+                    }
+                }
+            }
+            
+            if (opponentStrumPreview != null && opponentStrumPreview.exists) {
+                opponentStrumPreview.visible = false;
+                try {
+                    for (n in opponentStrumPreview.strumlineNotes.members) {
+                        if (n != null) n.visible = false;
+                    }
+                } catch(e:Dynamic) {}
+            }
+        } else {
+            if (msOn) {
+                playerStrumPreview.x = (FlxG.width - playerStrumPreview.width) / 2.0;
             } else {
-                opponentStrumPreview.x = 0; 
-                
-                var oppReceptors:Array<Dynamic> = null;
-                try { oppReceptors = opponentStrumPreview.strumlineNotes.members; } catch(e:Dynamic) {}
-                
-                if (oppReceptors != null && oppReceptors.length >= 4) {
-                    var defScale:Float = 0.7;
-                    try { defScale = noteStyle.getStrumlineScale(); } catch(e:Dynamic) {}
+                playerStrumPreview.x = (halfW + sxOff) + (cutoutSize / 2.0);
+            }
 
-                    var noteSpace = 112.0;
-                    var nw = (oppReceptors[0] != null && oppReceptors[0].exists) ? oppReceptors[0].width : noteSpace;
+            if (showOpp && opponentStrumPreview != null && opponentStrumPreview.exists) {
+                if (!msOn) {
+                    opponentStrumPreview.x = sxOff + cutoutSize;
+                } else {
+                    opponentStrumPreview.x = 0; 
                     
-                    if (pStyle) {
-                        for (rec in oppReceptors) {
-                            if (rec != null && rec.exists) {
-                                rec.scale.set(defScale, defScale);
-                                rec.updateHitbox();
-                                rec.alpha = 0.6;
+                    var oppReceptors:Array<Dynamic> = null;
+                    try { oppReceptors = opponentStrumPreview.strumlineNotes.members; } catch(e:Dynamic) {}
+                    
+                    if (oppReceptors != null && oppReceptors.length >= 4) {
+                        var defScale:Float = 0.7;
+                        try { defScale = noteStyle.getStrumlineScale(); } catch(e:Dynamic) {}
+
+                        var noteSpace = 112.0;
+                        var nw = (oppReceptors[0] != null && oppReceptors[0].exists) ? oppReceptors[0].width : noteSpace;
+                        
+                        if (pStyle) {
+                            for (rec in oppReceptors) {
+                                if (rec != null && rec.exists) {
+                                    rec.scale.set(defScale, defScale);
+                                    rec.updateHitbox();
+                                    rec.alpha = 0.6;
+                                }
                             }
-                        }
-                        
-                        if (oppReceptors[0] != null && oppReceptors[0].exists) oppReceptors[0].x = sxOff;
-                        if (oppReceptors[1] != null && oppReceptors[1].exists) oppReceptors[1].x = sxOff + noteSpace;
-                        if (oppReceptors[3] != null && oppReceptors[3].exists) oppReceptors[3].x = FlxG.width - sxOff - nw;
-                        if (oppReceptors[2] != null && oppReceptors[2].exists) oppReceptors[2].x = FlxG.width - sxOff - nw - noteSpace;
-                        
-                    } else if (ms == "On") {
-                        var sizeRatio = 0.65;
-                        var targetSpacing = noteSpace * sizeRatio;
-                        var actualNw = 0.0;
+                            
+                            if (oppReceptors[0] != null && oppReceptors[0].exists) oppReceptors[0].x = sxOff;
+                            if (oppReceptors[1] != null && oppReceptors[1].exists) oppReceptors[1].x = sxOff + noteSpace;
+                            if (oppReceptors[3] != null && oppReceptors[3].exists) oppReceptors[3].x = FlxG.width - sxOff - nw;
+                            if (oppReceptors[2] != null && oppReceptors[2].exists) oppReceptors[2].x = FlxG.width - sxOff - nw - noteSpace;
+                            
+                        } else if (ms == "On") {
+                            var sizeRatio = 0.65;
+                            var targetSpacing = noteSpace * sizeRatio;
+                            var actualNw = 0.0;
 
-                        for (i in 0...4) {
-                            var rec = oppReceptors[i];
-                            if (rec != null && rec.exists) {
-                                rec.scale.set(defScale * sizeRatio, defScale * sizeRatio);
-                                rec.updateHitbox();
-                                rec.alpha = 1.0;
-                                if (i == 0) actualNw = rec.width;
+                            for (i in 0...4) {
+                                var rec = oppReceptors[i];
+                                if (rec != null && rec.exists) {
+                                    rec.scale.set(defScale * sizeRatio, defScale * sizeRatio);
+                                    rec.updateHitbox();
+                                    rec.alpha = 1.0;
+                                    if (i == 0) actualNw = rec.width;
+                                }
                             }
-                        }
 
-                        var exactTotalWidth = (targetSpacing * 3) + actualNw;
-                        var compactStartX:Float = sxOff;
-                        
-                        if (oppPos == "Right") {
-                            compactStartX = FlxG.width - sxOff - exactTotalWidth;
-                        }
+                            var exactTotalWidth = (targetSpacing * 3) + actualNw;
+                            var compactStartX:Float = sxOff;
+                            
+                            if (oppPos == "Right") {
+                                compactStartX = FlxG.width - sxOff - exactTotalWidth;
+                            }
 
-                        for (i in 0...4) {
-                            var rec = oppReceptors[i];
-                            if (rec != null && rec.exists) {
-                                rec.x = compactStartX + (targetSpacing * i);
+                            for (i in 0...4) {
+                                var rec = oppReceptors[i];
+                                if (rec != null && rec.exists) {
+                                    rec.x = compactStartX + (targetSpacing * i);
+                                }
                             }
                         }
                     }
