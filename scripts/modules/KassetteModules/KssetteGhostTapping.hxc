@@ -3,18 +3,22 @@ package kassettehud.util;
 import funkin.modding.module.Module;
 import funkin.modding.module.ModuleHandler;
 import funkin.play.PlayState;
+import flixel.FlxG;
 import Std;
+import Reflect;
 
 class KssGhostTapping extends Module {
     var _cGhostTapping:Bool = false;
     var _cGhostSing:Bool = false;
+    var isPaused:Bool = false;
 
     public function new() {
         super('KssGhostTapping', 1); 
     }
 
-    override public function onCountdownStart(event) {
+    override public function onCountdownStart(event:Dynamic) {
         super.onCountdownStart(event);
+        isPaused = false;
         
         var api = ModuleHandler.getModule("KssetteApi");
         if (api != null) {
@@ -28,30 +32,75 @@ class KssGhostTapping extends Module {
         }
     }
 
-    override function onNoteGhostMiss(event) {
+    override function onPause(event:Dynamic) {
+        super.onPause(event);
+        isPaused = true;
+    }
+
+    override function onStateChangeEnd(event:Dynamic) {
+        super.onStateChangeEnd(event);
+        isPaused = false;
+    }
+
+    override function onResume(event:Dynamic) {
+        super.onResume(event);
+        isPaused = false;
+    }
+
+    override function onGhostMissNote(event:Dynamic) {
         if (!_cGhostTapping) return;
-
         event.cancel();
+    }
 
-        if (_cGhostSing) {
-            var state = PlayState.instance;
-            if (state != null && !state.isPlayerDying && state.currentStage != null) {
-                var player = state.currentStage.getBoyfriend();
-                if (player != null) {
-                    var targetDir:Int = -1;
-                    
-                    try { targetDir = event.dir; } catch(e:Dynamic) {}
-                    if (targetDir == -1) try { targetDir = event.direction; } catch(e:Dynamic) {}
-                    if (targetDir == -1) try { targetDir = event.noteData; } catch(e:Dynamic) {}
+    override function onNoteGhostMiss(event:Dynamic) {
+        if (!_cGhostTapping) return;
+        event.cancel();
+    }
 
-                    if (targetDir != -1 && targetDir <= 3) {
-                        try {
-                            player.playSingAnimation(targetDir, false);
-                            player.holdTimer = 0;
-                        } catch(e:Dynamic) {}
-                    }
-                }
-            }
+    override public function onUpdate(event:Dynamic) {
+        super.onUpdate(event);
+
+        if (!_cGhostSing) return;
+
+        var state = PlayState.instance;
+        if (state == null || state.isPlayerDying || isPaused) return;
+
+        var controlsObj:Dynamic = null;
+        try { controlsObj = Reflect.getProperty(FlxG.state, "controls"); } catch(e:Dynamic) {}
+        
+        if (controlsObj == null) {
+            controlsObj = state.controls;
+        }
+        if (controlsObj == null) return;
+        
+        var player = state.currentStage != null ? state.currentStage.getBoyfriend() : null;
+        if (player == null) return;
+
+        var hitLeft = false;
+        var hitDown = false;
+        var hitUp = false;
+        var hitRight = false;
+
+        try { hitLeft = controlsObj.NOTE_LEFT_P; } catch(e:Dynamic) {}
+        try { hitDown = controlsObj.NOTE_DOWN_P; } catch(e:Dynamic) {}
+        try { hitUp = controlsObj.NOTE_UP_P; } catch(e:Dynamic) {}
+        try { hitRight = controlsObj.NOTE_RIGHT_P; } catch(e:Dynamic) {}
+
+        if (hitLeft) {
+            player.playAnimation("singLEFT", true, false, false);
+            player.holdTimer = 0;
+        }
+        if (hitDown) {
+            player.playAnimation("singDOWN", true, false, false);
+            player.holdTimer = 0;
+        }
+        if (hitUp) {
+            player.playAnimation("singUP", true, false, false);
+            player.holdTimer = 0;
+        }
+        if (hitRight) {
+            player.playAnimation("singRIGHT", true, false, false);
+            player.holdTimer = 0;
         }
     }
 }

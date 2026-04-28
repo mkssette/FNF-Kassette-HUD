@@ -415,8 +415,8 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         var apiVer = "0.2.a1";
         try { if (apiRef != null) apiVer = Std.string(apiRef.hudVersion); } catch(e:Dynamic) {}
 
-        var mobileStr = "    OPTIONS MENU    SWIPE UP/DOWN TO SCROLL    SWIPE L/R TO MOVE UI    TAP THE STAGE TO PREVIEW    ";
-        var pcStr = "    OPTIONS MENU    TAB TO HIDE OPTIONS    SHIFT TO MOVE OPTTIONS    ESC TO EXIT    ";
+        var mobileStr = "   OPTIONS MENU   SWIPE UP/DOWN TO SCROLL   SWIPE L/R TO MOVE UI   TAP THE STAGE TO PREVIEW   ";
+        var pcStr = "   OPTIONS MENU   TAB TO HIDE OPTIONS   SHIFT TO MOVE OPTTIONS   ESC TO EXIT   ";
         marqueeString = " KASSETTE HUD V" + apiVer + (FlxG.onMobile ? mobileStr : pcStr);
         marqueeString = marqueeString + marqueeString + marqueeString + marqueeString + marqueeString + marqueeString + marqueeString + marqueeString;
 
@@ -471,8 +471,9 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         if (showPCOptions) {
             createToggle("MIDDLE SCROLL", "kssette_middlescroll", ["Off", "On", "P Style", "Hidden Notes"], "Moves your notes to the center of the screen for better focus.");
             createToggle("GHOST TAPPING", "kssette_ghost_tapping", ["On", "Off"], "Press keys anytime without penalty. You won't miss if there's no note.");
-            createToggle("GHOST SINGING", "kssette_ghost_sing", ["On", "Off"], "Your character will play singing animations when you press empty keys.");
+            
         }
+        createToggle("GHOST SINGING", "kssette_ghost_sing", ["On", "Off"], "Your character will play singing animations when you press empty keys.");
         createToggle("RESUME COUNTDOWN", "kssette_resume_countdown", ["On", "Off"], "Adds a 'Ready, Set, Go!' countdown when you unpause the game.");
         
         addHeader("HUD Visuals");
@@ -702,7 +703,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 
                 if (self.textDisplay != null) {
                     self.textDisplay.text = menuInst.formatShortValue(newVal);
-                    // OPTIMIZATION: Only change color when value updates
+                    
                     var tColor = menuInst.getValueColor(self.textDisplay.text);
                     if (self.textDisplay.color != tColor) self.textDisplay.color = tColor;
                     
@@ -723,7 +724,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 }
                 if (menuInst.descValueText != null) {
                     menuInst.descValueText.text = menuInst.formatLongValue(newVal);
-                    // OPTIMIZATION: Only change color when value updates
+                    
                     var vColor = menuInst.getValueColor(menuInst.descValueText.text);
                     if (menuInst.descValueText.color != vColor) menuInst.descValueText.color = vColor;
                 }
@@ -739,7 +740,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 try { menuInst.updatePreviews(); } catch(e:Dynamic) {}
 
                 if (self.key == "kssette_mobile_keyboard") {
-                    FlxG.switchState(funkin.modding.base.ScriptedMusicBeatState.init("KssetteMenuState"));
+                    FlxG.switchState(ScriptedMusicBeatState.init("KssetteMenuState"));
                 }
             }
         });
@@ -1046,7 +1047,6 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 descTextDisplay.text = selItem.desc;
                 if (descValueText != null) {
                     descValueText.text = formatLongValue(selFile);
-                    // OPTIMIZATION: Assign color ONLY when selection changes
                     var targetColor = getValueColor(descValueText.text);
                     if (descValueText.color != targetColor) descValueText.color = targetColor;
                     descValueSlideTimer = 0.0;
@@ -1073,7 +1073,6 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         for (i in 0...fontItems.length) {
             var item = fontItems[i];
             var targetAlpha = (i == fontSelectedIndex) ? 0.3 : 0.0;
-            // OPTIMIZATION: Prevent redundant property setting
             if (item.bg != null && item.bg.alpha != targetAlpha) item.bg.alpha = targetAlpha;
             
             if (item.text != null) {
@@ -1107,7 +1106,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         if (isFin) char.dance();
     }
 
-    // OPTIMIZATION: Safe manual clipping instead of new FlxRect instances
+    
     function updateTextSlide(txt:FlxText, maxWidth:Float, timer:Float) {
         if (txt == null) return;
         if (txt.offset == null) txt.offset = new FlxPoint(0, 0);
@@ -1144,7 +1143,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         
         if (txt.clipRect == null || Math.abs(txt.offset.x - currentOffset) > 0.1) {
             txt.offset.x = currentOffset;
-            // Native safe approach: Assigning a new rect only when absolutely needed to avoid the get() crash
+
             txt.clipRect = new FlxRect(currentOffset, 0, maxWidth, txt.height + 5); 
         }
     }
@@ -1319,7 +1318,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             if (capsuleFadeBg.flipX != panelOnLeft) capsuleFadeBg.flipX = panelOnLeft;
         }
 
-        // OPTIMIZATION: CULLING (Skip drawing and heavy math for items off-screen)
+        
         var screenTop = -150.0;
         var screenBottom = FlxG.height + 150.0;
 
@@ -1382,7 +1381,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
 
                     if (isSel) item.slideTimer += elapsed; else item.slideTimer = 0.0;
 
-                    // OPTIMIZATION: Prevent redundant property setting
+                    
                     if (item.bg.alpha != 1.0) item.bg.alpha = 1.0;
                     if (item.textDisplay != null && item.textDisplay.alpha != targetAlpha) item.textDisplay.alpha = targetAlpha; 
                     if (item.labelDisplay != null) {
@@ -1434,7 +1433,6 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 fontItemsGroup.x = FlxMath.lerp(fontItemsGroup.x, targetFontX, elapsed * 12);
                 fontItemsGroup.y = FlxMath.lerp(fontItemsGroup.y, 55 - fontTargetScrollY, elapsed * 15);
                 
-                // Font Menu Culling
                 var grpY = fontItemsGroup.y;
                 for (item in fontItems) {
                     var absY = grpY + item.y;
@@ -1512,7 +1510,6 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 descTextDisplay.text = selItem.desc;
                 if (descValueText != null) {
                     descValueText.text = formatLongValue(curVal);
-                    // OPTIMIZATION: Assign color ONLY when selection changes
                     var targetColor = getValueColor(descValueText.text);
                     if (descValueText.color != targetColor) descValueText.color = targetColor;
                 }

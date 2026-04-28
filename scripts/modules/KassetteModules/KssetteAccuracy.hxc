@@ -185,6 +185,9 @@ class KssetteAccuracy extends Module {
         try {
             api = ModuleHandler.getModule("KssetteApi");
             if (api == null) return;
+            
+            try { api.invalidateCache(); } catch(e:Dynamic) {}
+            
             var state = PlayState.instance;
             if (state == null) return;
             
@@ -220,21 +223,12 @@ class KssetteAccuracy extends Module {
             if (state.scoreText != null) state.scoreText.visible = false;
 
             try {
-                var isMidScroll = false;
-                if (api != null) {
-                    var msVal = Std.string(api.getKssValue("kssette_middlescroll")).toUpperCase();
-                    if (msVal != "OFF" && msVal != "NULL" && msVal != "FALSE" && msVal != "") {
-                        isMidScroll = true;
-                    }
-                }
-
                 if (state.playerStrumline != null) {
                     var bg1:Dynamic = Reflect.getProperty(state.playerStrumline, "background");
                     if (bg1 != null) {
                         state.playerStrumline.remove(bg1, true);
                         bg1.zIndex = 990;
                         bg1.cameras = [state.camHUD];
-                        if (isMidScroll) bg1.x = (FlxG.width - bg1.width) / 2;
                         FlxG.state.add(bg1);
                     }
                 }
@@ -244,7 +238,6 @@ class KssetteAccuracy extends Module {
                         state.opponentStrumline.remove(bg2, true);
                         bg2.zIndex = 990;
                         bg2.cameras = [state.camHUD];
-                        if (isMidScroll) bg2.visible = false;
                         FlxG.state.add(bg2);
                     }
                 }
@@ -366,10 +359,14 @@ class KssetteAccuracy extends Module {
                             infoTextStr += "HARD";
                         }
                     } else {
-                        if (_cShowTitle) infoTextStr += Std.string(api.getSongTitle());
+                        if (_cShowTitle) {
+                            var sTitle = Std.string(api.getSongTitle());
+                            if (sTitle != "" && sTitle != "null") infoTextStr += sTitle;
+                        }
                         if (_cShowDiff) {
                             if (infoTextStr != "") infoTextStr += " - ";
-                            infoTextStr += Std.string(api.getDifficulty());
+                            var sDiff = Std.string(api.getDifficulty());
+                            if (sDiff != "" && sDiff != "null") infoTextStr += sDiff;
                         }
                     }
                     
@@ -503,7 +500,16 @@ class KssetteAccuracy extends Module {
 
         if (_cAccMode != "Off" && _cAccMode != "null" && _cAccMode != "false") {
             if (needSep) strMain += separator;
-            strMain += "Acc: " + acc + "%";
+            
+            var accStr = Std.string(acc);
+            var dotIdx = accStr.indexOf(".");
+            if (dotIdx == -1) {
+                accStr += ".00";
+            } else if (accStr.length - dotIdx == 2) {
+                accStr += "0";
+            }
+            
+            strMain += "Acc: " + accStr + "%";
             needSep = true;
         }
 

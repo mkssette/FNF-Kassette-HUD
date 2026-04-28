@@ -15,7 +15,6 @@ import Std;
 import Math;
 import StringTools;
 
-// this module handles the middlescroll logic and opponent strumline positioning
 class KssMiddlescroll extends Module {
     var cachedMode:String = "Off";
     var cachedOppPos:String = "Left";
@@ -26,11 +25,13 @@ class KssMiddlescroll extends Module {
         super('KssMiddlescroll'); 
     }
 
-
     override function onCountdownStart(event:ScriptEvent):Void {
         hasShifted = false;
         
         apiModule = ModuleHandler.getModule("KssetteApi");
+        var isMob = false;
+        var isMobPC = false;
+
         if (apiModule != null) {
             apiModule.scriptCall("registerModule", ["KssMiddlescroll", this]);
             var rawMode:Dynamic = apiModule.scriptCall("getKssValue", ["kssette_middlescroll"]);
@@ -39,9 +40,17 @@ class KssMiddlescroll extends Module {
             else cachedMode = Std.string(rawMode);
 
             cachedOppPos = Std.string(apiModule.scriptCall("getKssValue", ["kssette_opponent_pos"]));
+
+            try {
+                if (Reflect.hasField(apiModule, "isMobileMode") && Reflect.hasField(apiModule, "isMobileLikePC")) {
+                    isMob = Reflect.field(apiModule, "isMobileMode");
+                    isMobPC = Reflect.callMethod(apiModule, Reflect.field(apiModule, "isMobileLikePC"), []);
+                }
+            } catch(e:Dynamic) {}
         }
         
         if (cachedMode == "Off" || cachedMode == "null") return;
+        if (isMob && !isMobPC) return;
 
         var state = PlayState.instance;
         if (state == null) return;
@@ -50,11 +59,15 @@ class KssMiddlescroll extends Module {
 
         if (state.playerStrumline != null) {
             state.playerStrumline.x = (FlxG.width - state.playerStrumline.width) * 0.5;
+            var bg1 = Reflect.getProperty(state.playerStrumline, "background");
+            if (bg1 != null) {
+                bg1.x = (FlxG.width - bg1.width) * 0.5;
+            }
         }
 
         if (state.opponentStrumline != null) {
-            var bg = Reflect.getProperty(state.opponentStrumline, "background");
-            if (bg != null) bg.visible = false;
+            var bg2 = Reflect.getProperty(state.opponentStrumline, "background");
+            if (bg2 != null) bg2.visible = false;
 
             hideAllCovers(state);
 

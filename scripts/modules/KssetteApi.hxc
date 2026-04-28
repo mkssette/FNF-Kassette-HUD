@@ -162,6 +162,20 @@ class KssetteApi extends Module {
         } catch(e:Dynamic) {}
     }
 
+    override public function onSongRetry(event:Dynamic) {
+        _cachedSongName = null;
+        _checkedSongName = false;
+        _cachedSongArtist = null;
+        _checkedSongArtist = false;
+        _cachedSongAlbum = null;
+        _checkedSongAlbum = false;
+        _cachedSongId = null;
+        _checkedSongId = false;
+        _cachedModeMsg = null;
+        _cachedBotplay = false;
+        super.onSongRetry(event);
+    }
+
     override public function onCountdownStart(event) {
         super.onCountdownStart(event);
         
@@ -176,21 +190,18 @@ class KssetteApi extends Module {
         
         _cachedSongName = null;
         _checkedSongName = false;
-        
         _cachedSongArtist = null;
         _checkedSongArtist = false;
-        
         _cachedSongAlbum = null;
         _checkedSongAlbum = false;
-        
         _cachedSongId = null;
         _checkedSongId = false;
+        _cachedModeMsg = null;
+        _cachedBotplay = false;
         
         _accModule = null;
         _qtModule = null;
         _integrityTimer = 0.0;
-        _cachedModeMsg = null;
-        _cachedBotplay = false;
 
         _lastP1Id = "";
         _lastP2Id = "";
@@ -721,10 +732,7 @@ class KssetteApi extends Module {
         if (_cachedModeMsg != null && botplay == _cachedBotplay) return _cachedModeMsg;
         
         _cachedBotplay = botplay;
-        var songName:String = getSongTitle();
-
-        if (botplay) _cachedModeMsg = 'Watching "' + songName + '" with Botplay';
-        else _cachedModeMsg = "";
+        _cachedModeMsg = botplay ? ('Watching "' + getSongTitle() + '" with Botplay') : "";
         
         return _cachedModeMsg; 
     }
