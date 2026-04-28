@@ -17,6 +17,7 @@ import funkin.play.character.AnimateAtlasCharacter;
 import funkin.play.character.MultiSparrowCharacter;
 import funkin.play.character.MultiAnimateAtlasCharacter;
 import funkin.play.character.PackerCharacter;
+import funkin.play.character.CharacterDataParser;
 import funkin.modding.events.ScriptEvent;
 import funkin.Conductor;
 import flixel.math.FlxMath;
@@ -31,7 +32,6 @@ import StringTools;
 import funkin.mobile.ui.FunkinBackButton;
 import funkin.util.TouchUtil;
 import funkin.util.SwipeUtil;
-import Type;
 import Reflect;
 
 class KssetteMenuState extends ScriptedMusicBeatState {
@@ -102,6 +102,13 @@ class KssetteMenuState extends ScriptedMusicBeatState {
     var touchStart:Float = 0;
     var touchStartX:Float = 0;
     var isDragging:Bool = false;
+    
+    var preloadedAllFonts:Array<Dynamic> = [];
+    var preloadedFamiliesData:Array<Dynamic> = [];
+    var fontsPreloaded:Bool = false;
+    
+    var previewHoldTimer:Float = 0.0;
+    var previewActionFired:Bool = false;
 
     var sndScroll:Dynamic;
     var sndOn:Dynamic;
@@ -120,6 +127,8 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         } catch(e:Dynamic) {}
         
         apiRef = ModuleHandler.getModule("KssetteApi");
+        
+        preloadFonts();
         
         stageCam = new FunkinCamera('stageCam', 0, 0, FlxG.width, FlxG.height);
         stageCam.bgColor = FlxColor.BLACK;
@@ -221,6 +230,97 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         
         initPreviews();
         updatePreviews();
+    }
+    
+    function preloadFonts() {
+        if (fontsPreloaded) return;
+        var fontMap:Dynamic = null;
+        try { fontMap = apiRef.getAvailableFonts(); } catch(e:Dynamic) {}
+        
+        if (fontMap != null) {
+            var keys:Array<String> = [];
+            var kIter = fontMap.keys();
+            for (k in kIter) keys.push(Std.string(k));
+            
+            var allFonts:Array<Dynamic> = [];
+            for (k in keys) {
+                var fFile = fontMap.get(k);
+                var fPath = "VCR OSD Mono";
+                try { fPath = apiRef.resolveCustomFont(fFile); } catch(e:Dynamic) {}
+
+                var rawName = k;
+                var exts = [".ttf", ".otf"];
+                var lowerK = k.toLowerCase();
+                for (ext in exts) {
+                    if (StringTools.endsWith(lowerK, ext)) {
+                        rawName = k.substr(0, k.length - 4);
+                        break;
+                    }
+                }
+
+                var familyRaw = rawName;
+                var variantName = "Regular";
+                var variantParts = ["-bold", "-italic", "-regular", "-light", "-medium", "-semibold", "-black", "_bold", "_italic", "_regular", " bold", " italic", " regular"];
+                
+                for (v in variantParts) {
+                    var vIdx = rawName.toLowerCase().lastIndexOf(v);
+                    if (vIdx != -1 && vIdx > 0) {
+                        familyRaw = rawName.substr(0, vIdx);
+                        var vRaw = rawName.substr(vIdx + 1);
+                        var cleanV = "";
+                        for (i in 0...vRaw.length) {
+                            var char = vRaw.charAt(i);
+                            if (char != "-" && char != "_" && char != " ") cleanV += char;
+                        }
+                        if (cleanV.length > 0) {
+                            variantName = cleanV.substr(0,1).toUpperCase() + cleanV.substr(1);
+                        } else {
+                            variantName = vRaw;
+                        }
+                        break;
+                    }
+                }
+
+                if (familyRaw.toLowerCase() == "vcr" || k == "VCR (Default)") { familyRaw = "VCR OSD Mono"; variantName = "Default"; }
+                if (familyRaw.toLowerCase() == "pixel" || k == "Senpai Pixel (Default)") { familyRaw = "Senpai Pixel"; variantName = "Default"; }
+
+                allFonts.push({
+                    key: k,
+                    file: fFile,
+                    path: fPath,
+                    family: familyRaw,
+                    variant: variantName
+                });
+            }
+
+            var familiesData:Array<Dynamic> = [];
+            for (f in allFonts) {
+                var fam = f.family;
+                var found = false;
+                for (fd in familiesData) {
+                    if (fd.name == fam) {
+                        fd.variants.push(f);
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found) {
+                    familiesData.push({name: fam, variants: [f]});
+                }
+            }
+
+            familiesData.sort(function(a:Dynamic, b:Dynamic):Int {
+                var nameA:String = a.name.toLowerCase();
+                var nameB:String = b.name.toLowerCase();
+                if (nameA < nameB) return -1;
+                if (nameA > nameB) return 1;
+                return 0;
+            });
+            
+            preloadedAllFonts = allFonts;
+            preloadedFamiliesData = familiesData;
+        }
+        fontsPreloaded = true;
     }
 
     function exitMenu() {
@@ -324,7 +424,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         var rType:String = "";
 
         try {
-            var entry = funkin.data.character.CharacterRegistry.instance.fetchEntry(id);
+            var entry = CharacterDataParser.parseCharacterData(id);
             if (entry != null) {
                 var rawType = Reflect.getProperty(entry, "renderType");
                 if (rawType != null) rType = Std.string(rawType).toLowerCase();
@@ -415,7 +515,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         var apiVer = "0.2.a1";
         try { if (apiRef != null) apiVer = Std.string(apiRef.hudVersion); } catch(e:Dynamic) {}
 
-        var mobileStr = "   OPTIONS MENU   SWIPE UP/DOWN TO SCROLL   SWIPE L/R TO MOVE UI   TAP THE STAGE TO PREVIEW   ";
+        var mobileStr = "   OPTIONS MENU   SWIPE UP/DOWN TO SCROLL   SWIPE L/R TO MOVE UI   TAP AND HOLD THE STAGE TO PREVIEW   ";
         var pcStr = "   OPTIONS MENU   TAB TO HIDE OPTIONS   SHIFT TO MOVE OPTTIONS   ESC TO EXIT   ";
         marqueeString = " KASSETTE HUD V" + apiVer + (FlxG.onMobile ? mobileStr : pcStr);
         marqueeString = marqueeString + marqueeString + marqueeString + marqueeString + marqueeString + marqueeString + marqueeString + marqueeString;
@@ -835,111 +935,59 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         fontItemsGroup.cameras = [optionCam];
         add(fontItemsGroup);
 
-        var fontMap:Dynamic = null;
-        try { fontMap = apiRef.getAvailableFonts(); } catch(e:Dynamic) {}
-        
         var curSavedFont:String = "vcr.ttf";
         try {
             var fetchedVal = Save.instance.modOptions.get(saveKey);
             if (fetchedVal != null) curSavedFont = Std.string(fetchedVal);
         } catch(e:Dynamic) {}
 
-        if (fontMap != null) {
-            var keys:Array<String> = [];
-            var kIter = fontMap.keys();
-            for (k in kIter) keys.push(Std.string(k));
+        var fY:Float = 0;
+
+        for (famData in preloadedFamiliesData) {
+            var fam = famData.name;
+            var variants:Array<Dynamic> = famData.variants;
             
-            var allFonts:Array<Dynamic> = [];
+            if (variants.length == 1) {
+                var v = variants[0];
+                var displayName = v.family;
+                if (v.variant != "Regular" && v.variant != "Default") displayName += " " + v.variant;
 
-            for (k in keys) {
-                var fFile = fontMap.get(k);
-                var fPath = "VCR OSD Mono";
-                try { fPath = apiRef.resolveCustomFont(fFile); } catch(e:Dynamic) {}
-
-                var rawName = k;
-                var exts = [".ttf", ".otf"];
-                var lowerK = k.toLowerCase();
-                for (ext in exts) {
-                    if (StringTools.endsWith(lowerK, ext)) {
-                        rawName = k.substr(0, k.length - 4);
-                        break;
-                    }
-                }
-
-                var familyRaw = rawName;
-                var variantName = "Regular";
-                var variantParts = ["-bold", "-italic", "-regular", "-light", "-medium", "-semibold", "-black", "_bold", "_italic", "_regular", " bold", " italic", " regular"];
+                var fTxt = new FlxText(30, 0, panelWidth - 60, displayName, 22);
+                try { fTxt.setFormat(v.path, 22, FlxColor.WHITE, "left"); } catch(e:Dynamic) {}
                 
-                for (v in variantParts) {
-                    var vIdx = rawName.toLowerCase().lastIndexOf(v);
-                    if (vIdx != -1 && vIdx > 0) {
-                        familyRaw = rawName.substr(0, vIdx);
-                        var vRaw = rawName.substr(vIdx + 1);
-                        var cleanV = "";
-                        for (i in 0...vRaw.length) {
-                            var char = vRaw.charAt(i);
-                            if (char != "-" && char != "_" && char != " ") cleanV += char;
-                        }
-                        if (cleanV.length > 0) {
-                            variantName = cleanV.substr(0,1).toUpperCase() + cleanV.substr(1);
-                        } else {
-                            variantName = vRaw;
-                        }
-                        break;
-                    }
-                }
+                var txtH:Float = 22;
+                try { txtH = fTxt.height; } catch(e:Dynamic) {}
+                
+                var boxHeight:Float = txtH + 40;
+                if (boxHeight < 60) boxHeight = 60;
 
-                if (familyRaw.toLowerCase() == "vcr" || k == "VCR (Default)") { familyRaw = "VCR OSD Mono"; variantName = "Default"; }
-                if (familyRaw.toLowerCase() == "pixel" || k == "Senpai Pixel (Default)") { familyRaw = "Senpai Pixel"; variantName = "Default"; }
+                fTxt.y = fY + (boxHeight - txtH) / 2;
 
-                allFonts.push({
-                    key: k,
-                    file: fFile,
-                    path: fPath,
-                    family: familyRaw,
-                    variant: variantName
+                var itemBg = new FlxSprite(0, fY).makeGraphic(panelWidth, Std.int(boxHeight), FlxColor.WHITE);
+                itemBg.alpha = 0.0;
+                fontItemsGroup.add(itemBg);
+                fontItemsGroup.add(fTxt);
+
+                fontItems.push({
+                    bg: itemBg,
+                    text: fTxt,
+                    fileName: v.file,
+                    y: fY,
+                    height: boxHeight
                 });
-            }
 
-            var fY:Float = 0;
-            var familiesData:Array<Dynamic> = [];
+                fY += boxHeight + 6;
+            } else {
+                var famTxt = new FlxText(30, fY + 10, panelWidth - 60, fam, 22);
+                famTxt.setFormat("VCR OSD Mono", 22, 0xFFDDDDDD, "left");
+                fontItemsGroup.add(famTxt);
+                fY += famTxt.height + 10;
 
-            for (f in allFonts) {
-                var fam = f.family;
-                var found = false;
-                for (fd in familiesData) {
-                    if (fd.name == fam) {
-                        fd.variants.push(f);
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    familiesData.push({name: fam, variants: [f]});
-                }
-            }
-
-            familiesData.sort(function(a:Dynamic, b:Dynamic):Int {
-                var nameA:String = a.name.toLowerCase();
-                var nameB:String = b.name.toLowerCase();
-                if (nameA < nameB) return -1;
-                if (nameA > nameB) return 1;
-                return 0;
-            });
-
-            for (famData in familiesData) {
-                var fam = famData.name;
-                var variants:Array<Dynamic> = famData.variants;
-                
-                if (variants.length == 1) {
-                    var v = variants[0];
-                    var displayName = v.family;
-                    if (v.variant != "Regular" && v.variant != "Default") displayName += " " + v.variant;
-
-                    var fTxt = new FlxText(30, 0, panelWidth - 60, displayName, 22);
-                    try { fTxt.setFormat(v.path, 22, FlxColor.WHITE, "left"); } catch(e:Dynamic) {}
+                for (v in variants) {
+                    var fTxt = new FlxText(50, 0, panelWidth - 80, v.variant, 20);
+                    try { fTxt.setFormat(v.path, 20, FlxColor.WHITE, "left"); } catch(e:Dynamic) {}
                     
-                    var txtH:Float = 22;
+                    var txtH:Float = 20;
                     try { txtH = fTxt.height; } catch(e:Dynamic) {}
                     
                     var boxHeight:Float = txtH + 40;
@@ -960,60 +1008,20 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                         height: boxHeight
                     });
 
-                    fY += boxHeight + 6;
-                } else {
-                    var famTxt = new FlxText(30, fY + 10, panelWidth - 60, fam, 22);
-                    famTxt.setFormat("VCR OSD Mono", 22, 0xFFDDDDDD, "left");
-                    fontItemsGroup.add(famTxt);
-                    fY += famTxt.height + 10;
-
-                    variants.sort(function(a:Dynamic, b:Dynamic):Int {
-                        var varA:String = a.variant.toLowerCase();
-                        var varB:String = b.variant.toLowerCase();
-                        if (varA < varB) return -1;
-                        if (varA > varB) return 1;
-                        return 0;
-                    });
-
-                    for (v in variants) {
-                        var fTxt = new FlxText(50, 0, panelWidth - 80, v.variant, 20);
-                        try { fTxt.setFormat(v.path, 20, FlxColor.WHITE, "left"); } catch(e:Dynamic) {}
-                        
-                        var txtH:Float = 20;
-                        try { txtH = fTxt.height; } catch(e:Dynamic) {}
-                        
-                        var boxHeight:Float = txtH + 40;
-                        if (boxHeight < 60) boxHeight = 60;
-
-                        fTxt.y = fY + (boxHeight - txtH) / 2;
-
-                        var itemBg = new FlxSprite(0, fY).makeGraphic(panelWidth, Std.int(boxHeight), FlxColor.WHITE);
-                        itemBg.alpha = 0.0;
-                        fontItemsGroup.add(itemBg);
-                        fontItemsGroup.add(fTxt);
-
-                        fontItems.push({
-                            bg: itemBg,
-                            text: fTxt,
-                            fileName: v.file,
-                            y: fY,
-                            height: boxHeight
-                        });
-
-                        fY += boxHeight + 4;
-                    }
-                }
-            }
-
-            fontMaxScroll = Math.max(0, fY - FlxG.height + 150);
-
-            for (i in 0...fontItems.length) {
-                if (fontItems[i].fileName == curSavedFont) {
-                    fontSelectedIndex = i;
-                    break;
+                    fY += boxHeight + 4;
                 }
             }
         }
+
+        fontMaxScroll = Math.max(0, fY - FlxG.height + 150);
+
+        for (i in 0...fontItems.length) {
+            if (fontItems[i].fileName == curSavedFont) {
+                fontSelectedIndex = i;
+                break;
+            }
+        }
+        
         changeFontSelection(0);
     }
 
@@ -1561,28 +1569,34 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             touchStart = tY;
             touchStartX = tX;
             isDragging = false;
+            previewHoldTimer = 0.0;
+            previewActionFired = false;
         } else if (tPressed) {
-            if (Math.abs(tY - touchStart) > 20 || Math.abs(tX - touchStartX) > 20) {
+            if (Math.abs(tY - touchStart) > 15 || Math.abs(tX - touchStartX) > 15) {
                 isDragging = true;
+                previewHoldTimer = 0.0;
             }
             if (isDragging) {
-                fontTargetScrollY += (touchStart - tY);
+                fontTargetScrollY += (touchStart - tY) * 0.5; 
                 touchStart = tY; 
             }
-        } else if (tJustReleased) {
-            var hasSwiped = false;
-            if (FlxG.onMobile) {
-                hasSwiped = SwipeUtil.swipeUp || SwipeUtil.swipeDown || SwipeUtil.swipeLeft || SwipeUtil.swipeRight;
-            }
-            if (!isDragging && !hasSwiped && holdTimer <= 0) {
-                if (isOverPreviewZone) {
+            if (isOverPreviewZone && !isDragging && !previewActionFired) {
+                previewHoldTimer += elapsed;
+                if (previewHoldTimer >= 0.5) {
+                    previewActionFired = true;
                     closeFontSelector();
                     if (sndCancel != null) try { FlxG.sound.play(sndCancel, 0.7); } catch(e:Dynamic) {}
-                } else {
+                }
+            }
+        } else if (tJustReleased) {
+            if (!isDragging && holdTimer <= 0 && !previewActionFired) {
+                if (!isOverPreviewZone) {
                     fireFontClickAt();
                 }
             }
             isDragging = false;
+            previewActionFired = false;
+            previewHoldTimer = 0.0;
         }
 
         if (FlxG.mouse != null && FlxG.mouse.wheel != 0) {
@@ -1688,38 +1702,45 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             touchStart = tY;
             touchStartX = tX;
             isDragging = false;
+            previewHoldTimer = 0.0;
+            previewActionFired = false;
         } else if (tPressed) {
-            if (Math.abs(tY - touchStart) > 10 || Math.abs(tX - touchStartX) > 10) {
+            if (Math.abs(tY - touchStart) > 15 || Math.abs(tX - touchStartX) > 15) {
                 isDragging = true;
+                previewHoldTimer = 0.0;
             }
-        } else if (tJustReleased) {
-            var hasSwiped = false;
-            if (FlxG.onMobile) {
-                hasSwiped = SwipeUtil.swipeUp || SwipeUtil.swipeDown || SwipeUtil.swipeLeft || SwipeUtil.swipeRight;
-            }
-            if (!isDragging && !hasSwiped && holdTimer <= 0) {
-                if (isOverBackButton) {
-                    
-                } else if (isOverPreviewZone) {
+            if (isOverPreviewZone && !isDragging && !previewActionFired) {
+                previewHoldTimer += elapsed;
+                if (previewHoldTimer >= 0.5) {
+                    previewActionFired = true;
                     panelHidden = !panelHidden;
                     if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
-                } else if (!panelHidden) {
+                }
+            }
+        } else if (tJustReleased) {
+            if (!isDragging && holdTimer <= 0 && !previewActionFired) {
+                if (isOverBackButton) {
+                    
+                } else if (!isOverPreviewZone && !panelHidden) {
                     fireClickAt();
                 }
             }
             isDragging = false;
+            previewActionFired = false;
+            previewHoldTimer = 0.0;
         }
 
-        if (FlxG.onMobile) {
+        if (FlxG.onMobile && holdTimer <= 0) {
             if (SwipeUtil.swipeUp) {
-                if (!panelHidden) changeSelection(1);
+                if (!panelHidden) { changeSelection(1); holdTimer = 0.25; }
             } else if (SwipeUtil.swipeDown) {
-                if (!panelHidden) changeSelection(-1);
+                if (!panelHidden) { changeSelection(-1); holdTimer = 0.25; }
             } else if (SwipeUtil.swipeLeft || SwipeUtil.swipeRight) {
                 if (!transitioningSide && !panelHidden) {
                     transitioningSide = true;
                     transitionTimer = 0.0;
                     nextPanelOnLeft = !panelOnLeft;
+                    holdTimer = 0.25;
                 }
             }
         }
