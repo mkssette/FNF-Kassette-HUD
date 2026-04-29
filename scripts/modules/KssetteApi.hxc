@@ -29,6 +29,7 @@ import funkin.modding.PolymodHandler;
 import funkin.data.notestyle.NoteStyleRegistry;
 import funkin.play.components.HealthIcon;
 import funkin.modding.base.ScriptedMusicBeatState;
+import Type;
 
 class KssetteApi extends Module {
     final optionsID:String = "kassette-hud";
@@ -216,7 +217,6 @@ class KssetteApi extends Module {
                 if (opt == "kssette_ghost_sing") defaultVal = "Off";
                 if (opt == "kssette_judge_pos") defaultVal = "Off";
                 if (opt == "kssette_info_pos") defaultVal = "Below Score";
-                if (opt == "kssette_mobile_keyboard") defaultVal = "Off";
                 if (opt == "kssette_timebar_pos") defaultVal = "Bottom";
                 if (opt == "kssette_custom_font") defaultVal = "vcr.ttf";
                 if (opt == "kssette_custom_pixel_font") defaultVal = "pixel.otf";
@@ -227,6 +227,10 @@ class KssetteApi extends Module {
                 
                 if (opt == "kssette_ghost_tapping") {
                     defaultVal = isMobileMode ? "Off" : "On";
+                }
+                
+                if (opt == "kssette_mobile_keyboard") {
+                    defaultVal = "Off";
                 }
 
                 Save.instance.modOptions.set(opt, defaultVal);

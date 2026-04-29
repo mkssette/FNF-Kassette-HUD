@@ -102,6 +102,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
     var touchStart:Float = 0;
     var touchStartX:Float = 0;
     var isDragging:Bool = false;
+    var dragOffsetY:Float = 0.0;
     
     var previewHoldTimer:Float = 0.0;
     var previewActionFired:Bool = false;
@@ -1176,7 +1177,10 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             }
         }
 
-        curSelectedFloat = FlxMath.lerp(curSelectedFloat, selectedIndex, elapsed * 10);
+        if (!isDragging) {
+            curSelectedFloat = FlxMath.lerp(curSelectedFloat, selectedIndex, elapsed * 10);
+            dragOffsetY = FlxMath.lerp(dragOffsetY, 0, elapsed * 15);
+        }
         
         var targetXBase:Float = 0;
         var targetDescX:Float = 0;
@@ -1240,7 +1244,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             var item = optionItems[i];
             var diff = i - curSelectedFloat;
             
-            var targetY = (FlxG.height / 2) + (diff * capsuleSpacing) - 50; 
+            var targetY = (FlxG.height / 2) + (diff * capsuleSpacing) - 50 + dragOffsetY; 
             
             var isVisible = (targetY > screenTop && targetY < screenBottom);
             if (item.bg.visible != isVisible) {
@@ -1280,8 +1284,13 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             }
             
             if (item.bg != null) {
-                item.bg.x = FlxMath.lerp(item.bg.x, targetX, elapsed * 12);
-                item.bg.y = FlxMath.lerp(item.bg.y, targetY, elapsed * 12);
+                if (isDragging) {
+                    item.bg.x = targetX;
+                    item.bg.y = targetY;
+                } else {
+                    item.bg.x = FlxMath.lerp(item.bg.x, targetX, elapsed * 12);
+                    item.bg.y = FlxMath.lerp(item.bg.y, targetY, elapsed * 12);
+                }
 
                 if (item.isHeader) {
                     if (item.labelDisplay != null) {
@@ -1610,10 +1619,14 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             isDragging = false;
             previewHoldTimer = 0.0;
             previewActionFired = false;
+            dragOffsetY = 0.0;
         } else if (tPressed) {
-            if (Math.abs(tY - touchStart) > 15 || Math.abs(tX - touchStartX) > 15) {
+            if (!isDragging && (Math.abs(tY - touchStart) > 15 || Math.abs(tX - touchStartX) > 15)) {
                 isDragging = true;
                 previewHoldTimer = 0.0;
+            }
+            if (isDragging && !panelHidden && !transitioningSide) {
+                dragOffsetY = (tY - touchStart) * 0.7;
             }
             if (isOverPreviewZone && !isDragging && !previewActionFired) {
                 previewHoldTimer += elapsed;
@@ -1624,7 +1637,11 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 }
             }
         } else if (tJustReleased) {
-            if (!isDragging && holdTimer <= 0 && !previewActionFired) {
+            var hasSwiped = false;
+            if (FlxG.onMobile) {
+                hasSwiped = SwipeUtil.swipeUp || SwipeUtil.swipeDown || SwipeUtil.swipeLeft || SwipeUtil.swipeRight;
+            }
+            if (!isDragging && !hasSwiped && holdTimer <= 0 && !previewActionFired) {
                 if (isOverBackButton) {
                     
                 } else if (!isOverPreviewZone && !panelHidden) {
@@ -1638,9 +1655,9 @@ class KssetteMenuState extends ScriptedMusicBeatState {
 
         if (FlxG.onMobile && holdTimer <= 0) {
             if (SwipeUtil.swipeUp) {
-                if (!panelHidden) { changeSelection(1); holdTimer = 0.25; }
-            } else if (SwipeUtil.swipeDown) {
                 if (!panelHidden) { changeSelection(-1); holdTimer = 0.25; }
+            } else if (SwipeUtil.swipeDown) {
+                if (!panelHidden) { changeSelection(1); holdTimer = 0.25; }
             } else if (SwipeUtil.swipeLeft || SwipeUtil.swipeRight) {
                 if (!transitioningSide && !panelHidden) {
                     transitioningSide = true;
