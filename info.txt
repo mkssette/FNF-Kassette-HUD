@@ -1,0 +1,5 @@
+LATEST_VERSION=0.2.a1
+
+INCOMPATIBLE_MODS=
+
+"Crushers ui, crushersui, CrushersUIScoreText"
