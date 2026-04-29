@@ -1222,7 +1222,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         } else {
             targetXBase = panelOnLeft ? -50 : (FlxG.width - smallCapsuleWidth + 40);
             targetDescX = panelOnLeft ? (FlxG.width - largeCapsuleWidth - 20) : 20;
-            targetFadeX = panelOnLeft ? 0 : (FlxG.width - panelWidth);
+            targetFadeX = panelOnLeft ? 0 : (FlxG.width - panelWidth + 1);
 
             if (panelHidden) {
                 targetXBase = panelOnLeft ? -smallCapsuleWidth - 200 : FlxG.width + 200;
