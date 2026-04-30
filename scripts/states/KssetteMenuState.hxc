@@ -492,6 +492,9 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         createToggle("SHOW DIFFICULTY", "kssette_show_song_diff", ["On", "Off"], "Show the difficulty level on the HUD.");
         createToggle("SHOW TIME LEFT", "kssette_show_song_time", ["On", "Off"], "Show a digital timer counting down the song.");
         createToggle("COLORED HEALTHBAR", "kssette_colored_healthbar", ["On", "Off"], "Changes the health bar colors to match the character icons.");
+        if (showPCOptions) {
+            createToggle("OPPONENT STRUM BG", "kssette_opponent_bg", ["On", "Off"], "Show the dark background behind the opponent's notes. (Disabled on Middle Scroll)");
+        }
         
         addHeader("Positions");
         if (showPCOptions) {

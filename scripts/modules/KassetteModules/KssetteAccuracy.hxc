@@ -141,25 +141,25 @@ class KssetteAccuracy extends Module {
         uiText = new FlxText(0, 0, 0, "", 18);
         uiText.setFormat(cachedFont, 18, FlxColor.WHITE, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
         uiText.updateHitbox();
-        uiText.zIndex = 995;
+        uiText.zIndex = 100;
         uiText.cameras = [cam];
         FlxG.state.add(uiText);
 
         timeText = new FlxText(0, 0, FlxG.width / 2 - 10, "", 28);
         timeText.setFormat(cachedFont, 28, FlxColor.WHITE, "right", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
-        timeText.zIndex = 995;
+        timeText.zIndex = 2000;
         timeText.cameras = [cam];
         FlxG.state.add(timeText);
 
         infoText = new FlxText(0, 0, FlxG.width / 2 - 10, "", 16);
         infoText.setFormat(cachedFont, 16, FlxColor.WHITE, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
-        infoText.zIndex = 995;
+        infoText.zIndex = 2000;
         infoText.cameras = [cam];
         FlxG.state.add(infoText);
 
         modeText = new FlxText(FlxG.width, 200, 0, "", 24);
         modeText.setFormat(cachedFont, 24, FlxColor.WHITE, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
-        modeText.zIndex = 995;
+        modeText.zIndex = 2000;
         modeText.cameras = [cam];
         FlxG.state.add(modeText);
 
@@ -169,13 +169,13 @@ class KssetteAccuracy extends Module {
         for (i in 0...judgeNames.length) {
             var label = new FlxText(0, 0, 200, getJudgeName(judgeNames[i]), 20);
             label.setFormat(cachedFont, 20, FlxColor.WHITE, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
-            label.zIndex = 995;
+            label.zIndex = 100;
             label.cameras = [cam];
             FlxG.state.add(label); judgeLabels.push(label);
 
             var val = new FlxText(0, 0, 200, "0", 20);
             val.setFormat(cachedFont, 20, FlxColor.WHITE, "right", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
-            val.zIndex = 995;
+            val.zIndex = 100;
             val.cameras = [cam];
             FlxG.state.add(val); judgeValues.push(val);
         }
@@ -227,7 +227,7 @@ class KssetteAccuracy extends Module {
                     var bg1:Dynamic = Reflect.getProperty(state.playerStrumline, "background");
                     if (bg1 != null) {
                         state.playerStrumline.remove(bg1, true);
-                        bg1.zIndex = 990;
+                        bg1.zIndex = 10;
                         bg1.cameras = [state.camHUD];
                         FlxG.state.add(bg1);
                     }
@@ -236,7 +236,7 @@ class KssetteAccuracy extends Module {
                     var bg2:Dynamic = Reflect.getProperty(state.opponentStrumline, "background");
                     if (bg2 != null) {
                         state.opponentStrumline.remove(bg2, true);
-                        bg2.zIndex = 990;
+                        bg2.zIndex = 10;
                         bg2.cameras = [state.camHUD];
                         FlxG.state.add(bg2);
                     }
@@ -244,22 +244,22 @@ class KssetteAccuracy extends Module {
             } catch(e:Dynamic) {}
 
             if (state.healthBarBG != null) {
-                state.healthBarBG.zIndex = 996;
+                state.healthBarBG.zIndex = 110;
                 FlxG.state.remove(state.healthBarBG, true);
                 FlxG.state.add(state.healthBarBG);
             }
             if (state.healthBar != null) {
-                state.healthBar.zIndex = 997;
+                state.healthBar.zIndex = 111;
                 FlxG.state.remove(state.healthBar, true);
                 FlxG.state.add(state.healthBar);
             }
             if (state.iconP1 != null) {
-                state.iconP1.zIndex = 998;
+                state.iconP1.zIndex = 112;
                 FlxG.state.remove(state.iconP1, true);
                 FlxG.state.add(state.iconP1);
             }
             if (state.iconP2 != null) {
-                state.iconP2.zIndex = 998;
+                state.iconP2.zIndex = 112;
                 FlxG.state.remove(state.iconP2, true);
                 FlxG.state.add(state.iconP2);
             }

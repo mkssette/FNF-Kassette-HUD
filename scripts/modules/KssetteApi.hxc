@@ -195,7 +195,7 @@ class KssetteApi extends Module {
         var options = [
             "kssette_show_score", "kssette_show_misses",
             "kssette_acc_mode", "kssette_show_rank", "kssette_show_tier",
-            "kssette_middlescroll", "kssette_opponent_pos", "kssette_ghost_tapping", 
+            "kssette_middlescroll", "kssette_opponent_pos", "kssette_opponent_bg", "kssette_ghost_tapping", 
             "kssette_ghost_sing", "kssette_show_timebar", "kssette_info_pos",
             "kssette_show_song_title", "kssette_show_song_diff",  
             "kssette_show_song_time", "kssette_judge_pos", "kssette_mobile_keyboard",
@@ -213,6 +213,7 @@ class KssetteApi extends Module {
                 
                 if (opt == "kssette_middlescroll") defaultVal = "Off"; 
                 if (opt == "kssette_opponent_pos") defaultVal = "Left";
+                if (opt == "kssette_opponent_bg") defaultVal = "Off";
                 if (opt == "kssette_acc_mode") defaultVal = "Classic";
                 if (opt == "kssette_ghost_sing") defaultVal = "Off";
                 if (opt == "kssette_judge_pos") defaultVal = "Off";
@@ -842,6 +843,7 @@ class KssetteApi extends Module {
         if (FlxG.onMobile && !isMobileLikePC()) {
             if (key == "kssette_middlescroll") return "Off";
             if (key == "kssette_opponent_pos") return "Left";
+            if (key == "kssette_opponent_bg") return "Off";
         }
 
         if (key == "isCompromised") return isCompromised;
