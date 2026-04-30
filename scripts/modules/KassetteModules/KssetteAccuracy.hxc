@@ -269,6 +269,8 @@ class KssetteAccuracy extends Module {
             updatePositions();
             
             lastScore = -1; lastMisses = -1; lastMaxCombo = -1; lastNotesHit = -1;
+            
+            try { state.refresh(); } catch(e:Dynamic) {}
         } catch(e:Dynamic) {}
     }
 
