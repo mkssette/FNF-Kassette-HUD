@@ -90,6 +90,7 @@ class KssetteApi extends Module {
     var _p2Color:Int = 0xFFFF0000;
     
     var _iconColorCache:Dynamic = null;
+    var _cColoredHB:Bool = false;
     var _lastParsedChartId:String = "";
 
     public function new() {
@@ -307,6 +308,7 @@ class KssetteApi extends Module {
         _lastP1Id = "";
         _lastP2Id = "";
         
+        _cColoredHB = getKssValue("kssette_colored_healthbar") == true;
         if (Reflect.hasField(FlxG, "kssIconColorCache")) {
             _iconColorCache = Reflect.field(FlxG, "kssIconColorCache");
         } else {
@@ -316,7 +318,7 @@ class KssetteApi extends Module {
         
         var state = PlayState.instance;
 
-        if (state != null && getKssValue("kssette_colored_healthbar") == true) {
+        if (state != null && _cColoredHB) {
             if (state.iconP1 != null) {
                 var p1Id = "generic_p1";
                 try { if (state.iconP1.characterId != null) p1Id = Std.string(state.iconP1.characterId); } catch(e:Dynamic) {}
@@ -337,7 +339,7 @@ class KssetteApi extends Module {
             
             if (state != null && state.currentChart != null) {
                 
-                if (getKssValue("kssette_colored_healthbar") == true && Reflect.hasField(state.currentChart, "events")) {
+                if (_cColoredHB && Reflect.hasField(state.currentChart, "events")) {
                     var events:Array<Dynamic> = Reflect.field(state.currentChart, "events");
                     if (events != null) {
                         for (ev in events) {
@@ -1079,7 +1081,7 @@ class KssetteApi extends Module {
         if (_isInPlayState) {
             if (PlayState.instance == null) return;
 
-            if (getKssValue("kssette_colored_healthbar") == true) {
+            if (_cColoredHB) {
                 var hb = PlayState.instance.healthBar;
                 if (hb != null) {
                     var p1 = PlayState.instance.iconP1;
@@ -1087,12 +1089,14 @@ class KssetteApi extends Module {
                     
                     var curP1:String = "none1";
                     if (p1 != null) {
-                        try { if (p1.characterId != null) curP1 = Std.string(p1.characterId); } catch(e:Dynamic) {}
+                        if (Reflect.hasField(p1, "characterId")) curP1 = Std.string(Reflect.getProperty(p1, "characterId"));
+                        else if (Reflect.hasField(p1, "iconId")) curP1 = Std.string(Reflect.getProperty(p1, "iconId"));
                     }
                     
                     var curP2:String = "none2";
                     if (p2 != null) {
-                        try { if (p2.characterId != null) curP2 = Std.string(p2.characterId); } catch(e:Dynamic) {}
+                        if (Reflect.hasField(p2, "characterId")) curP2 = Std.string(Reflect.getProperty(p2, "characterId"));
+                        else if (Reflect.hasField(p2, "iconId")) curP2 = Std.string(Reflect.getProperty(p2, "iconId"));
                     }
                     
                     if (curP1 != _lastP1Id || curP2 != _lastP2Id) {

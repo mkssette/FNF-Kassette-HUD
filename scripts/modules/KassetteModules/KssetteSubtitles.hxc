@@ -207,12 +207,8 @@ var triviaArray:Array<String> = [
 
     function getFieldSafe(obj:Dynamic, fieldName:String):Dynamic {
         if (obj == null) return null;
-        var val:Dynamic = null;
-        try { val = Reflect.getProperty(obj, fieldName); } catch(e:Dynamic) {}
-        if (val == null) {
-            try { val = Reflect.field(obj, fieldName); } catch(e:Dynamic) {}
-        }
-        return val;
+        if (Reflect.hasField(obj, fieldName)) return Reflect.field(obj, fieldName);
+        return Reflect.getProperty(obj, fieldName);
     }
 
     function cleanUp() {
@@ -425,13 +421,7 @@ var triviaArray:Array<String> = [
         super.onUpdate(event);
         if (subText == null) return;
 
-        try {
-            if (!subText.exists || !subText.active) {
-                cleanUp();
-                return;
-            }
-            var dummy = subText.height; 
-        } catch(e:Dynamic) {
+        if (!subText.exists || !subText.active) {
             cleanUp();
             return;
         }

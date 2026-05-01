@@ -162,7 +162,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         optionCam.bgColor = FlxColor.TRANSPARENT;
         FlxG.cameras.add(optionCam, false);
 
-        try { Reflect.setProperty(Conductor.instance, "bpm", 100); } catch(e:Dynamic) {}
+        try { if (Conductor.instance != null) Reflect.setProperty(Conductor.instance, "bpm", 100); } catch(e:Dynamic) {}
 
         var initEvent:ScriptEvent = null;
         try { initEvent = new ScriptEvent("onCreate"); } catch(e:Dynamic) {}
@@ -959,7 +959,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         
         if (FlxG.onMobile) {
             tJustPressed = TouchUtil.justPressed;
-            try { if (TouchUtil.touch != null) { tX = TouchUtil.touch.screenX; tY = TouchUtil.touch.screenY; } } catch(e:Dynamic) {}
+            if (TouchUtil.touch != null) { tX = TouchUtil.touch.screenX; tY = TouchUtil.touch.screenY; }
         } else {
             tJustPressed = FlxG.mouse.justPressed;
         }
@@ -982,14 +982,14 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
         }
 
-        var swipeU = false; var swipeD = false;
-        try { swipeU = SwipeUtil.swipeUp; swipeD = SwipeUtil.swipeDown; } catch(e:Dynamic) {}
+        var swipeU = SwipeUtil.swipeUp;
+        var swipeD = SwipeUtil.swipeDown;
 
-        if (FlxG.keys.justPressed.UP || FlxG.keys.justPressed.W || swipeU) {
+        if (controls.UI_UP_P || swipeU) {
             opSel_Value += 5;
             if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
         }
-        if (FlxG.keys.justPressed.DOWN || FlxG.keys.justPressed.S || swipeD) {
+        if (controls.UI_DOWN_P || swipeD) {
             opSel_Value -= 5;
             if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
         }
@@ -999,7 +999,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         
         updateOpacityUI();
 
-        if (FlxG.keys.justPressed.ENTER || FlxG.keys.justPressed.SPACE) {
+        if (controls.ACCEPT_P) {
             saveOpacitySelection();
         }
     }
@@ -1174,11 +1174,19 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         tSel_Group.add(fTitle);
 
         var fInst = new FlxText(10, 140, panelWidth - 20, "SWIPE TO MOVE & CHANGE  |  ENTER TO SAVE  |  ESC TO CANCEL", 20);
+        var fInst = new FlxText(10, 140, panelWidth - 20, FlxG.onMobile ? "SWIPE TO MOVE & CHANGE" : "SWIPE TO MOVE & CHANGE  |  ENTER TO SAVE  |  ESC TO CANCEL", 20);
         try { fInst.setFormat(Paths.font("5by7.ttf"), 20, FlxColor.WHITE, "center"); } catch(e:Dynamic) {
             fInst.setFormat("VCR OSD Mono", 20, FlxColor.WHITE, "center");
         }
         tSel_Group.add(fInst);
         
+        if (FlxG.onMobile) {
+            tSel_SaveBtn = new FlxText(10, FlxG.height - 100, panelWidth - 20, "[ TAP HERE TO SAVE ]", 40);
+            try { tSel_SaveBtn.setFormat(Paths.font("5by7.ttf"), 40, FlxColor.GREEN, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK); }
+            catch(e:Dynamic) { tSel_SaveBtn.setFormat("VCR OSD Mono", 40, FlxColor.GREEN, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK); }
+            tSel_Group.add(tSel_SaveBtn);
+        }
+
         var cY = FlxG.height / 2;
         var cX = panelWidth / 2;
         
@@ -1265,12 +1273,15 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         var tX:Float = FlxG.mouse.screenX;
         var tY:Float = FlxG.mouse.screenY;
         var tJustPressed = false;
+        var tJustReleased = false;
         
         if (FlxG.onMobile) {
             tJustPressed = TouchUtil.justPressed;
-            try { if (TouchUtil.touch != null) { tX = TouchUtil.touch.screenX; tY = TouchUtil.touch.screenY; } } catch(e:Dynamic) {}
+            tJustReleased = TouchUtil.justReleased;
+            if (TouchUtil.touch != null) { tX = TouchUtil.touch.screenX; tY = TouchUtil.touch.screenY; }
         } else {
             tJustPressed = FlxG.mouse.justPressed;
+            tJustReleased = FlxG.mouse.justReleased;
         }
         
         if (tJustPressed) {
@@ -1301,23 +1312,25 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
         }
 
-        var swipeL = false; var swipeR = false; var swipeU = false; var swipeD = false;
-        try { swipeL = SwipeUtil.swipeLeft; swipeR = SwipeUtil.swipeRight; swipeU = SwipeUtil.swipeUp; swipeD = SwipeUtil.swipeDown; } catch(e:Dynamic) {}
+        var swipeL = SwipeUtil.swipeLeft;
+        var swipeR = SwipeUtil.swipeRight;
+        var swipeU = SwipeUtil.swipeUp;
+        var swipeD = SwipeUtil.swipeDown;
 
-        if (FlxG.keys.justPressed.LEFT || FlxG.keys.justPressed.A || swipeL) {
+        if (controls.UI_LEFT_P || swipeL) {
             tSel_IsMin = !tSel_IsMin;
             if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
         }
-        if (FlxG.keys.justPressed.RIGHT || FlxG.keys.justPressed.D || swipeR) {
+        if (controls.UI_RIGHT_P || swipeR) {
             tSel_IsMin = !tSel_IsMin;
             if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
         }
 
-        if (FlxG.keys.justPressed.UP || FlxG.keys.justPressed.W || swipeU) {
+        if (controls.UI_UP_P || swipeU) {
             if (!tSel_IsMin) tSel_Hour++; else tSel_Min++;
             if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
         }
-        if (FlxG.keys.justPressed.DOWN || FlxG.keys.justPressed.S || swipeD) {
+        if (controls.UI_DOWN_P || swipeD) {
             if (!tSel_IsMin) tSel_Hour--; else tSel_Min--;
             if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
         }
@@ -1329,7 +1342,17 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         
         updateTimeUI();
 
-        if (FlxG.keys.justPressed.ENTER || FlxG.keys.justPressed.SPACE) {
+        if (controls.ACCEPT_P) {
+        var tappedSave = false;
+        if (tJustReleased && FlxG.onMobile && tSel_SaveBtn != null) {
+            if (tX >= tSel_Group.x && tX <= tSel_Group.x + panelWidth) {
+                if (tY >= tSel_SaveBtn.y - 20 && tY <= tSel_SaveBtn.y + tSel_SaveBtn.height + 20) {
+                    tappedSave = true;
+                }
+            }
+        }
+
+        if (controls.ACCEPT_P || tappedSave) {
             saveTimeSelection();
         }
     }
@@ -1543,14 +1566,8 @@ class KssetteMenuState extends ScriptedMusicBeatState {
     function loopCharacterAnimation(char:BaseCharacter):Void {
         if (char == null) return;
         var isFin:Bool = true;
-        try {
-            isFin = char.isAnimationFinished();
-        } catch(e:Dynamic) {
-            var animObj = Reflect.getProperty(char, "animation");
-            if (animObj != null) {
-                var f = Reflect.getProperty(animObj, "finished");
-                if (f != null) isFin = f;
-            }
+        if (char.animation != null) {
+            isFin = char.animation.finished;
         }
         if (isFin) char.dance();
     }
@@ -1593,7 +1610,13 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         if (txt.clipRect == null || Math.abs(txt.offset.x - currentOffset) > 0.1) {
             txt.offset.x = currentOffset;
 
-            txt.clipRect = new FlxRect(currentOffset, 0, maxWidth, txt.height + 5); 
+            if (txt.clipRect == null) {
+                txt.clipRect = new FlxRect(currentOffset, 0, maxWidth, txt.height + 5);
+            } else {
+                var r = txt.clipRect;
+                r.x = currentOffset;
+                txt.clipRect = r;
+            }
         }
     }
 
@@ -1633,7 +1656,13 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         
         if (txt.clipRect == null || Math.abs(txt.offset.y - currentOffset) > 0.1) {
             txt.offset.y = currentOffset;
-            txt.clipRect = new FlxRect(0, currentOffset, txt.width + 5, maxHeight);
+            if (txt.clipRect == null) {
+                txt.clipRect = new FlxRect(0, currentOffset, txt.width + 5, maxHeight);
+            } else {
+                var r = txt.clipRect;
+                r.y = currentOffset;
+                txt.clipRect = r;
+            }
         }
     }
 
@@ -1646,23 +1675,19 @@ class KssetteMenuState extends ScriptedMusicBeatState {
 
     override public function update(elapsed:Float):Void {
         if (FlxG.sound.music != null && FlxG.sound.music.playing) {
-            Reflect.setProperty(Conductor.instance, "songPosition", FlxG.sound.music.time);
+            if (Conductor.instance != null) Conductor.instance.update(FlxG.sound.music.time);
         }
 
         super.update(elapsed);
 
-        loopCharacterAnimation(bf);
-        loopCharacterAnimation(dad);
-        loopCharacterAnimation(gf);
-
         var backPressed = false;
-        try {
-            #if android
+        #if android
+        if (Reflect.hasField(FlxG, "android") && FlxG.android != null) {
             backPressed = FlxG.android.justReleased.BACK;
-            #end
-        } catch(e:Dynamic) {}
+        }
+        #end
 
-        var esc = FlxG.keys.justPressed.ESCAPE || backPressed;
+        var esc = controls.BACK_P || backPressed;
 
         if (esc) {
             if (isFontMenuOpen || isTimeMenuOpen || isOpMenuOpen) {
@@ -2011,12 +2036,10 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             tJustPressed = TouchUtil.justPressed;
             tPressed = TouchUtil.pressed;
             tJustReleased = TouchUtil.justReleased;
-            try {
-                if (TouchUtil.touch != null) {
-                    tX = TouchUtil.touch.screenX;
-                    tY = TouchUtil.touch.screenY;
-                }
-            } catch(e:Dynamic) {}
+            if (TouchUtil.touch != null) {
+                tX = TouchUtil.touch.screenX;
+                tY = TouchUtil.touch.screenY;
+            }
         } else {
             tJustPressed = FlxG.mouse.justPressed;
             tPressed = FlxG.mouse.pressed;
@@ -2075,15 +2098,15 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         if (fontTargetScrollY < 0) fontTargetScrollY = 0;
         if (fontTargetScrollY > fontMaxScroll) fontTargetScrollY = fontMaxScroll;
 
-        if (FlxG.keys.justPressed.UP || FlxG.keys.justPressed.W) {
+        if (controls.UI_UP_P) {
             changeFontSelection(-1);
             holdTimer = 0.1;
         }
-        if (FlxG.keys.justPressed.DOWN || FlxG.keys.justPressed.S) {
+        if (controls.UI_DOWN_P) {
             changeFontSelection(1);
             holdTimer = 0.1;
         }
-        if (FlxG.keys.justPressed.ENTER || FlxG.keys.justPressed.SPACE) {
+        if (controls.ACCEPT_P) {
             selectCurrentFont();
             holdTimer = 0.2;
         }
@@ -2132,13 +2155,10 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             tJustPressed = TouchUtil.justPressed;
             tPressed = TouchUtil.pressed;
             tJustReleased = TouchUtil.justReleased;
-            try {
-                var t = Reflect.getProperty(TouchUtil, "touch");
-                if (t != null) {
-                    tX = t.screenX;
-                    tY = t.screenY;
-                }
-            } catch(e:Dynamic) {}
+            if (TouchUtil.touch != null) {
+                tX = TouchUtil.touch.screenX;
+                tY = TouchUtil.touch.screenY;
+            }
         } else {
             tJustPressed = FlxG.mouse.justPressed;
             tPressed = FlxG.mouse.pressed;
@@ -2227,15 +2247,15 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         }
 
         if (!panelHidden && !transitioningSide) {
-            if (FlxG.keys.justPressed.UP || FlxG.keys.justPressed.W) {
+            if (controls.UI_UP_P) {
                 changeSelection(-1);
                 holdTimer = 0.1;
             }
-            if (FlxG.keys.justPressed.DOWN || FlxG.keys.justPressed.S) {
+            if (controls.UI_DOWN_P) {
                 changeSelection(1);
                 holdTimer = 0.1;
             }
-            if (FlxG.keys.justPressed.ENTER || FlxG.keys.justPressed.SPACE) {
+            if (controls.ACCEPT_P) {
                 var item = optionItems[selectedIndex];
                 if (!item.isHeader && item.fire != null) {
                     item.fire(item);

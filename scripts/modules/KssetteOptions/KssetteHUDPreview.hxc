@@ -405,34 +405,32 @@ class KssetteHUDPreview extends Module {
             }
         }
 
-        try {
-            if (cachedActive && iconP1 != null && iconP1.exists && iconP2 != null && iconP2.exists && healthBarBG != null && healthBarBG.exists) {
-                bopTimer += event.elapsed;
-                if (bopTimer >= 0.5) { 
-                    bopTimer = 0;
-                    iconP1.scale.set(1.2, 1.2);
-                    iconP2.scale.set(1.2, 1.2);
-                }
-                
-                var bopRecover = event.elapsed * 1.5;
-                if (iconP1.scale.x > 1.0) iconP1.scale.x -= bopRecover;
-                if (iconP1.scale.y > 1.0) iconP1.scale.y -= bopRecover;
-                if (iconP1.scale.x < 1.0) iconP1.scale.x = 1.0;
-                if (iconP1.scale.y < 1.0) iconP1.scale.y = 1.0;
-
-                iconP2.scale.x = iconP1.scale.x;
-                iconP2.scale.y = iconP1.scale.y;
-
-                iconP1.updateHitbox();
-                iconP2.updateHitbox();
-
-                iconP1.y = healthBarBG.y - (iconP1.height / 2) + 10;
-                iconP2.y = healthBarBG.y - (iconP2.height / 2) + 10;
-                
-                var hw = Std.int((healthBarBG.width - 8) / 2);
-                iconP1.x = healthBarBG.x + hw - 26;
-                iconP2.x = healthBarBG.x + hw - (iconP2.width - 26);
+        if (cachedActive && iconP1 != null && iconP1.exists && iconP2 != null && iconP2.exists && healthBarBG != null && healthBarBG.exists) {
+            bopTimer += event.elapsed;
+            if (bopTimer >= 0.5) { 
+                bopTimer = 0;
+                iconP1.scale.set(1.2, 1.2);
+                iconP2.scale.set(1.2, 1.2);
             }
-        } catch(e:Dynamic) {}
+            
+            var bopRecover = event.elapsed * 1.5;
+            if (iconP1.scale.x > 1.0) iconP1.scale.x -= bopRecover;
+            if (iconP1.scale.y > 1.0) iconP1.scale.y -= bopRecover;
+            if (iconP1.scale.x < 1.0) iconP1.scale.x = 1.0;
+            if (iconP1.scale.y < 1.0) iconP1.scale.y = 1.0;
+
+            iconP2.scale.x = iconP1.scale.x;
+            iconP2.scale.y = iconP1.scale.y;
+
+            iconP1.updateHitbox();
+            iconP2.updateHitbox();
+
+            iconP1.y = healthBarBG.y - (iconP1.height / 2) + 10;
+            iconP2.y = healthBarBG.y - (iconP2.height / 2) + 10;
+            
+            var hw = Std.int((healthBarBG.width - 8) / 2);
+            iconP1.x = healthBarBG.x + hw - 26;
+            iconP2.x = healthBarBG.x + hw - (iconP2.width - 26);
+        }
     }
 }

@@ -200,11 +200,8 @@ class KssetteNight extends Module {
 
         if (!isPreview && !isPlayStateActive()) return;
 
-        var elapsed = 0.0;
-        try {
-            elapsed = FlxG.elapsed;
-            if (event != null && Reflect.hasField(event, "elapsed")) elapsed = Reflect.field(event, "elapsed");
-        } catch(e:Dynamic) {}
+        var elapsed = FlxG.elapsed;
+        if (event != null && Reflect.hasField(event, "elapsed")) elapsed = Reflect.field(event, "elapsed");
 
         timeCheckTimer += elapsed;
         if (timeCheckTimer >= 1.0) {
