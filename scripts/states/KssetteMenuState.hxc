@@ -44,7 +44,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
     var descOffsetY:Float = 20.0; 
     var descValueMaxWidth:Float = 140.0;
     var descValueOffsetX:Float = 100.0; 
-    var descValueOffsetY:Float = 25.0;
+    var descValueOffsetY:Float = 25.0; 
 
     var smallCapsulePath:String = "ui/capsules/OptionCapsule";
     var smallCapsuleWidth:Float = 620.0;  
@@ -56,7 +56,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
     var valueOffsetY:Float = 25.0; 
     var valueMaxWidth:Float = 150.0; 
 
-    var apiRef:Dynamic;
+    var apiRef:Dynamic; 
     var panelWidth:Int = 660; 
     var optionCam:FlxCamera;
     var hudCam:FlxCamera;
@@ -76,6 +76,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
     var optionItems:Array<Dynamic> = [];
     var selectedIndex:Int = 0;
     var curSelectedFloat:Float = 0;
+    
     var fontBgGroup:FlxSpriteGroup;
     var fontItemsGroup:FlxSpriteGroup;
     var fontItems:Array<Dynamic> = [];
@@ -85,6 +86,29 @@ class KssetteMenuState extends ScriptedMusicBeatState {
     var currentFontTextRef:FlxText = null;
     var fontTargetScrollY:Float = 0;
     var fontMaxScroll:Float = 0;
+
+    var isTimeMenuOpen:Bool = false;
+    var tSel_SaveKey:String = "";
+    var tSel_Group:FlxSpriteGroup;
+    var tSel_Hour:Int = 0;
+    var tSel_Min:Int = 0;
+    var tSel_IsMin:Bool = false; 
+    var tSel_TxtHour:FlxText;
+    var tSel_TxtMin:FlxText;
+    var tSel_TxtColon:FlxText;
+    var tSel_UpHour:FlxText;
+    var tSel_DownHour:FlxText;
+    var tSel_UpMin:FlxText;
+    var tSel_DownMin:FlxText;
+
+    var isOpMenuOpen:Bool = false;
+    var opSel_SaveKey:String = "";
+    var opSel_Group:FlxSpriteGroup;
+    var opSel_Value:Int = 65;
+    var opSel_TxtVal:FlxText;
+    var opSel_Up:FlxText;
+    var opSel_Down:FlxText;
+
     var holdTimer:Float = 0;
     var panelHidden:Bool = false;
     var panelOnLeft:Bool = false;
@@ -239,7 +263,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
     }
 
     public function initPreviews() {
-        var moduleNames = ["KssetteAccuracy", "KssetteHUDPreview", "KssetteJudgements", "KssetteTimeBar", "KssetteCombo", "KssetteSongInfo", "KssetteShowTitle", "KssetteBreakBar", "KssetteSubtitles"];
+        var moduleNames = ["KssetteNight", "KssetteAccuracy", "KssetteHUDPreview", "KssetteJudgements", "KssetteTimeBar", "KssetteCombo", "KssetteSongInfo", "KssetteShowTitle", "KssetteBreakBar", "KssetteSubtitles"];
         for (mName in moduleNames) {
             var mod:Dynamic = ModuleHandler.getModule(mName);
             if (mod != null) {
@@ -252,7 +276,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
     }
 
     public function updatePreviews() {
-        var moduleNames = ["KssetteAccuracy", "KssetteHUDPreview", "KssetteJudgements", "KssetteTimeBar", "KssetteCombo", "KssetteSongInfo", "KssetteShowTitle", "KssetteBreakBar", "KssetteSubtitles"];
+        var moduleNames = ["KssetteNight", "KssetteAccuracy", "KssetteHUDPreview", "KssetteJudgements", "KssetteTimeBar", "KssetteCombo", "KssetteSongInfo", "KssetteShowTitle", "KssetteBreakBar", "KssetteSubtitles"];
         for (mName in moduleNames) {
             var mod:Dynamic = ModuleHandler.getModule(mName);
             if (mod != null) {
@@ -368,6 +392,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
 
     function getValueColor(val:String):Int {
         if (val == null) return 0xFFFFFFFF;
+        if (val.indexOf(":") != -1) return 0xFF00CCFF;
         var upper = StringTools.trim(val).toUpperCase();
         if (upper == "ON" || upper == "ENABLED") return 0xFF00FF00;
         if (upper == "OFF" || upper == "DISABLED") return 0xFFFF0000;
@@ -375,11 +400,13 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         if (upper == "CLA" || upper == "CLASSIC" || upper == "ASC" || upper == "ASCENDING") return 0xFFFFCC00;
         if (upper == "HID" || upper == "HIDDEN" || StringTools.contains(upper, "HIDDEN NOTES")) return 0xFF999999;
         if (upper == "VAN" || upper == "SLI" || upper == "FAD" || upper == "VER" || upper == "ZOO") return 0xFF9966FF;
+        if (StringTools.contains(upper, "%")) return 0xFFFFFF00;
         return 0xFFFFFFFF;
     }
 
     function formatShortValue(val:String):String {
         if (val == null) return "";
+        if (val.indexOf(":") != -1 || val.indexOf("%") != -1) return val;
         var upper = val.toUpperCase();
         if (upper == "ON") return "ON ";
         if (upper == "OFF") return "OFF";
@@ -402,6 +429,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
 
     function formatLongValue(val:String):String {
         if (val == null) return "";
+        if (val.indexOf(":") != -1 || val.indexOf("%") != -1) return val;
         var upper = val.toUpperCase();
         if (upper == "ON") return "ENABLED";
         if (upper == "OFF") return "DISABLED";
@@ -496,6 +524,12 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             createToggle("OPPONENT STRUM BG", "kssette_opponent_bg", ["On", "Off"], "Show the dark background behind the opponent's notes. (Disabled on Middle Scroll)");
         }
         
+        addHeader("Night Mode");
+        createToggle("NIGHT MODE", "kssette_night_mode", ["Off", "On", "Auto"], "Dims the game screen to reduce eye strain.");
+        createOpacityOption("NIGHT OPACITY", "kssette_night_opacity", "How dark the night mode filter should be."); 
+        createTimeOption("AUTO START", "kssette_night_start", "When set to Auto, night mode activates at this start time."); 
+        createTimeOption("AUTO END", "kssette_night_end", "When set to Auto, night mode turns off at this end time."); 
+        
         addHeader("Positions");
         if (showPCOptions) {
             createToggle("OPPONENT POS", "kssette_opponent_pos", ["Left", "Right"], "Where to put the opponent's notes when Middle Scroll is ON.");
@@ -523,15 +557,15 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         createToggle("SHOW SONG INTRO", "kssette_intro_text", ["On", "Off"], "Displays the song title and artist when the song starts.");
         
         addHeader("Fonts");
-        createFontOption("HUD FONT", "kssette_custom_font", "Choose the font for the HUD.");
-        createFontOption("PIXEL FONT", "kssette_custom_pixel_font", "Choose the font for pixel stages.");
-        createFontOption("INTRO TITLE FONT", "kssette_intro_font_title", "Choose the font for the intro title.");
-        createFontOption("INTRO ARTIST FONT", "kssette_intro_font_artist", "Choose the font for the intro artist.");
+        createFontOption("HUD FONT", "kssette_custom_font", "Choose the font for the HUD."); 
+        createFontOption("PIXEL FONT", "kssette_custom_pixel_font", "Choose the font for pixel stages."); 
+        createFontOption("INTRO TITLE FONT", "kssette_intro_font_title", "Choose the font for the intro title."); 
+        createFontOption("INTRO ARTIST FONT", "kssette_intro_font_artist", "Choose the font for the intro artist."); 
 
         addHeader("Subtitles");
         createToggle("SUBTITLES POS", "kssette_subtitles_pos", ["Bottom", "Top"], "Where to display subtitles.");
         createToggle("SUBTITLES ANIM", "kssette_subtitles_anim", ["Vanilla", "Slide", "Fade", "Vertical", "Zoom"], "How subtitles appear on screen.");
-        createToggle("SMART KARAOKE", "kssette_smart_karaoke", ["On", "Off"], "[EXPERIMENTAL] Syncs the text letter by letter like singing.");
+        createToggle("SMART KARAOKE", "kssette_smart_karaoke", ["On", "Off"], "[EXPERIMENTAL] Syncs the text letter by letter like singing."); 
 
         descBg = new FlxSprite(20, FlxG.height);
         try {
@@ -593,8 +627,10 @@ class KssetteMenuState extends ScriptedMusicBeatState {
 
         if (FlxG.onMobile) {
             kssBackButton = new FunkinBackButton(15, 15, 0xFFFFFFFF, function() {
-                if (isFontMenuOpen) {
+                if (isFontMenuOpen || isTimeMenuOpen || isOpMenuOpen) {
                     closeFontSelector();
+                    closeTimeSelector();
+                    closeOpacitySelector();
                     if (sndCancel != null) try { FlxG.sound.play(sndCancel, 0.7); } catch(e:Dynamic) {}
                 } else {
                     exitMenu();
@@ -753,6 +789,297 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         });
     }
 
+    function createOpacityOption(labelText:String, saveKey:String, descStr:String) {
+        var bg = new FlxSprite(0, 0);
+        try {
+            var img = Paths.image(smallCapsulePath);
+            if (img != null) {
+                bg.loadGraphic(img);
+            } else {
+                bg.makeGraphic(Std.int(smallCapsuleWidth), Std.int(120.0), 0xFFFFFFFF);
+            }
+        } catch(e:Dynamic) {
+            bg.makeGraphic(Std.int(smallCapsuleWidth), Std.int(120.0), 0xFFFFFFFF);
+        }
+        
+        if (bg.graphic != null) {
+            var sRatio = smallCapsuleWidth / bg.graphic.width;
+            bg.scale.set(sRatio, sRatio);
+            bg.updateHitbox();
+        }
+
+        bg.cameras = [optionCam];
+        add(bg);
+
+        var label = new FlxText(labelOffsetX, labelOffsetY, 0, labelText, 32);
+        label.wordWrap = false;
+        try {
+            label.setFormat(Paths.font("5by7.ttf"), 32, FlxColor.WHITE, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+            label.antialiasing = false;
+        } catch(e:Dynamic) {
+            label.setFormat("VCR OSD Mono", 24, FlxColor.WHITE, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        }
+
+        label.cameras = [optionCam];
+        add(label);
+
+        var curVal:String = "65%";
+        try {
+            var fetchedVal = Save.instance.modOptions.get(saveKey);
+            if (fetchedVal != null) curVal = Std.string(fetchedVal);
+        } catch(e:Dynamic) {}
+        if (curVal.indexOf("%") == -1) curVal += "%";
+
+        var valueText = new FlxText(0, valueOffsetY, 0, curVal, 32);
+        valueText.wordWrap = false;
+        try {
+            valueText.setFormat(Paths.font("5by7.ttf"), 32, 0xFF00FF00, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+            valueText.antialiasing = false;
+        } catch(e:Dynamic) {
+            valueText.setFormat("VCR OSD Mono", 24, 0xFF00FF00, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        }
+
+        valueText.color = getValueColor(valueText.text);
+        valueText.cameras = [optionCam];
+        add(valueText);
+
+        var menuInst = this;
+        optionItems.push({
+            bg: bg,
+            labelDisplay: label,
+            textDisplay: valueText, 
+            key: saveKey,
+            options: [],
+            desc: descStr,
+            isHeader: false,
+            slideTimer: 0.0,
+            flashTimer: 0.0,
+            valOffX: valueOffsetX,
+            currentIndex: 0,
+            fire: function(self:Dynamic) {
+                self.flashTimer = 1.0;
+                menuInst.descSlideVerticalTimer = 0.0;
+                menuInst.descValueSlideTimer = 0.0;
+                if (menuInst.sndOn != null) try { FlxG.sound.play(menuInst.sndOn, 0.6); } catch(e:Dynamic) {}
+                menuInst.openOpacitySelector(self.key); 
+            }
+        });
+    }
+
+    public function openOpacitySelector(saveKey:String) {
+        isOpMenuOpen = true; 
+        opSel_SaveKey = saveKey;
+        
+        var curVal = "65";
+        try {
+            var fetched = Save.instance.modOptions.get(saveKey);
+            if (fetched != null) curVal = StringTools.replace(Std.string(fetched), "%", "");
+        } catch(e:Dynamic) {}
+        
+        opSel_Value = Std.parseInt(curVal);
+        if (opSel_Value == null) opSel_Value = 65;
+        
+        opSel_Group = new FlxSpriteGroup(0, 0);
+        opSel_Group.x = panelOnLeft ? -panelWidth : FlxG.width;
+        opSel_Group.cameras = [optionCam];
+        add(opSel_Group);
+        
+        var bg = new FlxSprite(0, 0).makeGraphic(panelWidth, FlxG.height, 0xFF000000);
+        bg.alpha = 0.95;
+        bg.scrollFactor.set(0, 0);
+        opSel_Group.add(bg);
+        
+        var fTitle = new FlxText(10, 80, panelWidth - 20, "ADJUST OPACITY (ESC TO CANCEL)", 40);
+        try { fTitle.setFormat(Paths.font("5by7.ttf"), 40, FlxColor.YELLOW, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK); } 
+        catch(e:Dynamic) { fTitle.setFormat("VCR OSD Mono", 40, FlxColor.YELLOW, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK); }
+        opSel_Group.add(fTitle);
+
+        var fInst = new FlxText(10, 140, panelWidth - 20, "SWIPE TO CHANGE  |  ENTER TO SAVE", 20);
+        try { fInst.setFormat(Paths.font("5by7.ttf"), 20, FlxColor.WHITE, "center"); } 
+        catch(e:Dynamic) { fInst.setFormat("VCR OSD Mono", 20, FlxColor.WHITE, "center"); }
+        opSel_Group.add(fInst);
+        
+        var cY = FlxG.height / 2;
+        var cX = panelWidth / 2;
+        
+        opSel_Up = new FlxText(cX - 50, cY - 100, 100, "/\\", 50);
+        try { opSel_Up.setFormat(Paths.font("5by7.ttf"), 50, FlxColor.YELLOW, "center"); } 
+        catch(e:Dynamic) { opSel_Up.setFormat("VCR OSD Mono", 50, FlxColor.YELLOW, "center"); }
+        opSel_Group.add(opSel_Up);
+        
+        opSel_Down = new FlxText(cX - 50, cY + 50, 100, "\\/", 50);
+        try { opSel_Down.setFormat(Paths.font("5by7.ttf"), 50, FlxColor.YELLOW, "center"); } 
+        catch(e:Dynamic) { opSel_Down.setFormat("VCR OSD Mono", 50, FlxColor.YELLOW, "center"); }
+        opSel_Group.add(opSel_Down);
+        
+        opSel_TxtVal = new FlxText(cX - 100, cY - 40, 200, "65%", 70);
+        try { opSel_TxtVal.setFormat(Paths.font("5by7.ttf"), 70, FlxColor.WHITE, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK); } 
+        catch(e:Dynamic) { opSel_TxtVal.setFormat("VCR OSD Mono", 70, FlxColor.WHITE, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK); }
+        opSel_Group.add(opSel_TxtVal);
+        
+        updateOpacityUI();
+    }
+
+    function updateOpacityUI() {
+        if (opSel_Group == null) return;
+        opSel_TxtVal.text = Std.string(opSel_Value) + "%";
+    }
+
+    function saveOpacitySelection() {
+        var finalStr = Std.string(opSel_Value) + "%";
+        Save.instance.modOptions.set(opSel_SaveKey, finalStr);
+        Save.instance.flush();
+        
+        if (descTextDisplay != null && optionItems.length > 0 && selectedIndex >= 0) {
+            var selItem = optionItems[selectedIndex];
+            if (selItem.textDisplay != null) {
+                selItem.textDisplay.text = finalStr;
+            }
+        }
+
+        if (sndOn != null) try { FlxG.sound.play(sndOn, 0.6); } catch(e:Dynamic) {}
+        closeOpacitySelector();
+        
+        try { updatePreviews(); } catch(e:Dynamic) {}
+    }
+
+    function closeOpacitySelector() {
+        if (opSel_Group != null) {
+            remove(opSel_Group);
+            opSel_Group.destroy();
+            opSel_Group = null;
+        }
+        isOpMenuOpen = false;
+    }
+
+    function handleOpacityInput(elapsed:Float) {
+        var tX:Float = FlxG.mouse.screenX;
+        var tY:Float = FlxG.mouse.screenY;
+        var tJustPressed = false;
+        
+        if (FlxG.onMobile) {
+            tJustPressed = TouchUtil.justPressed;
+            try { if (TouchUtil.touch != null) { tX = TouchUtil.touch.screenX; tY = TouchUtil.touch.screenY; } } catch(e:Dynamic) {}
+        } else {
+            tJustPressed = FlxG.mouse.justPressed;
+        }
+        
+        if (tJustPressed) {
+            var cx = tX - opSel_Group.x; 
+            if (cx >= opSel_Up.x - 20 && cx <= opSel_Up.x + opSel_Up.width + 20) {
+                if (tY >= opSel_Up.y - 20 && tY <= opSel_Up.y + 60) {
+                    opSel_Value += 5; holdTimer = 0.1;
+                    if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
+                } else if (tY >= opSel_Down.y - 20 && tY <= opSel_Down.y + 60) {
+                    opSel_Value -= 5; holdTimer = 0.1;
+                    if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
+                }
+            }
+        }
+
+        if (FlxG.mouse != null && FlxG.mouse.wheel != 0) {
+            opSel_Value += FlxG.mouse.wheel * 5;
+            if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
+        }
+
+        var swipeU = false; var swipeD = false;
+        try { swipeU = SwipeUtil.swipeUp; swipeD = SwipeUtil.swipeDown; } catch(e:Dynamic) {}
+
+        if (FlxG.keys.justPressed.UP || FlxG.keys.justPressed.W || swipeU) {
+            opSel_Value += 5;
+            if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
+        }
+        if (FlxG.keys.justPressed.DOWN || FlxG.keys.justPressed.S || swipeD) {
+            opSel_Value -= 5;
+            if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
+        }
+
+        if (opSel_Value > 100) opSel_Value = 100;
+        if (opSel_Value < 0) opSel_Value = 0;
+        
+        updateOpacityUI();
+
+        if (FlxG.keys.justPressed.ENTER || FlxG.keys.justPressed.SPACE) {
+            saveOpacitySelection();
+        }
+    }
+
+    function createTimeOption(labelText:String, saveKey:String, descStr:String) {
+        var bg = new FlxSprite(0, 0);
+        try {
+            var img = Paths.image(smallCapsulePath);
+            if (img != null) {
+                bg.loadGraphic(img);
+            } else {
+                bg.makeGraphic(Std.int(smallCapsuleWidth), Std.int(120.0), 0xFFFFFFFF);
+            }
+        } catch(e:Dynamic) {
+            bg.makeGraphic(Std.int(smallCapsuleWidth), Std.int(120.0), 0xFFFFFFFF);
+        }
+        
+        if (bg.graphic != null) {
+            var sRatio = smallCapsuleWidth / bg.graphic.width;
+            bg.scale.set(sRatio, sRatio);
+            bg.updateHitbox();
+        }
+
+        bg.cameras = [optionCam];
+        add(bg);
+
+        var label = new FlxText(labelOffsetX, labelOffsetY, 0, labelText, 32);
+        label.wordWrap = false;
+        try {
+            label.setFormat(Paths.font("5by7.ttf"), 32, FlxColor.WHITE, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+            label.antialiasing = false;
+        } catch(e:Dynamic) {
+            label.setFormat("VCR OSD Mono", 24, FlxColor.WHITE, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        }
+
+        label.cameras = [optionCam];
+        add(label);
+
+        var curVal:String = "20:00";
+        try {
+            var fetchedVal = Save.instance.modOptions.get(saveKey);
+            if (fetchedVal != null) curVal = Std.string(fetchedVal);
+        } catch(e:Dynamic) {}
+
+        var valueText = new FlxText(0, valueOffsetY, 0, curVal, 32);
+        valueText.wordWrap = false;
+        try {
+            valueText.setFormat(Paths.font("5by7.ttf"), 32, 0xFF00FF00, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+            valueText.antialiasing = false;
+        } catch(e:Dynamic) {
+            valueText.setFormat("VCR OSD Mono", 24, 0xFF00FF00, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        }
+
+        valueText.color = getValueColor(valueText.text);
+        valueText.cameras = [optionCam];
+        add(valueText);
+
+        var menuInst = this;
+        optionItems.push({
+            bg: bg,
+            labelDisplay: label,
+            textDisplay: valueText, 
+            key: saveKey,
+            options: [],
+            desc: descStr,
+            isHeader: false,
+            slideTimer: 0.0,
+            flashTimer: 0.0,
+            valOffX: valueOffsetX,
+            currentIndex: 0,
+            fire: function(self:Dynamic) {
+                self.flashTimer = 1.0;
+                menuInst.descSlideVerticalTimer = 0.0;
+                menuInst.descValueSlideTimer = 0.0;
+                if (menuInst.sndOn != null) try { FlxG.sound.play(menuInst.sndOn, 0.6); } catch(e:Dynamic) {}
+                menuInst.openTimeSelector(self.key, self.textDisplay); 
+            }
+        });
+    }
+
     function createFontOption(labelText:String, saveKey:String, descStr:String) {
         var bg = new FlxSprite(0, 0);
         try {
@@ -807,6 +1134,204 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                 menuInst.openFontSelector(self.key, null); 
             }
         });
+    }
+
+    public function openTimeSelector(saveKey:String, textRef:FlxText) {
+        isTimeMenuOpen = true; 
+        tSel_SaveKey = saveKey;
+        
+        var curVal = "20:00";
+        try {
+            var fetched = Save.instance.modOptions.get(saveKey);
+            if (fetched != null) curVal = Std.string(fetched);
+        } catch(e:Dynamic) {}
+        
+        tSel_Hour = 20; 
+        tSel_Min = 0;
+        if (curVal != null && curVal.indexOf(":") != -1) {
+            var pSH = Std.parseInt(curVal.split(":")[0]);
+            var pSM = Std.parseInt(curVal.split(":")[1]);
+            if (pSH != null) tSel_Hour = pSH;
+            if (pSM != null) tSel_Min = pSM;
+        }
+        
+        tSel_IsMin = false;
+        
+        tSel_Group = new FlxSpriteGroup(0, 0);
+        tSel_Group.x = panelOnLeft ? -panelWidth : FlxG.width;
+        tSel_Group.cameras = [optionCam];
+        add(tSel_Group);
+        
+        var bg = new FlxSprite(0, 0).makeGraphic(panelWidth, FlxG.height, 0xFF000000);
+        bg.alpha = 0.95;
+        bg.scrollFactor.set(0, 0);
+        tSel_Group.add(bg);
+        
+        var fTitle = new FlxText(10, 80, panelWidth - 20, "ADJUST CLOCK", 40);
+        try { fTitle.setFormat(Paths.font("5by7.ttf"), 40, FlxColor.YELLOW, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK); } catch(e:Dynamic) {
+            fTitle.setFormat("VCR OSD Mono", 40, FlxColor.YELLOW, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        }
+        tSel_Group.add(fTitle);
+
+        var fInst = new FlxText(10, 140, panelWidth - 20, "SWIPE TO MOVE & CHANGE  |  ENTER TO SAVE  |  ESC TO CANCEL", 20);
+        try { fInst.setFormat(Paths.font("5by7.ttf"), 20, FlxColor.WHITE, "center"); } catch(e:Dynamic) {
+            fInst.setFormat("VCR OSD Mono", 20, FlxColor.WHITE, "center");
+        }
+        tSel_Group.add(fInst);
+        
+        var cY = FlxG.height / 2;
+        var cX = panelWidth / 2;
+        
+        tSel_UpHour = new FlxText(cX - 110, cY - 100, 80, "/\\", 50);
+        try { tSel_UpHour.setFormat(Paths.font("5by7.ttf"), 50, FlxColor.WHITE, "center"); } catch(e:Dynamic) { tSel_UpHour.setFormat("VCR OSD Mono", 50, FlxColor.WHITE, "center"); }
+        tSel_Group.add(tSel_UpHour);
+        
+        tSel_DownHour = new FlxText(cX - 110, cY + 50, 80, "\\/", 50);
+        try { tSel_DownHour.setFormat(Paths.font("5by7.ttf"), 50, FlxColor.WHITE, "center"); } catch(e:Dynamic) { tSel_DownHour.setFormat("VCR OSD Mono", 50, FlxColor.WHITE, "center"); }
+        tSel_Group.add(tSel_DownHour);
+        
+        tSel_UpMin = new FlxText(cX + 30, cY - 100, 80, "/\\", 50);
+        try { tSel_UpMin.setFormat(Paths.font("5by7.ttf"), 50, FlxColor.WHITE, "center"); } catch(e:Dynamic) { tSel_UpMin.setFormat("VCR OSD Mono", 50, FlxColor.WHITE, "center"); }
+        tSel_Group.add(tSel_UpMin);
+        
+        tSel_DownMin = new FlxText(cX + 30, cY + 50, 80, "\\/", 50);
+        try { tSel_DownMin.setFormat(Paths.font("5by7.ttf"), 50, FlxColor.WHITE, "center"); } catch(e:Dynamic) { tSel_DownMin.setFormat("VCR OSD Mono", 50, FlxColor.WHITE, "center"); }
+        tSel_Group.add(tSel_DownMin);
+        
+        tSel_TxtHour = new FlxText(cX - 120, cY - 40, 100, "00", 70);
+        try { tSel_TxtHour.setFormat(Paths.font("5by7.ttf"), 70, FlxColor.WHITE, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK); } catch(e:Dynamic) { tSel_TxtHour.setFormat("VCR OSD Mono", 70, FlxColor.WHITE, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK); }
+        tSel_Group.add(tSel_TxtHour);
+        
+        tSel_TxtColon = new FlxText(cX - 20, cY - 45, 40, ":", 70);
+        try { tSel_TxtColon.setFormat(Paths.font("5by7.ttf"), 70, FlxColor.WHITE, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK); } catch(e:Dynamic) { tSel_TxtColon.setFormat("VCR OSD Mono", 70, FlxColor.WHITE, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK); }
+        tSel_Group.add(tSel_TxtColon);
+        
+        tSel_TxtMin = new FlxText(cX + 20, cY - 40, 100, "00", 70);
+        try { tSel_TxtMin.setFormat(Paths.font("5by7.ttf"), 70, FlxColor.WHITE, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK); } catch(e:Dynamic) { tSel_TxtMin.setFormat("VCR OSD Mono", 70, FlxColor.WHITE, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK); }
+        tSel_Group.add(tSel_TxtMin);
+        
+        updateTimeUI();
+    }
+
+    function updateTimeUI() {
+        if (tSel_Group == null) return;
+        var hrStr = tSel_Hour < 10 ? "0" + tSel_Hour : Std.string(tSel_Hour);
+        var minStr = tSel_Min < 10 ? "0" + tSel_Min : Std.string(tSel_Min);
+        
+        tSel_TxtHour.text = hrStr;
+        tSel_TxtMin.text = minStr;
+        
+        tSel_TxtHour.color = !tSel_IsMin ? FlxColor.YELLOW : FlxColor.WHITE;
+        tSel_UpHour.color = !tSel_IsMin ? FlxColor.YELLOW : FlxColor.WHITE;
+        tSel_DownHour.color = !tSel_IsMin ? FlxColor.YELLOW : FlxColor.WHITE;
+        
+        tSel_TxtMin.color = tSel_IsMin ? FlxColor.YELLOW : FlxColor.WHITE;
+        tSel_UpMin.color = tSel_IsMin ? FlxColor.YELLOW : FlxColor.WHITE;
+        tSel_DownMin.color = tSel_IsMin ? FlxColor.YELLOW : FlxColor.WHITE;
+    }
+
+    function saveTimeSelection() {
+        var hrStr = tSel_Hour < 10 ? "0" + tSel_Hour : Std.string(tSel_Hour);
+        var minStr = tSel_Min < 10 ? "0" + tSel_Min : Std.string(tSel_Min);
+        var finalStr = hrStr + ":" + minStr;
+        
+        Save.instance.modOptions.set(tSel_SaveKey, finalStr);
+        Save.instance.flush();
+        
+        if (descTextDisplay != null && optionItems.length > 0 && selectedIndex >= 0) {
+            var selItem = optionItems[selectedIndex];
+            if (selItem.textDisplay != null) {
+                selItem.textDisplay.text = finalStr;
+                selItem.textDisplay.color = 0xFF00FF00;
+            }
+        }
+
+        if (sndOn != null) try { FlxG.sound.play(sndOn, 0.6); } catch(e:Dynamic) {}
+        closeTimeSelector();
+        
+        try { updatePreviews(); } catch(e:Dynamic) {}
+    }
+
+    function closeTimeSelector() {
+        if (tSel_Group != null) {
+            remove(tSel_Group);
+            tSel_Group.destroy();
+            tSel_Group = null;
+        }
+        isTimeMenuOpen = false;
+    }
+
+    function handleTimeInput(elapsed:Float) {
+        var tX:Float = FlxG.mouse.screenX;
+        var tY:Float = FlxG.mouse.screenY;
+        var tJustPressed = false;
+        
+        if (FlxG.onMobile) {
+            tJustPressed = TouchUtil.justPressed;
+            try { if (TouchUtil.touch != null) { tX = TouchUtil.touch.screenX; tY = TouchUtil.touch.screenY; } } catch(e:Dynamic) {}
+        } else {
+            tJustPressed = FlxG.mouse.justPressed;
+        }
+        
+        if (tJustPressed) {
+            var cx = tX - tSel_Group.x; 
+            if (cx >= tSel_UpHour.x - 20 && cx <= tSel_UpHour.x + 80) {
+                if (tY >= tSel_UpHour.y - 20 && tY <= tSel_UpHour.y + 60) {
+                    tSel_IsMin = false; tSel_Hour++; holdTimer = 0.1;
+                    if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
+                } else if (tY >= tSel_DownHour.y - 20 && tY <= tSel_DownHour.y + 60) {
+                    tSel_IsMin = false; tSel_Hour--; holdTimer = 0.1;
+                    if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
+                }
+            }
+            if (cx >= tSel_UpMin.x - 20 && cx <= tSel_UpMin.x + 80) {
+                if (tY >= tSel_UpMin.y - 20 && tY <= tSel_UpMin.y + 60) {
+                    tSel_IsMin = true; tSel_Min++; holdTimer = 0.1;
+                    if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
+                } else if (tY >= tSel_DownMin.y - 20 && tY <= tSel_DownMin.y + 60) {
+                    tSel_IsMin = true; tSel_Min--; holdTimer = 0.1;
+                    if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
+                }
+            }
+        }
+
+        if (FlxG.mouse != null && FlxG.mouse.wheel != 0) {
+            if (!tSel_IsMin) tSel_Hour += FlxG.mouse.wheel;
+            else tSel_Min += FlxG.mouse.wheel;
+            if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
+        }
+
+        var swipeL = false; var swipeR = false; var swipeU = false; var swipeD = false;
+        try { swipeL = SwipeUtil.swipeLeft; swipeR = SwipeUtil.swipeRight; swipeU = SwipeUtil.swipeUp; swipeD = SwipeUtil.swipeDown; } catch(e:Dynamic) {}
+
+        if (FlxG.keys.justPressed.LEFT || FlxG.keys.justPressed.A || swipeL) {
+            tSel_IsMin = !tSel_IsMin;
+            if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
+        }
+        if (FlxG.keys.justPressed.RIGHT || FlxG.keys.justPressed.D || swipeR) {
+            tSel_IsMin = !tSel_IsMin;
+            if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
+        }
+
+        if (FlxG.keys.justPressed.UP || FlxG.keys.justPressed.W || swipeU) {
+            if (!tSel_IsMin) tSel_Hour++; else tSel_Min++;
+            if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
+        }
+        if (FlxG.keys.justPressed.DOWN || FlxG.keys.justPressed.S || swipeD) {
+            if (!tSel_IsMin) tSel_Hour--; else tSel_Min--;
+            if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
+        }
+
+        if (tSel_Hour > 23) tSel_Hour = 0;
+        if (tSel_Hour < 0) tSel_Hour = 23;
+        if (tSel_Min > 59) tSel_Min = 0;
+        if (tSel_Min < 0) tSel_Min = 59;
+        
+        updateTimeUI();
+
+        if (FlxG.keys.justPressed.ENTER || FlxG.keys.justPressed.SPACE) {
+            saveTimeSelection();
+        }
     }
 
     public function openFontSelector(saveKey:String, textRef:FlxText) {
@@ -969,6 +1494,12 @@ class KssetteMenuState extends ScriptedMusicBeatState {
                     if (descValueText.color != targetColor) descValueText.color = targetColor;
                     descValueSlideTimer = 0.0;
                 }
+                
+                if (selItem.textDisplay != null) {
+                    selItem.textDisplay.text = formatShortValue(selFile);
+                    var tColor = getValueColor(selItem.textDisplay.text);
+                    if (selItem.textDisplay.color != tColor) selItem.textDisplay.color = tColor;
+                }
                 descSlideVerticalTimer = 0.0;
             }
 
@@ -1037,7 +1568,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             return;
         }
 
-        var overflow = txt.width - maxWidth;
+        var overflow = txt.width - maxWidth; 
         var speed = 40.0; 
         var slideDuration = overflow / speed;
         var cycle = 1.0 + slideDuration + 1.0 + slideDuration;
@@ -1134,8 +1665,10 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         var esc = FlxG.keys.justPressed.ESCAPE || backPressed;
 
         if (esc) {
-            if (isFontMenuOpen) {
+            if (isFontMenuOpen || isTimeMenuOpen || isOpMenuOpen) {
                 closeFontSelector();
+                closeTimeSelector();
+                closeOpacitySelector();
                 if (sndCancel != null) try { FlxG.sound.play(sndCancel, 0.7); } catch(e:Dynamic) {}
             } else {
                 exitMenu();
@@ -1148,7 +1681,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             kssBackButton.x = FlxMath.lerp(kssBackButton.x, targetBackX, elapsed * 12);
         }
 
-        if (!isFontMenuOpen) {
+        if (!isFontMenuOpen && !isTimeMenuOpen && !isOpMenuOpen) {
             if (FlxG.keys.justPressed.TAB) {
                 panelHidden = !panelHidden;
             }
@@ -1371,8 +1904,26 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             }
 
             if (holdTimer > 0) holdTimer -= elapsed;
-            handleFontInput(elapsed);
+            if (holdTimer <= 0) handleFontInput(elapsed);
             return; 
+        }
+
+        if (isTimeMenuOpen) {
+            var targetFontX = panelOnLeft ? 0 : (FlxG.width - panelWidth);
+            if (tSel_Group != null) tSel_Group.x = FlxMath.lerp(tSel_Group.x, targetFontX, elapsed * 12);
+            
+            if (holdTimer > 0) holdTimer -= elapsed;
+            if (holdTimer <= 0) handleTimeInput(elapsed);
+            return;
+        }
+
+        if (isOpMenuOpen) {
+            var targetFontX = panelOnLeft ? 0 : (FlxG.width - panelWidth);
+            if (opSel_Group != null) opSel_Group.x = FlxMath.lerp(opSel_Group.x, targetFontX, elapsed * 12);
+            
+            if (holdTimer > 0) holdTimer -= elapsed;
+            if (holdTimer <= 0) handleOpacityInput(elapsed);
+            return;
         }
 
         var targetDescY:Float = FlxG.height - (descBg != null ? descBg.height : 90) - 20;
