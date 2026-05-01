@@ -19,9 +19,7 @@ class KssetteNight extends Module {
     var isActive:Bool = false;
     
     var timeCheckTimer:Float = 0.0;
-    
-    var lastTracedMode:String = "";
-    var lastEvaluatedActive:Bool = false;
+    var targetAlpha:Float = 0.01;
     
     public var isPreview:Bool = false;
     public var previewCam:flixel.FlxCamera = null;
@@ -37,24 +35,13 @@ class KssetteNight extends Module {
             overlayGame = null;
         }
         isActive = false;
-        lastTracedMode = "";
+        targetAlpha = 0.01;
     }
 
-    override public function onStateChangeEnd(event:StateChangeScriptEvent) {
-        super.onStateChangeEnd(event);
-        
-        var isMenu = false;
-        try {
-            var state = FlxG.state;
-            if (Reflect.hasField(state, "scriptName") && Reflect.field(state, "scriptName") == "KssetteMenuState") {
-                isMenu = true;
-            }
-        } catch(e:Dynamic) {}
-
-        if (!isMenu) {
-            isPreview = false;
-            cleanUp();
-        }
+    override public function onStateChangeStart(event:Dynamic) {
+        super.onStateChangeStart(event);
+        isPreview = false;
+        cleanUp();
     }
 
     public function buildPreview(cam:flixel.FlxCamera) {
@@ -63,15 +50,16 @@ class KssetteNight extends Module {
         cleanUp();
         
         initSprite();
-        var stateData = evaluateState();
-        applyCalculatedState(stateData);
+        applyCalculatedState(evaluateState());
+    }
+
+    function isPlayStateActive():Bool {
+        return PlayState.instance != null && Std.isOfType(FlxG.state, PlayState);
     }
 
     function getMode():String {
         var apiModule = ModuleHandler.getModule("KssetteApi");
-        if (apiModule == null) {
-            return "Off";
-        }
+        if (apiModule == null) return "Off";
         
         var rawMode:Dynamic = apiModule.getKssValue("kssette_night_mode");
         if (rawMode == true || rawMode == "true" || rawMode == "On") return "On";
@@ -82,10 +70,6 @@ class KssetteNight extends Module {
     function evaluateState():Dynamic {
         var apiModule = ModuleHandler.getModule("KssetteApi");
         var mode = getMode();
-        
-        if (mode != lastTracedMode) {
-            lastTracedMode = mode;
-        }
         
         var currentOp = 0.65;
         if (apiModule != null) {
@@ -129,15 +113,10 @@ class KssetteNight extends Module {
         var endSecs = (endH * 3600) + (endM * 60);
         
         var isNight = false;
-        
         if (startSecs < endSecs) { 
             isNight = (curSecs >= startSecs && curSecs < endSecs);
         } else { 
             isNight = (curSecs >= startSecs || curSecs < endSecs);
-        }
-
-        if (isNight != lastEvaluatedActive) {
-            lastEvaluatedActive = isNight;
         }
 
         return {active: isNight, opacity: currentOp};
@@ -145,8 +124,7 @@ class KssetteNight extends Module {
 
     public function updatePreview() {
         if (!isPreview) return;
-        var stateData = evaluateState();
-        applyCalculatedState(stateData);
+        applyCalculatedState(evaluateState());
     }
 
     function initSprite() {
@@ -158,77 +136,69 @@ class KssetteNight extends Module {
         overlayGame.scale.set(FlxG.width * 4, FlxG.height * 4);
         overlayGame.updateHitbox();
         overlayGame.scrollFactor.set(0, 0); 
-        overlayGame.x = (FlxG.width - overlayGame.width) / 2;
-        overlayGame.y = (FlxG.height - overlayGame.height) / 2;
+        try { overlayGame.screenCenter(); } catch(e:Dynamic) {}
         
+        overlayGame.zIndex = 50; 
+
         if (isPreview) {
             if (previewCam != null) overlayGame.cameras = [previewCam];
-            overlayGame.zIndex = 9999;
             FlxG.state.add(overlayGame);
+            try { Reflect.callMethod(FlxG.state, Reflect.field(FlxG.state, "refresh"), []); } catch(e:Dynamic) {}
         } else {
             var state = PlayState.instance;
             var targetCam:flixel.FlxCamera = null;
-            
-            if (state != null) {
+            if (isPlayStateActive()) {
                 try { targetCam = Reflect.getProperty(state, "camHUD"); } catch(e:Dynamic) {}
             }
-            
-            if (targetCam == null) {
-                targetCam = FlxG.camera;
-            }
+            if (targetCam == null) targetCam = FlxG.camera;
             
             overlayGame.cameras = [targetCam];
             
-            overlayGame.zIndex = 50; 
-            
-            FlxG.state.add(overlayGame);
-            if (state != null) {
-                try { 
-                    state.refresh(); 
-                } catch(e:Dynamic) {}
+            if (isPlayStateActive() && state != null) {
+                state.add(overlayGame);
+                try { state.refresh(); } catch(e:Dynamic) {}
+            } else {
+                FlxG.state.add(overlayGame);
+                try { Reflect.callMethod(FlxG.state, Reflect.field(FlxG.state, "refresh"), []); } catch(e:Dynamic) {}
             }
         }
         
         overlayGame.visible = true;
         overlayGame.alpha = 0.01;
+        targetAlpha = 0.01;
     }
 
     override function onCountdownStart(event:Dynamic):Void {
         super.onCountdownStart(event);
         
-        if (Std.isOfType(FlxG.state, PlayState)) {
-            isPreview = false;
-        }
-
+        if (isPlayStateActive()) isPreview = false;
         if (isPreview) return;
         
+        cleanUp();
         timeCheckTimer = 0.0;
-        lastEvaluatedActive = false; 
-        
-        cleanUp(); 
         
         initSprite();
-        
-        var stateData = evaluateState();
-        applyCalculatedState(stateData);
+        applyCalculatedState(evaluateState());
     }
     
     override public function onResume(event:Dynamic) {
         super.onResume(event);
+        if (isPlayStateActive()) isPreview = false;
+        if (isPreview) return;
         
-        if (Std.isOfType(FlxG.state, PlayState)) isPreview = false;
-        if (isPreview || PlayState.instance == null) return;
-        
-        var stateData = evaluateState();
-        applyCalculatedState(stateData);
+        applyCalculatedState(evaluateState());
     }
 
     override public function onUpdate(event:Dynamic):Void {
         super.onUpdate(event);
         
-        if (Std.isOfType(FlxG.state, PlayState)) isPreview = false;
+        if (isPlayStateActive() && isPreview) {
+            isPreview = false;
+            cleanUp();
+            initSprite();
+        }
 
-        if (!isPreview && PlayState.instance == null) return;
+        if (!isPreview && !isPlayStateActive()) return;
 
         var elapsed = 0.0;
         try {
@@ -239,8 +209,15 @@ class KssetteNight extends Module {
         timeCheckTimer += elapsed;
         if (timeCheckTimer >= 1.0) {
             timeCheckTimer = 0.0;
-            var stateData = evaluateState();
-            applyCalculatedState(stateData);
+            applyCalculatedState(evaluateState());
+        }
+
+        if (overlayGame != null && overlayGame.exists && overlayGame.visible) {
+            if (Math.abs(overlayGame.alpha - targetAlpha) > 0.001) {
+                overlayGame.alpha += (targetAlpha - overlayGame.alpha) * (elapsed * 4.0);
+            } else {
+                overlayGame.alpha = targetAlpha;
+            }
         }
     }
 
@@ -248,31 +225,29 @@ class KssetteNight extends Module {
         var shouldBeActive = stateData.active;
         var op = stateData.opacity;
 
-        if (overlayGame == null || !overlayGame.exists) {
-            initSprite();
-        }
+        if (overlayGame == null || !overlayGame.exists) initSprite();
 
-        if (!isPreview && PlayState.instance != null) {
-            var targetCam:flixel.FlxCamera = null;
-            try { targetCam = Reflect.getProperty(PlayState.instance, "camHUD"); } catch(e:Dynamic) {}
-            if (targetCam != null && (overlayGame.cameras == null || overlayGame.cameras.length == 0 || overlayGame.cameras[0] != targetCam)) {
-                overlayGame.cameras = [targetCam];
+        if (isPreview) {
+            if (previewCam != null && (overlayGame.cameras == null || overlayGame.cameras.length == 0 || overlayGame.cameras[0] != previewCam)) {
+                overlayGame.cameras = [previewCam];
+            }
+        } else if (isPlayStateActive()) {
+            var currentCam:flixel.FlxCamera = null;
+            try { currentCam = Reflect.getProperty(PlayState.instance, "camHUD"); } catch(e:Dynamic) {}
+            if (currentCam == null) currentCam = FlxG.camera;
+            
+            if (overlayGame.cameras == null || overlayGame.cameras.length == 0 || overlayGame.cameras[0] != currentCam) {
+                overlayGame.cameras = [currentCam];
             }
         }
 
-        if (!overlayGame.visible) {
-            overlayGame.visible = true;
-        }
+        if (!overlayGame.visible) overlayGame.visible = true;
 
         if (shouldBeActive) {
-            if (overlayGame.alpha != op) {
-                overlayGame.alpha = op;
-            }
+            targetAlpha = op;
             isActive = true;
         } else {
-            if (overlayGame.alpha != 0.01) {
-                overlayGame.alpha = 0.01;
-            }
+            targetAlpha = 0.01;
             isActive = false;
         }
     }
