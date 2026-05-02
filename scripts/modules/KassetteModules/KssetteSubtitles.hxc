@@ -198,7 +198,8 @@ var triviaArray:Array<String> = [
     "Did you know? <font color=\"#5DA5FF\">Cassette Girl</font> was originally designed to be the mascot for a hat brand.",
     "Trivia: <font color=\"#FFAA00\">Darnell</font> is a self-taught pyrotechnic expert and builds his own fireworks.",
     "Did you know? <font color=\"#00FF00\">Boyfriend's</font> 'Blue Balls' animation was inspired by classic arcade game-over screens.",
-    "Fun fact: <font color=\"#CC00FF\">The 'B-Side' mod</font> was the very first 'remix' mod to ever gain mainstream popularity."
+    "Fun fact: <font color=\"#CC00FF\">The 'B-Side' mod</font> was the very first 'remix' mod to ever gain mainstream popularity.",
+    "Did you know? <font color=\"#00FF00\">For every three trees, one grows crooked.</font>"
 ];
 
     public function new() {
