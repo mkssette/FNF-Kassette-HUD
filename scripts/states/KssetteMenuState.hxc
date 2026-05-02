@@ -628,10 +628,9 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         if (FlxG.onMobile) {
             kssBackButton = new FunkinBackButton(15, 15, 0xFFFFFFFF, function() {
                 if (isFontMenuOpen || isTimeMenuOpen || isOpMenuOpen) {
-                    closeFontSelector();
-                    closeTimeSelector();
-                    closeOpacitySelector();
-                    if (sndCancel != null) try { FlxG.sound.play(sndCancel, 0.7); } catch(e:Dynamic) {}
+                    if (isFontMenuOpen) selectCurrentFont();
+                    if (isTimeMenuOpen) saveTimeSelection();
+                    if (isOpMenuOpen) saveOpacitySelection();
                 } else {
                     exitMenu();
                 }
@@ -894,7 +893,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         catch(e:Dynamic) { fTitle.setFormat("VCR OSD Mono", 40, FlxColor.YELLOW, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK); }
         opSel_Group.add(fTitle);
 
-        var fInst = new FlxText(10, 140, panelWidth - 20, "SWIPE TO CHANGE  |  ENTER TO SAVE", 20);
+        var fInst = new FlxText(10, 140, panelWidth - 20, FlxG.onMobile ? "SWIPE TO CHANGE  |  TAP BACK BUTTON TO SAVE" : "SWIPE TO CHANGE  |  ENTER TO SAVE", 20);
         try { fInst.setFormat(Paths.font("5by7.ttf"), 20, FlxColor.WHITE, "center"); } 
         catch(e:Dynamic) { fInst.setFormat("VCR OSD Mono", 20, FlxColor.WHITE, "center"); }
         opSel_Group.add(fInst);
@@ -916,7 +915,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         try { opSel_TxtVal.setFormat(Paths.font("5by7.ttf"), 70, FlxColor.WHITE, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK); } 
         catch(e:Dynamic) { opSel_TxtVal.setFormat("VCR OSD Mono", 70, FlxColor.WHITE, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK); }
         opSel_Group.add(opSel_TxtVal);
-        
+
         updateOpacityUI();
     }
 
@@ -965,15 +964,15 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         }
         
         if (tJustPressed) {
-            var cx = tX - opSel_Group.x; 
-            if (cx >= opSel_Up.x - 20 && cx <= opSel_Up.x + opSel_Up.width + 20) {
-                if (tY >= opSel_Up.y - 20 && tY <= opSel_Up.y + 60) {
-                    opSel_Value += 5; holdTimer = 0.1;
-                    if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
-                } else if (tY >= opSel_Down.y - 20 && tY <= opSel_Down.y + 60) {
-                    opSel_Value -= 5; holdTimer = 0.1;
-                    if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
-                }
+            if (tX >= opSel_Up.x - 40 && tX <= opSel_Up.x + opSel_Up.width + 40 &&
+                tY >= opSel_Up.y - 40 && tY <= opSel_Up.y + opSel_Up.height + 40) {
+                opSel_Value += 5; holdTimer = 0.1;
+                if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
+            }
+            else if (tX >= opSel_Down.x - 40 && tX <= opSel_Down.x + opSel_Down.width + 40 &&
+                     tY >= opSel_Down.y - 40 && tY <= opSel_Down.y + opSel_Down.height + 40) {
+                opSel_Value -= 5; holdTimer = 0.1;
+                if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
             }
         }
 
@@ -1173,19 +1172,11 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         }
         tSel_Group.add(fTitle);
 
-        var fInst = new FlxText(10, 140, panelWidth - 20, "SWIPE TO MOVE & CHANGE  |  ENTER TO SAVE  |  ESC TO CANCEL", 20);
-        var fInst = new FlxText(10, 140, panelWidth - 20, FlxG.onMobile ? "SWIPE TO MOVE & CHANGE" : "SWIPE TO MOVE & CHANGE  |  ENTER TO SAVE  |  ESC TO CANCEL", 20);
+        var fInst = new FlxText(10, 140, panelWidth - 20, FlxG.onMobile ? "SWIPE TO MOVE & CHANGE  |  TAP BACK BUTTON TO SAVE" : "SWIPE TO MOVE & CHANGE  |  ENTER TO SAVE  |  ESC TO CANCEL", 20);
         try { fInst.setFormat(Paths.font("5by7.ttf"), 20, FlxColor.WHITE, "center"); } catch(e:Dynamic) {
             fInst.setFormat("VCR OSD Mono", 20, FlxColor.WHITE, "center");
         }
         tSel_Group.add(fInst);
-        
-        if (FlxG.onMobile) {
-            tSel_SaveBtn = new FlxText(10, FlxG.height - 100, panelWidth - 20, "[ TAP HERE TO SAVE ]", 40);
-            try { tSel_SaveBtn.setFormat(Paths.font("5by7.ttf"), 40, FlxColor.GREEN, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK); }
-            catch(e:Dynamic) { tSel_SaveBtn.setFormat("VCR OSD Mono", 40, FlxColor.GREEN, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK); }
-            tSel_Group.add(tSel_SaveBtn);
-        }
 
         var cY = FlxG.height / 2;
         var cX = panelWidth / 2;
@@ -1273,36 +1264,34 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         var tX:Float = FlxG.mouse.screenX;
         var tY:Float = FlxG.mouse.screenY;
         var tJustPressed = false;
-        var tJustReleased = false;
         
         if (FlxG.onMobile) {
             tJustPressed = TouchUtil.justPressed;
-            tJustReleased = TouchUtil.justReleased;
             if (TouchUtil.touch != null) { tX = TouchUtil.touch.screenX; tY = TouchUtil.touch.screenY; }
         } else {
             tJustPressed = FlxG.mouse.justPressed;
-            tJustReleased = FlxG.mouse.justReleased;
         }
         
         if (tJustPressed) {
-            var cx = tX - tSel_Group.x; 
-            if (cx >= tSel_UpHour.x - 20 && cx <= tSel_UpHour.x + 80) {
-                if (tY >= tSel_UpHour.y - 20 && tY <= tSel_UpHour.y + 60) {
-                    tSel_IsMin = false; tSel_Hour++; holdTimer = 0.1;
-                    if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
-                } else if (tY >= tSel_DownHour.y - 20 && tY <= tSel_DownHour.y + 60) {
-                    tSel_IsMin = false; tSel_Hour--; holdTimer = 0.1;
-                    if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
-                }
+            if (tX >= tSel_UpHour.x - 40 && tX <= tSel_UpHour.x + tSel_UpHour.width + 40 &&
+                tY >= tSel_UpHour.y - 40 && tY <= tSel_UpHour.y + tSel_UpHour.height + 40) {
+                tSel_IsMin = false; tSel_Hour++; holdTimer = 0.1;
+                if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
+            } 
+            else if (tX >= tSel_DownHour.x - 40 && tX <= tSel_DownHour.x + tSel_DownHour.width + 40 &&
+                     tY >= tSel_DownHour.y - 40 && tY <= tSel_DownHour.y + tSel_DownHour.height + 40) {
+                tSel_IsMin = false; tSel_Hour--; holdTimer = 0.1;
+                if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
             }
-            if (cx >= tSel_UpMin.x - 20 && cx <= tSel_UpMin.x + 80) {
-                if (tY >= tSel_UpMin.y - 20 && tY <= tSel_UpMin.y + 60) {
-                    tSel_IsMin = true; tSel_Min++; holdTimer = 0.1;
-                    if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
-                } else if (tY >= tSel_DownMin.y - 20 && tY <= tSel_DownMin.y + 60) {
-                    tSel_IsMin = true; tSel_Min--; holdTimer = 0.1;
-                    if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
-                }
+            else if (tX >= tSel_UpMin.x - 40 && tX <= tSel_UpMin.x + tSel_UpMin.width + 40 &&
+                     tY >= tSel_UpMin.y - 40 && tY <= tSel_UpMin.y + tSel_UpMin.height + 40) {
+                tSel_IsMin = true; tSel_Min++; holdTimer = 0.1;
+                if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
+            }
+            else if (tX >= tSel_DownMin.x - 40 && tX <= tSel_DownMin.x + tSel_DownMin.width + 40 &&
+                     tY >= tSel_DownMin.y - 40 && tY <= tSel_DownMin.y + tSel_DownMin.height + 40) {
+                tSel_IsMin = true; tSel_Min--; holdTimer = 0.1;
+                if (sndScroll != null) try { FlxG.sound.play(sndScroll, 0.5); } catch(e:Dynamic) {}
             }
         }
 
@@ -1343,16 +1332,6 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         updateTimeUI();
 
         if (controls.ACCEPT_P) {
-        var tappedSave = false;
-        if (tJustReleased && FlxG.onMobile && tSel_SaveBtn != null) {
-            if (tX >= tSel_Group.x && tX <= tSel_Group.x + panelWidth) {
-                if (tY >= tSel_SaveBtn.y - 20 && tY <= tSel_SaveBtn.y + tSel_SaveBtn.height + 20) {
-                    tappedSave = true;
-                }
-            }
-        }
-
-        if (controls.ACCEPT_P || tappedSave) {
             saveTimeSelection();
         }
     }
@@ -1691,10 +1670,9 @@ class KssetteMenuState extends ScriptedMusicBeatState {
 
         if (esc) {
             if (isFontMenuOpen || isTimeMenuOpen || isOpMenuOpen) {
-                closeFontSelector();
-                closeTimeSelector();
-                closeOpacitySelector();
-                if (sndCancel != null) try { FlxG.sound.play(sndCancel, 0.7); } catch(e:Dynamic) {}
+                if (isFontMenuOpen) selectCurrentFont();
+                if (isTimeMenuOpen) saveTimeSelection();
+                if (isOpMenuOpen) saveOpacitySelection();
             } else {
                 exitMenu();
             }
