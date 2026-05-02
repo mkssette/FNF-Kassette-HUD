@@ -1,0 +1,83 @@
+package kassettehud.util;
+
+import flixel.FlxG;
+import funkin.modding.module.Module;
+import funkin.Paths;
+import funkin.save.Save;
+import funkin.audio.FunkinSound;
+import funkin.play.PlayState;
+import funkin.modding.events.UpdateScriptEvent;
+import funkin.modding.events.ScriptEvent;
+import Std;
+import Math;
+import StringTools;
+
+class KssetteHitsound extends Module {
+    var isPaused:Bool = false;
+    var isEnabled:Bool = false;
+    var soundVolume:Float = 1.0;
+
+    public function new() {
+        super('KssetteHitsound');
+    }
+
+    override public function onCountdownStart(event:Dynamic) {
+        super.onCountdownStart(event);
+        isPaused = false;
+        isEnabled = false;
+        soundVolume = 1.0;
+
+        if (Save.instance != null && Save.instance.modOptions != null) {
+            var fetched = Save.instance.modOptions.get("kssette_hitsound");
+            if (fetched != null && Std.string(fetched) == "On") {
+                isEnabled = true;
+            }
+
+            var fetchedVol = Save.instance.modOptions.get("kssette_hitsound_volume");
+            if (fetchedVol != null) {
+                var volStr = StringTools.replace(Std.string(fetchedVol), "%", "");
+                var parsedVol = Std.parseFloat(volStr);
+                if (!Math.isNaN(parsedVol)) {
+                    if (parsedVol > 1.0) {
+                        soundVolume = parsedVol / 100.0;
+                    } else {
+                        soundVolume = parsedVol;
+                    }
+                }
+            }
+        }
+    }
+
+    override function onPause(event:ScriptEvent) {
+        super.onPause(event);
+        isPaused = true;
+    }
+
+    override function onStateChangeEnd(event:ScriptEvent) {
+        super.onStateChangeEnd(event);
+        isPaused = false;
+    }
+
+    override function onResume(event:ScriptEvent) {
+        super.onResume(event);
+        isPaused = false;
+    }
+
+    override public function onUpdate(event:UpdateScriptEvent) {
+        super.onUpdate(event);
+
+        if (!isEnabled || isPaused) return;
+
+        var state = PlayState.instance;
+        if (state == null || state.isPlayerDying) return;
+
+        var controlsObj = state.controls;
+        if (controlsObj == null) return;
+
+        if (controlsObj.NOTE_LEFT_P || controlsObj.NOTE_DOWN_P || controlsObj.NOTE_UP_P || controlsObj.NOTE_RIGHT_P) {
+            if (FlxG.sound != null) {
+                FunkinSound.playOnce(Paths.sound("play/hitsound"), soundVolume);
+            }
+        }
+    }
+}

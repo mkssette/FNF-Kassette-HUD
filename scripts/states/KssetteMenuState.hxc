@@ -109,6 +109,14 @@ class KssetteMenuState extends ScriptedMusicBeatState {
     var opSel_Up:FlxText;
     var opSel_Down:FlxText;
 
+    var isVolMenuOpen:Bool = false;
+    var volSel_SaveKey:String = "";
+    var volSel_Group:FlxSpriteGroup;
+    var volSel_Value:Int = 100;
+    var volSel_TxtVal:FlxText;
+    var volSel_Up:FlxText;
+    var volSel_Down:FlxText;
+
     var holdTimer:Float = 0;
     var panelHidden:Bool = false;
     var panelOnLeft:Bool = false;
@@ -507,6 +515,8 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         }
         createToggle("GHOST SINGING", "kssette_ghost_sing", ["On", "Off"], "Your character will play singing animations when you press empty keys.");
         createToggle("RESUME COUNTDOWN", "kssette_resume_countdown", ["On", "Off"], "Adds a 'Ready, Set, Go!' countdown when you unpause the game.");
+        createToggle("HITSOUND", "kssette_hitsound", ["Off", "On"], "Plays a sound when you press a note.");
+        createVolumeOption("HITSOUND VOL", "kssette_hitsound_volume", "Adjust the volume of the hitsound.");
         
         addHeader("HUD Visuals");
         createToggle("SHOW SCORE", "kssette_show_score", ["On", "Off"], "Show your current score.");
@@ -627,10 +637,11 @@ class KssetteMenuState extends ScriptedMusicBeatState {
 
         if (FlxG.onMobile) {
             kssBackButton = new FunkinBackButton(15, 15, 0xFFFFFFFF, function() {
-                if (isFontMenuOpen || isTimeMenuOpen || isOpMenuOpen) {
+                if (isFontMenuOpen || isTimeMenuOpen || isOpMenuOpen || isVolMenuOpen) {
                     if (isFontMenuOpen) selectCurrentFont();
                     if (isTimeMenuOpen) saveTimeSelection();
                     if (isOpMenuOpen) saveOpacitySelection();
+                    if (isVolMenuOpen) saveVolumeSelection();
                 } else {
                     exitMenu();
                 }
@@ -1000,6 +1011,224 @@ class KssetteMenuState extends ScriptedMusicBeatState {
 
         if (controls.ACCEPT_P) {
             saveOpacitySelection();
+        }
+    }
+
+    function createVolumeOption(labelText:String, saveKey:String, descStr:String) {
+        var bg = new FlxSprite(0, 0);
+        try {
+            var img = Paths.image(smallCapsulePath);
+            if (img != null) {
+                bg.loadGraphic(img);
+            } else {
+                bg.makeGraphic(Std.int(smallCapsuleWidth), Std.int(120.0), 0xFFFFFFFF);
+            }
+        } catch(e:Dynamic) {
+            bg.makeGraphic(Std.int(smallCapsuleWidth), Std.int(120.0), 0xFFFFFFFF);
+        }
+        
+        if (bg.graphic != null) {
+            var sRatio = smallCapsuleWidth / bg.graphic.width;
+            bg.scale.set(sRatio, sRatio);
+            bg.updateHitbox();
+        }
+
+        bg.cameras = [optionCam];
+        add(bg);
+
+        var label = new FlxText(labelOffsetX, labelOffsetY, 0, labelText, 32);
+        label.wordWrap = false;
+        try {
+            label.setFormat(Paths.font("5by7.ttf"), 32, FlxColor.WHITE, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+            label.antialiasing = false;
+        } catch(e:Dynamic) {
+            label.setFormat("VCR OSD Mono", 24, FlxColor.WHITE, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        }
+
+        label.cameras = [optionCam];
+        add(label);
+
+        var curVal:String = "100%";
+        try {
+            var fetchedVal = Save.instance.modOptions.get(saveKey);
+            if (fetchedVal != null) curVal = Std.string(fetchedVal);
+        } catch(e:Dynamic) {}
+        if (curVal.indexOf("%") == -1) curVal += "%";
+
+        var valueText = new FlxText(0, valueOffsetY, 0, curVal, 32);
+        valueText.wordWrap = false;
+        try {
+            valueText.setFormat(Paths.font("5by7.ttf"), 32, 0xFF00FF00, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+            valueText.antialiasing = false;
+        } catch(e:Dynamic) {
+            valueText.setFormat("VCR OSD Mono", 24, 0xFF00FF00, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        }
+
+        valueText.color = getValueColor(valueText.text);
+        valueText.cameras = [optionCam];
+        add(valueText);
+
+        var menuInst = this;
+        optionItems.push({
+            bg: bg,
+            labelDisplay: label,
+            textDisplay: valueText, 
+            key: saveKey,
+            options: [],
+            desc: descStr,
+            isHeader: false,
+            slideTimer: 0.0,
+            flashTimer: 0.0,
+            valOffX: valueOffsetX,
+            currentIndex: 0,
+            fire: function(self:Dynamic) {
+                self.flashTimer = 1.0;
+                menuInst.descSlideVerticalTimer = 0.0;
+                menuInst.descValueSlideTimer = 0.0;
+                if (menuInst.sndOn != null) try { FlxG.sound.play(menuInst.sndOn, 0.6); } catch(e:Dynamic) {}
+                menuInst.openVolumeSelector(self.key); 
+            }
+        });
+    }
+
+    public function openVolumeSelector(saveKey:String) {
+        isVolMenuOpen = true; 
+        volSel_SaveKey = saveKey;
+        
+        var curVal = "100";
+        try {
+            var fetched = Save.instance.modOptions.get(saveKey);
+            if (fetched != null) curVal = StringTools.replace(Std.string(fetched), "%", "");
+        } catch(e:Dynamic) {}
+        
+        volSel_Value = Std.parseInt(curVal);
+        if (volSel_Value == null) volSel_Value = 100;
+        
+        volSel_Group = new FlxSpriteGroup(0, 0);
+        volSel_Group.x = panelOnLeft ? -panelWidth : FlxG.width;
+        volSel_Group.cameras = [optionCam];
+        add(volSel_Group);
+        
+        var bg = new FlxSprite(0, 0).makeGraphic(panelWidth, FlxG.height, 0xFF000000);
+        bg.alpha = 0.95;
+        bg.scrollFactor.set(0, 0);
+        volSel_Group.add(bg);
+        
+        var fTitle = new FlxText(10, 80, panelWidth - 20, "ADJUST VOLUME (ESC TO CANCEL)", 40);
+        try { fTitle.setFormat(Paths.font("5by7.ttf"), 40, FlxColor.YELLOW, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK); } 
+        catch(e:Dynamic) { fTitle.setFormat("VCR OSD Mono", 40, FlxColor.YELLOW, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK); }
+        volSel_Group.add(fTitle);
+
+        var fInst = new FlxText(10, 140, panelWidth - 20, FlxG.onMobile ? "SWIPE TO CHANGE  |  TAP BACK BUTTON TO SAVE" : "SWIPE TO CHANGE  |  ENTER TO SAVE", 20);
+        try { fInst.setFormat(Paths.font("5by7.ttf"), 20, FlxColor.WHITE, "center"); } 
+        catch(e:Dynamic) { fInst.setFormat("VCR OSD Mono", 20, FlxColor.WHITE, "center"); }
+        volSel_Group.add(fInst);
+        
+        var cY = FlxG.height / 2;
+        var cX = panelWidth / 2;
+        
+        volSel_Up = new FlxText(cX - 50, cY - 100, 100, "/\\", 50);
+        try { volSel_Up.setFormat(Paths.font("5by7.ttf"), 50, FlxColor.YELLOW, "center"); } 
+        catch(e:Dynamic) { volSel_Up.setFormat("VCR OSD Mono", 50, FlxColor.YELLOW, "center"); }
+        volSel_Group.add(volSel_Up);
+        
+        volSel_Down = new FlxText(cX - 50, cY + 50, 100, "\\/", 50);
+        try { volSel_Down.setFormat(Paths.font("5by7.ttf"), 50, FlxColor.YELLOW, "center"); } 
+        catch(e:Dynamic) { volSel_Down.setFormat("VCR OSD Mono", 50, FlxColor.YELLOW, "center"); }
+        volSel_Group.add(volSel_Down);
+        
+        volSel_TxtVal = new FlxText(cX - 100, cY - 40, 200, "100%", 70);
+        try { volSel_TxtVal.setFormat(Paths.font("5by7.ttf"), 70, FlxColor.WHITE, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK); } 
+        catch(e:Dynamic) { volSel_TxtVal.setFormat("VCR OSD Mono", 70, FlxColor.WHITE, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK); }
+        volSel_Group.add(volSel_TxtVal);
+
+        updateVolumeUI();
+    }
+
+    function updateVolumeUI() {
+        if (volSel_Group == null) return;
+        volSel_TxtVal.text = Std.string(volSel_Value) + "%";
+    }
+
+    function saveVolumeSelection() {
+        var finalStr = Std.string(volSel_Value) + "%";
+        Save.instance.modOptions.set(volSel_SaveKey, finalStr);
+        Save.instance.flush();
+        
+        if (descTextDisplay != null && optionItems.length > 0 && selectedIndex >= 0) {
+            var selItem = optionItems[selectedIndex];
+            if (selItem.textDisplay != null) {
+                selItem.textDisplay.text = finalStr;
+            }
+        }
+
+        if (sndOn != null) try { FlxG.sound.play(sndOn, 0.6); } catch(e:Dynamic) {}
+        closeVolumeSelector();
+        
+        try { updatePreviews(); } catch(e:Dynamic) {}
+    }
+
+    function closeVolumeSelector() {
+        if (volSel_Group != null) {
+            remove(volSel_Group);
+            volSel_Group.destroy();
+            volSel_Group = null;
+        }
+        isVolMenuOpen = false;
+    }
+
+    function handleVolumeInput(elapsed:Float) {
+        var tX:Float = FlxG.mouse.screenX;
+        var tY:Float = FlxG.mouse.screenY;
+        var tJustPressed = false;
+        
+        if (FlxG.onMobile) {
+            tJustPressed = TouchUtil.justPressed;
+            if (TouchUtil.touch != null) { tX = TouchUtil.touch.screenX; tY = TouchUtil.touch.screenY; }
+        } else {
+            tJustPressed = FlxG.mouse.justPressed;
+        }
+        
+        var oldVol = volSel_Value;
+
+        if (tJustPressed) {
+            if (tX >= volSel_Up.x - 40 && tX <= volSel_Up.x + volSel_Up.width + 40 &&
+                tY >= volSel_Up.y - 40 && tY <= volSel_Up.y + volSel_Up.height + 40) {
+                volSel_Value += 5; holdTimer = 0.1;
+            }
+            else if (tX >= volSel_Down.x - 40 && tX <= volSel_Down.x + volSel_Down.width + 40 &&
+                     tY >= volSel_Down.y - 40 && tY <= volSel_Down.y + volSel_Down.height + 40) {
+                volSel_Value -= 5; holdTimer = 0.1;
+            }
+        }
+
+        if (FlxG.mouse != null && FlxG.mouse.wheel != 0) {
+            volSel_Value += FlxG.mouse.wheel * 5;
+        }
+
+        var swipeU = SwipeUtil.swipeUp;
+        var swipeD = SwipeUtil.swipeDown;
+
+        if (controls.UI_UP_P || swipeU) {
+            volSel_Value += 5;
+        }
+        if (controls.UI_DOWN_P || swipeD) {
+            volSel_Value -= 5;
+        }
+
+        if (volSel_Value > 100) volSel_Value = 100;
+        if (volSel_Value < 0) volSel_Value = 0;
+        
+        if (oldVol != volSel_Value) {
+            if (FlxG.sound != null) {
+                FlxG.sound.play(Paths.sound("play/hitsound"), volSel_Value / 100.0);
+            }
+        }
+
+        updateVolumeUI();
+
+        if (controls.ACCEPT_P) {
+            saveVolumeSelection();
         }
     }
 
@@ -1669,10 +1898,11 @@ class KssetteMenuState extends ScriptedMusicBeatState {
         var esc = controls.BACK_P || backPressed;
 
         if (esc) {
-            if (isFontMenuOpen || isTimeMenuOpen || isOpMenuOpen) {
+            if (isFontMenuOpen || isTimeMenuOpen || isOpMenuOpen || isVolMenuOpen) {
                 if (isFontMenuOpen) selectCurrentFont();
                 if (isTimeMenuOpen) saveTimeSelection();
                 if (isOpMenuOpen) saveOpacitySelection();
+                if (isVolMenuOpen) saveVolumeSelection();
             } else {
                 exitMenu();
             }
@@ -1684,7 +1914,7 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             kssBackButton.x = FlxMath.lerp(kssBackButton.x, targetBackX, elapsed * 12);
         }
 
-        if (!isFontMenuOpen && !isTimeMenuOpen && !isOpMenuOpen) {
+        if (!isFontMenuOpen && !isTimeMenuOpen && !isOpMenuOpen && !isVolMenuOpen) {
             if (FlxG.keys.justPressed.TAB) {
                 panelHidden = !panelHidden;
             }
@@ -1926,6 +2156,15 @@ class KssetteMenuState extends ScriptedMusicBeatState {
             
             if (holdTimer > 0) holdTimer -= elapsed;
             if (holdTimer <= 0) handleOpacityInput(elapsed);
+            return;
+        }
+
+        if (isVolMenuOpen) {
+            var targetFontX = panelOnLeft ? 0 : (FlxG.width - panelWidth);
+            if (volSel_Group != null) volSel_Group.x = FlxMath.lerp(volSel_Group.x, targetFontX, elapsed * 12);
+            
+            if (holdTimer > 0) holdTimer -= elapsed;
+            if (holdTimer <= 0) handleVolumeInput(elapsed);
             return;
         }
 

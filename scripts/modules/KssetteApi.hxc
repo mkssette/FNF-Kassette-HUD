@@ -205,7 +205,8 @@ class KssetteApi extends Module {
             "kssette_custom_pixel_font",
             "kssette_intro_text", "kssette_intro_font_title", "kssette_intro_font_artist",
             "kssette_subtitles_anim", "kssette_subtitles_pos", "kssette_smart_karaoke",
-            "kssette_colored_healthbar", "kssette_night_mode", "kssette_night_start", "kssette_night_end", "kssette_night_opacity"
+            "kssette_colored_healthbar", "kssette_night_mode", "kssette_night_start", "kssette_night_end", "kssette_night_opacity",
+            "kssette_hitsound", "kssette_hitsound_volume"
         ];
 
         for (opt in options) {
@@ -230,6 +231,8 @@ class KssetteApi extends Module {
                 if (opt == "kssette_night_start") defaultVal = "20:00";
                 if (opt == "kssette_night_end") defaultVal = "06:00";
                 if (opt == "kssette_night_opacity") defaultVal = "65%";
+                if (opt == "kssette_hitsound") defaultVal = "Off";
+                if (opt == "kssette_hitsound_volume") defaultVal = "100%";
                 
                 if (opt == "kssette_ghost_tapping") {
                     defaultVal = isMobileMode ? "Off" : "On";
