@@ -1,95 +1,39 @@
-package kassettehud.util;
+package khudlite.util;
 
-import flixel.FlxG;
 import funkin.modding.module.Module;
 import funkin.modding.module.ModuleHandler;
 import funkin.play.PlayState;
 import funkin.Preferences;
-import flixel.text.FlxText;
-import funkin.Paths;
-import flixel.text.FlxTextBorderStyle;
-import flixel.text.FlxTextFormat;
+import flixel.text.FlxBitmapText;
+import flixel.text.FlxTextAlign;
 import flixel.util.FlxStringUtil;
-import flixel.util.FlxColor;
-import funkin.Highscore;
+import flixel.math.FlxMath;
 import flixel.FlxG;
+import StringTools;
 import Std;
-import Math;
-import Reflect;
 
 class KssetteAccuracy extends Module {
     var separator:String = " / ";
-    
-    public var uiText:FlxText;
-    public var infoText:FlxText; 
-    public var timeText:FlxText; 
-    public var modeText:FlxText; 
-    public var judgeLabels:Array<FlxText> = [];
-    public var judgeValues:Array<FlxText> = [];
-    public var judgeNames:Array<String> = ["sick", "good", "bad", "shit", "miss", "maxCombo"];
-    
+
+    public var uiText:FlxBitmapText;
+    public var infoText:FlxBitmapText;
+    public var timeText:FlxBitmapText;
+    public var judgeLabels = [];
+    public var judgeValues = [];
+    public var judgeNames = ["sick", "good", "bad", "shit", "miss", "maxCombo"];
+
     var lastScore:Int = -1;
     var lastMisses:Int = -1;
     var lastMaxCombo:Int = -1;
-    var lastNotesHit:Int = -1;
-    var lastTimeSeconds:Int = -1;
+    var lastTotalJudges:Int = -1;
     var lastVisualAcc:Float = -1;
+    var lastTimeSeconds:Int = -1;
     
-    var lastSick:Int = -1;
-    var lastGood:Int = -1;
-    var lastBad:Int = -1;
-    var lastShit:Int = -1;
-    var lastMissesJudge:Int = -1;
-    var lastMaxComboJudge:Int = -1;
-
-    var securityTriggered:Bool = false;
-    var cachedTotalNotes:Int = -1;
-    var cachedActualTotal:Int = -1;
-    var displayedAcc:Float = 0;
     var uiUpdateTimer:Float = 0.0;
     var pendingTextUpdate:Bool = false;
-    var previewAccTimer:Float = 0.0;
-    var frameUpdateTimer:Float = 0.0;
-    
-    public var cachedFont:String = "";
-
-    var currentTargetFmt:FlxTextFormat = null;
-    var cachedRankLen:Int = 0;
-    var cachedPrefix:String = "";
-    var cachedSuffix:String = "";
-    var prefixNeedsSepForAcc:Bool = false;
-    var targetAcc:Float = 0.0;
-
-    var _fmtPerfectGold:FlxTextFormat;
-    var _fmtPerfect:FlxTextFormat;
-    var _fmtExcellent:FlxTextFormat;
-    var _fmtGreat:FlxTextFormat;
-    var _fmtGood:FlxTextFormat;
-    var _fmtShit:FlxTextFormat;
-    var _fmtDefault:FlxTextFormat;
-    var _fmtUnranked:FlxTextFormat;
-    var _fmtMult:FlxTextFormat;
-    var _fmtHighscore:FlxTextFormat;
-    var _rainbowHue:Float = 0.0;
-
-    var _lastBuiltScoreInt:Int = -1;
-    var _lastBuiltMisses:Int = -1;
-    var _lastBuiltAcc:Float = -1;
-    var _lastBuiltRank:String = "";
-    var _lastBuiltTier:String = "";
-    var _lastBuiltMult:Float = 1.0;
-    var _lastBuiltUnranked:Bool = false;
-    
-    var _cachedText:String = "";
-    var _unrankedStart:Int = -1;
-    var _unrankedEnd:Int = -1;
-    var _multStart:Int = -1;
-    var _multEnd:Int = -1;
-    var _scoreStart:Int = -1;
-    var _scoreEnd:Int = -1;
-    var _rankStart:Int = -1;
 
     var api:Dynamic = null;
+    var _cShowHUD:Bool = true;
     var _cShowScore:Bool = true;
     var _cShowMisses:Bool = true;
     var _cShowRank:Bool = true;
@@ -99,18 +43,7 @@ class KssetteAccuracy extends Module {
     var _cShowTime:Bool = true;
     var _cShowTitle:Bool = true;
     var _cShowDiff:Bool = true;
-    var _cSmooth:Bool = false;
-    var _cIsBotplay:Bool = false;
     var _cJudgesVisible:Bool = false;
-    var _cScoreBop:Bool = false;
-    var _bopTimer:Float = 0.0;
-
-    var cachedRankStr:String = "?";
-    var cachedTierStr:String = "N/A";
-    var cachedModeMsg:String = "";
-
-    public var isPreview:Bool = false;
-    public var previewCam:flixel.FlxCamera = null;
 
     public function new() {
         super("KssetteAccuracy");
@@ -141,929 +74,298 @@ class KssetteAccuracy extends Module {
         }
     }
 
-    public function cleanupUI() {
-        if (uiText != null) uiText.destroy();
-        if (infoText != null) infoText.destroy();
-        if (timeText != null) timeText.destroy();
-        if (modeText != null) modeText.destroy();
-        for (t in judgeLabels) if (t != null) t.destroy();
-        for (t in judgeValues) if (t != null) t.destroy();
-        judgeLabels = [];
-        judgeValues = [];
-    }
-
-    function makeText(x:Float, y:Float, w:Float, text:String, size:Int, align:String, z:Int, cam:flixel.FlxCamera):FlxText {
-        var t = new FlxText(x, y, w, text, size);
-        t.setFormat(cachedFont, size, FlxColor.WHITE, align, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
-        t.zIndex = z;
-        t.cameras = [cam];
-        if (PlayState.instance != null && !isPreview) PlayState.instance.add(t);
-        else FlxG.state.add(t);
-        return t;
-    }
-
-    public function setupUI(cam:flixel.FlxCamera) {
-        cleanupUI();
-
-        uiText = makeText(0, 0, 0, "", 18, "center", 100, cam);
-        uiText.updateHitbox();
-
-        timeText = makeText(0, 0, FlxG.width / 2 - 10, "", 28, "right", 2000, cam);
-        infoText = makeText(0, 0, FlxG.width / 2 - 10, "", 16, "left", 2000, cam);
-        modeText = makeText(FlxG.width, 200, 0, "", 24, "left", 2000, cam);
-        judgeLabels = [];
-        judgeValues = [];
-        
-        for (i in 0...judgeNames.length) {
-            judgeLabels.push(makeText(0, 0, 200, getJudgeName(judgeNames[i]), 20, "left", 100, cam));
-            judgeValues.push(makeText(0, 0, 200, "0", 20, "right", 100, cam));
-        }
-    }
-
-    function getRankFormat(rank:String):FlxTextFormat {
-        switch(rank.toUpperCase()) {
-            case "PERFECT_GOLD":
-                if (_fmtPerfectGold == null) _fmtPerfectGold = new FlxTextFormat(0xFFF9E859);
-                return _fmtPerfectGold;
-            case "PERFECT":
-                if (_fmtPerfect == null) _fmtPerfect = new FlxTextFormat(0xFFFFAEFF);
-                return _fmtPerfect;
-            case "EXCELLENT":
-                if (_fmtExcellent == null) _fmtExcellent = new FlxTextFormat(0xFFFFFFC5);
-                return _fmtExcellent;
-            case "GREAT":
-                if (_fmtGreat == null) _fmtGreat = new FlxTextFormat(0xFFDCE6F1);
-                return _fmtGreat;
-            case "GOOD":
-                if (_fmtGood == null) _fmtGood = new FlxTextFormat(0xFFE19978);
-                return _fmtGood;
-            case "SHIT":
-                if (_fmtShit == null) _fmtShit = new FlxTextFormat(0xFF4460B7);
-                return _fmtShit;
-            default:
-                if (_fmtDefault == null) _fmtDefault = new FlxTextFormat(0xFFFFFFFF);
-                return _fmtDefault;
-        }
+    function setupKssText(txt:FlxBitmapText, refTxt:FlxBitmapText) {
+        if (refTxt == null) return;
+        txt.borderColor = refTxt.borderColor;
+        txt.borderStyle = refTxt.borderStyle;
+        txt.borderSize = refTxt.borderSize;
+        txt.borderQuality = refTxt.borderQuality;
+        txt.textColor = refTxt.textColor;
+        txt.letterSpacing = refTxt.letterSpacing;
+        txt.wordWrap = refTxt.wordWrap;
+        txt.scrollFactor.set(refTxt.scrollFactor.x, refTxt.scrollFactor.y);
+        txt.offset.set(refTxt.offset.x, refTxt.offset.y);
     }
 
     override function onCountdownStart(event) {
         api = ModuleHandler.getModule("KssetteApi");
         if (api == null) return;
-        
-        api.invalidateCache();
-        
         var state = PlayState.instance;
         if (state == null) return;
-        
-        api.registerModule("KssetteAccuracy", this);
-        cachedTotalNotes = api.getNoteCount();
-        cachedActualTotal = -1;
-        
-        cachedRankStr = "?";
-        cachedTierStr = "N/A";
-        lastTimeSeconds = -1;
-        lastVisualAcc = -1;
-        
-        lastSick = -1;
-        lastGood = -1;
-        lastBad = -1;
-        lastShit = -1;
-        lastMissesJudge = -1;
-        lastMaxComboJudge = -1;
-        
-        uiUpdateTimer = 0.0;
-        previewAccTimer = 0.0;
-        frameUpdateTimer = 0.0;
-        pendingTextUpdate = false;
-        
-        _lastP1Id = "";
-        _lastP2Id = "";
-        _hbUpdateTimer = 0.0;
 
-        _lastBuiltScoreInt = -1;
-        _lastBuiltMisses = -1;
-        _lastBuiltAcc = -1;
-        _lastBuiltRank = "";
-        _lastBuiltTier = "";
-        _lastBuiltMult = 1.0;
-        _lastBuiltUnranked = false;
-        _cachedText = "";
-        
-        cachedFont = api.getHudFont();
-        if (cachedFont == null || cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
+        api.scriptCall("registerModule", ["KssetteAccuracy", this]);
 
-        securityTriggered = false;
-        displayedAcc = 0;
-        isPreview = false;
-        
-        if (state.scoreText != null) state.scoreText.visible = false;
+        lastScore = -1; lastMisses = -1; lastMaxCombo = -1; lastTotalJudges = -1;
+        lastVisualAcc = -1; lastTimeSeconds = -1; uiUpdateTimer = 0.0; pendingTextUpdate = false;
 
-        if (state.playerStrumline != null) {
-            var bg1:Dynamic = Reflect.getProperty(state.playerStrumline, "background");
-            if (bg1 != null) {
-                state.playerStrumline.remove(bg1, true);
-                bg1.zIndex = 10;
-                bg1.cameras = [state.camHUD];
-                state.add(bg1);
-            }
-        }
-        if (state.opponentStrumline != null) {
-            var bg2:Dynamic = Reflect.getProperty(state.opponentStrumline, "background");
-            if (bg2 != null) {
-                state.opponentStrumline.remove(bg2, true);
-                bg2.zIndex = 10;
-                bg2.cameras = [state.camHUD];
-                state.add(bg2);
+        if (uiText != null) uiText.destroy();
+        if (infoText != null) infoText.destroy();
+        if (timeText != null) timeText.destroy();
+        for (t in judgeLabels) if (t != null) t.destroy();
+        for (t in judgeValues) if (t != null) t.destroy();
+        judgeLabels = []; judgeValues = [];
+
+        var refText = state.scoreText;
+        if (refText != null) refText.visible = false;
+        var refFont = refText != null ? refText.font : null;
+
+        var hudY = refText != null ? refText.y : (state.healthBarBG != null ? state.healthBarBG.y + 36 : FlxG.height - 50);
+
+        uiText = new FlxBitmapText(0, hudY, "", refFont);
+        setupKssText(uiText, refText);
+        uiText.alignment = FlxTextAlign.CENTER;
+        uiText.zIndex = 1000;
+        if (state.camHUD != null) uiText.cameras = [state.camHUD];
+        state.add(uiText);
+
+        var infoPos:String = Std.string(api.scriptCall("getKssValue", ["kssette_info_pos"]));
+        var scorePos:String = Std.string(api.scriptCall("getKssValue", ["kssette_score_pos"]));
+        var timeBarPos:String = Std.string(api.scriptCall("getKssValue", ["kssette_timebar_pos"]));
+        var showTimeBar:Bool = api.scriptCall("getKssValue", ["kssette_show_timebar"]) == true;
+
+        if (scorePos == "Inverted" && state.healthBarBG != null) {
+            if (state.healthBarBG.y < FlxG.height / 2) {
+                uiText.y = FlxG.height - 40;
+            } else {
+                uiText.y = 20;
             }
         }
 
-            if (state.healthBarBG != null) {
-                state.healthBarBG.zIndex = 110;
-                state.remove(state.healthBarBG, true);
-                state.add(state.healthBarBG);
-            }
-            if (state.healthBar != null) {
-                state.healthBar.zIndex = 111;
-                state.remove(state.healthBar, true);
-                state.add(state.healthBar);
-            }
-            if (state.iconP1 != null) {
-                state.iconP1.zIndex = 112;
-                state.remove(state.iconP1, true);
-                state.add(state.iconP1);
-            }
-            if (state.iconP2 != null) {
-                state.iconP2.zIndex = 112;
-                state.remove(state.iconP2, true);
-                state.add(state.iconP2);
-            }
+        var safeX:Float = FlxG.onMobile ? 85 : 18;
+        var tX:Float = 0; var tY:Float = 0; var tA = FlxTextAlign.CENTER;
+        var iX:Float = 0; var iY:Float = 0; var iA = FlxTextAlign.CENTER;
 
-            setupUI(state.camHUD);
-            updateSettings();
-            updatePositions();
+        var forceDownscrollLook:Bool = false;
+        if (FlxG.onMobile && api.scriptCall("isMobileLikePC", []) != true) forceDownscrollLook = true;
+
+        if (infoPos == "Bottom Left") {
+            var yOffset:Float = (showTimeBar && timeBarPos == "Bottom Left") ? 25 : 0;
+            tX = safeX; tY = FlxG.height - 85 - yOffset; tA = FlxTextAlign.LEFT;
+            iX = safeX; iY = FlxG.height - 50 - yOffset; iA = FlxTextAlign.LEFT;
+        } else {
+            if (!Preferences.downscroll && !forceDownscrollLook) {
+                tY = 15; iY = 24; tX = 0; tA = FlxTextAlign.RIGHT;
+                iX = (FlxG.width / 2) + 10; iA = FlxTextAlign.LEFT;
+            } else {
+                if (scorePos == "Inverted") {
+                    tY = state.healthBarBG != null ? state.healthBarBG.y + 36 : uiText.y + 24;
+                    iY = tY + 32;
+                } else {
+                    tY = uiText.y + 24; iY = tY + 32;
+                }
+            }
+        }
+
+        timeText = new FlxBitmapText(tX, tY, "", refFont);
+        setupKssText(timeText, refText);
+        timeText.alignment = tA;
+        timeText.zIndex = 1000;
+        if (state.camHUD != null) timeText.cameras = [state.camHUD];
+        state.add(timeText);
+
+        infoText = new FlxBitmapText(iX, iY, "", refFont);
+        setupKssText(infoText, refText);
+        infoText.alignment = iA;
+        infoText.zIndex = 1000;
+        if (state.camHUD != null) infoText.cameras = [state.camHUD];
+        state.add(infoText);
+
+        var jPos:String = Std.string(api.scriptCall("getKssValue", ["kssette_judge_pos"]));
+        if (jPos != "Off" && jPos != "false") {
+            var jMargin:Float = FlxG.onMobile ? 85 : 6;
             
-            lastScore = -1; lastMisses = -1; lastMaxCombo = -1; lastNotesHit = -1;
-            
-            state.refresh();
+            var cOffX:Float = 0;
+            var cOffY:Float = 0;
+            try {
+                if (Preferences.comboOffset != null && Preferences.comboOffset.length >= 2) {
+                    cOffX = Preferences.comboOffset[0];
+                    cOffY = Preferences.comboOffset[1];
+                }
+            } catch(e:Dynamic) {}
+
+            var tw = 200; var sy = 22; var sx = jMargin + cOffX; var sY = (FlxG.height - judgeNames.length * sy) * 0.5 + cOffY;
+            if (jPos == "Right") sx = FlxG.width - tw - jMargin + cOffX;
+            if (jPos == "Top Left") sY = 100 + cOffY;
+            if (jPos == "Top Right") { sx = FlxG.width - tw - jMargin + cOffX; sY = 100 + cOffY; }
+
+            for (i in 0...judgeNames.length) {
+                var label = new FlxBitmapText(sx, sY + (i * sy), getJudgeName(judgeNames[i]), refFont);
+                setupKssText(label, refText);
+                label.alignment = FlxTextAlign.LEFT;
+                label.zIndex = 1000; label.cameras = [state.camHUD];
+                state.add(label); judgeLabels.push(label);
+
+                var val = new FlxBitmapText(sx + tw - 50, label.y, "0", refFont);
+                setupKssText(val, refText);
+                val.alignment = FlxTextAlign.RIGHT;
+                val.zIndex = 1000; val.cameras = [state.camHUD];
+                state.add(val); judgeValues.push(val);
+            }
+        }
+
+        updateSettings();
     }
 
     override public function onResume(event) {
         updateSettings();
-        updatePositions();
-    }
-
-    public function buildPreview(cam:flixel.FlxCamera) {
-        isPreview = true;
-        previewCam = cam;
-        api = ModuleHandler.getModule("KssetteApi");
-        if (api != null) {
-            cachedFont = api.getHudFont();
-        }
-        if (cachedFont == null || cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
-
-        setupUI(cam);
-        updatePreview();
-    }
-
-    public function updatePreview() {
-        if (!isPreview || uiText == null) return;
-        
-        if (api == null) api = ModuleHandler.getModule("KssetteApi");
-        if (api == null) return;
-
-        updateSettings();
-        updatePositions();
-        
-        if (_cAccMode != "Ascending") {
-            updateAccuracyText(123456, 0, 100.00, "PERFECT_GOLD", "SFC");
-            lastVisualAcc = 100.00;
-        }
-
-        for (i in 0...judgeLabels.length) {
-            if (judgeValues[i] != null) {
-                var fakeVal = 0;
-                if (i == 0) fakeVal = 135;
-                else if (i == 1) fakeVal = 12;
-                else if (i == 5) fakeVal = 147;
-                
-                if (judgeValues[i].text != Std.string(fakeVal)) {
-                    judgeValues[i].text = Std.string(fakeVal);
-                }
-            }
-        }
     }
 
     function updateSettings() {
         if (api == null) return;
+        _cShowHUD = api.scriptCall("getKssValue", ["kssette_show_hud"]) == true;
+        _cShowScore = api.scriptCall("getKssValue", ["kssette_show_score"]) == true;
+        _cShowMisses = api.scriptCall("getKssValue", ["kssette_show_misses"]) == true;
+        _cShowRank = api.scriptCall("getKssValue", ["kssette_show_rank"]) == true;
+        _cShowTier = api.scriptCall("getKssValue", ["kssette_show_tier"]) == true;
+        _cAccMode = Std.string(api.scriptCall("getKssValue", ["kssette_acc_mode"]));
+        _cJudgePos = Std.string(api.scriptCall("getKssValue", ["kssette_judge_pos"]));
         
-        _cShowScore = api.getKssValue("kssette_show_score") == true;
-        _cShowMisses = api.getKssValue("kssette_show_misses") == true;
-        _cShowRank = api.getKssValue("kssette_show_rank") == true;
-        _cShowTier = api.getKssValue("kssette_show_tier") == true;
-        _cAccMode = Std.string(api.getKssValue("kssette_acc_mode"));
-        _cJudgePos = Std.string(api.getKssValue("kssette_judge_pos"));
-        _cSmooth = api.getKssValue("kssette_smooth_display") == true;
-        _cShowTime = api.getKssValue("kssette_show_song_time") == true;
-        _cShowTitle = api.getKssValue("kssette_show_song_title") == true;
-        _cShowDiff = api.getKssValue("kssette_show_song_diff") == true;
-        _cScoreBop = api.getKssValue("kssette_score_bop") == true;
-        
-        cachedModeMsg = Std.string(api.getModeMessage());
-        
-        _cIsBotplay = (cachedModeMsg != null && (cachedModeMsg.indexOf("Botplay") != -1 || cachedModeMsg.indexOf("AutoPlay") != -1));
+        var state = PlayState.instance;
+        _cShowTime = api.scriptCall("getKssValue", ["kssette_show_song_time"]) == true;
+        _cShowTitle = api.scriptCall("getKssValue", ["kssette_show_song_title"]) == true;
+        _cShowDiff = api.scriptCall("getKssValue", ["kssette_show_song_diff"]) == true;
+
         _cJudgesVisible = (_cJudgePos != "Off" && _cJudgePos != "false");
 
-        cachedFont = api.getHudFont();
-        if (cachedFont == null || cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
-
-        if (uiText != null) {
-            uiText.visible = true; 
-            if (uiText.font != cachedFont) uiText.font = cachedFont;
-        }
-
         if (infoText != null && infoText.exists) {
-            if (infoText.font != cachedFont) infoText.font = cachedFont;
-            infoText.visible = (_cShowTitle || _cShowDiff);
+            infoText.visible = (_cShowHUD && (_cShowTitle || _cShowDiff));
             if (infoText.visible) {
                 var infoTextStr:String = "";
-                if (isPreview) {
-                    if (_cShowTitle) infoTextStr += "Preview Song";
-                    if (_cShowDiff) {
-                        if (infoTextStr != "") infoTextStr += " - ";
-                        infoTextStr += "HARD";
-                    }
-                } else {
-                    if (_cShowTitle) {
-                        var sTitle = Std.string(api.getSongTitle());
-                        if (sTitle != "" && sTitle != "null") infoTextStr += sTitle;
-                    }
-                    if (_cShowDiff) {
-                        if (infoTextStr != "") infoTextStr += " - ";
-                        var sDiff = Std.string(api.getDifficulty());
-                        if (sDiff != "" && sDiff != "null") infoTextStr += sDiff;
-                    }
+                if (_cShowTitle && state != null && state.currentChart != null) infoTextStr += state.currentChart.songName;
+                if (_cShowDiff) {
+                    if (infoTextStr != "") infoTextStr += " - ";
+                    if (state != null && state.currentDifficulty != null) infoTextStr += state.currentDifficulty.toUpperCase();
                 }
-                
-                if (infoText.text != infoTextStr) infoText.text = infoTextStr;
+                infoText.text = infoTextStr;
+                if (infoText.alignment == FlxTextAlign.CENTER) {
+                    infoText.x = (FlxG.width - infoText.width) / 2;
+                }
             }
         }
+
+        for (i in 0...judgeLabels.length) {
+            if (judgeLabels[i] != null) judgeLabels[i].visible = (_cShowHUD && _cJudgesVisible);
+            if (judgeValues[i] != null) judgeValues[i].visible = (_cShowHUD && _cJudgesVisible);
+        }
+
+        if (uiText != null) uiText.visible = _cShowHUD;
+    }
+
+    override public function onUpdate(event) {
+        super.onUpdate(event);
+        var state = PlayState.instance;
+        if (state == null || api == null) return;
 
         if (timeText != null && timeText.exists) {
-            if (timeText.font != cachedFont) timeText.font = cachedFont;
-            timeText.visible = _cShowTime;
-            if (isPreview && _cShowTime) {
-                if (timeText.text != "[3:20]") timeText.text = "[3:20]";
-            }
-        }
+            var showT:Bool = _cShowHUD && _cShowTime;
+            timeText.visible = showT;
+            if (showT && state.conductorInUse != null) {
+                var remainingSeconds:Int = Math.floor((state.currentSongLengthMs - state.conductorInUse.songPosition) / 1000);
+                if (remainingSeconds < 0) remainingSeconds = 0;
 
-        for (i in 0...judgeLabels.length) {
-            if (judgeLabels[i] != null) {
-                judgeLabels[i].visible = _cJudgesVisible;
-                if (judgeLabels[i].font != cachedFont) judgeLabels[i].font = cachedFont;
-            }
-            if (judgeValues[i] != null) {
-                judgeValues[i].visible = _cJudgesVisible;
-                if (judgeValues[i].font != cachedFont) judgeValues[i].font = cachedFont;
-            }
-        }
-
-        if (modeText != null && modeText.exists) {
-            if (modeText.font != cachedFont) modeText.font = cachedFont;
-        }
-    }
-
-    public function updatePositions() {
-        if (uiText == null || api == null) return;
-        
-        var downscroll = false;
-        if (api != null && api.getDownscroll != null) downscroll = api.getDownscroll();
-        else downscroll = Preferences.downscroll;
-        var timeBarPos:String = Std.string(api.getKssValue("kssette_timebar_pos"));
-        var showTimeBar:Bool = api.getKssValue("kssette_show_timebar") == true;
-        var hasBottomTimebar = showTimeBar && (timeBarPos.indexOf("Bottom") != -1);
-        var hasTopTimebar = showTimeBar && (timeBarPos.indexOf("Top") != -1);
-        var inverted = api.getKssValue("kssette_score_pos") == "Inverted";
-
-        var newY = downscroll ? 110 : (FlxG.height - 50);
-        var strumYOffset:Float = 0;
-
-        if (inverted) {
-            if (downscroll) {
-                if (hasBottomTimebar) {
-                    newY = FlxG.height - 45;
-                } else {
-                    newY = FlxG.height - 25;
-                }
-            } else {
-                if (hasTopTimebar) {
-                    newY = 35;
-                } else {
-                    newY = 15;
-                }
-            }
-        } else {
-            if (downscroll) {
-                if (hasTopTimebar) newY = 135;
-                else newY = 110;
-            } else {
-                if (hasBottomTimebar) newY = FlxG.height - 75;
-                else newY = FlxG.height - 50;
-            }
-        }
-        
-        if (uiText.y != newY) uiText.y = newY;
-
-        if (uiText != null && uiText.zIndex < 900) {
-            uiText.zIndex = 1000;
-        }
-
-        var infoPos:String = Std.string(api.getKssValue("kssette_info_pos"));
-
-        var safeX:Float = 18;
-        if (api.isMobileMode == true) safeX = 85;
-
-        var safeLeft:Float = safeX;
-        var safeRight:Float = safeX;
-        if (showTimeBar) {
-            if (timeBarPos == "Vertical Left") safeLeft += 22;
-            if (timeBarPos == "Vertical Right") safeRight += 22;
-        }
-
-        var tX:Float = 0; var tY:Float = 0; var tW:Float = FlxG.width; var tA:String = "center";
-        var iX:Float = 0; var iY:Float = 0; var iW:Float = FlxG.width; var iA:String = "center";
-
-        if (infoPos == "Bottom Left") {
-            var yOffset:Float = 0;
-            if (showTimeBar == true && timeBarPos == "Bottom Left") yOffset = 25;
-            tX = safeLeft; tY = FlxG.height - 85 - yOffset; tA = "left";
-            iX = safeLeft; iY = FlxG.height - 50 - yOffset; iA = "left";
-            tW = FlxG.width - safeLeft - safeRight; iW = FlxG.width - safeLeft - safeRight;
-        } else {
-            var inverted = (api.getKssValue("kssette_score_pos") == "Inverted");
-            
-            if (!downscroll) {
-                if (inverted) {
-                    tX = safeLeft; tW = (FlxG.width / 2) - 10 - safeLeft; tA = "right";
-                    iX = (FlxG.width / 2) + 10; iW = (FlxG.width / 2) - 10 - safeRight; iA = "left";
-                    
-                    if (hasBottomTimebar) {
-                        tY = FlxG.height - 55;
-                        iY = FlxG.height - 46;
-                    } else {
-                        tY = FlxG.height - 45;
-                        iY = FlxG.height - 36;
+                if (remainingSeconds != lastTimeSeconds) {
+                    lastTimeSeconds = remainingSeconds;
+                    timeText.text = "[" + FlxStringUtil.formatTime(remainingSeconds, false) + "]";
+                    if (timeText.alignment == FlxTextAlign.CENTER) {
+                        timeText.x = (FlxG.width - timeText.width) / 2;
                     }
-                } else {
-                    tY = 15; iY = 24; tX = safeLeft; tW = (FlxG.width / 2) - 10 - safeLeft; tA = "right";
-                    iX = (FlxG.width / 2) + 10; iW = (FlxG.width / 2) - 10 - safeRight; iA = "left";
-                }
-            } else {
-                if (inverted) {
-                    tY = 15; iY = 24; tX = safeLeft; tW = (FlxG.width / 2) - 10 - safeLeft; tA = "right";
-                    iX = (FlxG.width / 2) + 10; iW = (FlxG.width / 2) - 10 - safeRight; iA = "left";
-                } else {
-                    tA = "center"; iA = "center";
-                    tX = safeLeft; iX = safeLeft;
-                    tW = FlxG.width - safeLeft - safeRight; iW = FlxG.width - safeLeft - safeRight;
-                    tY = uiText.y + 24;
-                    iY = tY + 32;
                 }
             }
         }
 
-        if (timeText != null) {
-            if (timeText.x != tX || timeText.y != tY) timeText.setPosition(tX, tY);
-            if (timeText.fieldWidth != tW) timeText.fieldWidth = tW;
-            if (timeText.alignment != tA) timeText.alignment = tA;
-        }
+        if (uiText == null || !uiText.exists || !_cShowHUD) return;
 
-        if (infoText != null) {
-            if (infoText.x != iX || infoText.y != iY) infoText.setPosition(iX, iY);
-            if (infoText.fieldWidth != iW) infoText.fieldWidth = iW;
-            if (infoText.alignment != iA) infoText.alignment = iA;
-        }
+        var data:Array<Dynamic> = api.scriptCall("getAccData", []);
+        if (data == null || data.length < 10) return;
 
-        var jPos:String = Std.string(api.getKssValue("kssette_judge_pos"));
+        var vAcc:Float = FlxMath.roundDecimal(data[0], 2);
+        var m:Int = data[1];
+        var c:Int = data[2];
+        var currentScoreInt:Int = data[3];
+        var currentSicks:Int = data[4];
+        var currentGoods:Int = data[5];
+        var currentBads:Int = data[6];
+        var currentShits:Int = data[7];
 
-        var jMarginLeft:Float = 6;
-        var jMarginRight:Float = 6;
-        if (api.isMobileMode == true) {
-            jMarginLeft = 85;
-            jMarginRight = 85;
-        }
-        if (showTimeBar) {
-            if (timeBarPos == "Vertical Left") jMarginLeft += 22;
-            if (timeBarPos == "Vertical Right") jMarginRight += 22;
-        }
+        var totalJudges:Int = currentSicks + currentGoods + currentBads + currentShits + m;
 
-        var tw = 200; var sy = 22; var sx = jMarginLeft; var sY = (FlxG.height - judgeNames.length * sy) * 0.5;
-        if (jPos == "Right") sx = FlxG.width - tw - jMarginRight;
-        if (jPos == "Top Left") sY = 100;
-        if (jPos == "Top Right") { sx = FlxG.width - tw - jMarginRight; sY = 100; }
-        
-        for (i in 0...judgeLabels.length) {
-            var nx = sx; var ny = sY + (i * sy);
-            if (judgeLabels[i] != null) {
-                if (judgeLabels[i].x != nx) judgeLabels[i].x = nx;
-                if (judgeLabels[i].y != ny) judgeLabels[i].y = ny;
+        var majorChange:Bool = (totalJudges != lastTotalJudges || c != lastMaxCombo);
+        var minorChange:Bool = (currentScoreInt != lastScore);
+        var accTextChanged:Bool = (vAcc != lastVisualAcc);
+
+        if (majorChange) {
+            if (_cJudgesVisible && judgeValues.length >= 6) {
+                judgeValues[0].text = Std.string(currentSicks); 
+                judgeValues[1].text = Std.string(currentGoods); 
+                judgeValues[2].text = Std.string(currentBads); 
+                judgeValues[3].text = Std.string(currentShits); 
+                judgeValues[4].text = Std.string(m);       
+                judgeValues[5].text = Std.string(c);       
             }
-            if (judgeValues[i] != null) {
-                if (judgeValues[i].x != nx) judgeValues[i].x = nx;
-                if (judgeValues[i].y != ny) judgeValues[i].y = ny;
-            }
+            lastMisses = m;
+            lastMaxCombo = c;
+            lastTotalJudges = totalJudges;
         }
-    }
 
-    public function updateAccuracyText(scoreInt:Int, misses:Int, acc:Float, rankStr:String, tierStr:String) {
-        if (uiText == null || !uiText.exists) return;
-
-        var isUnranked = false;
-        var multiplierValue:Float = 1.0;
-        if (api != null) {
-            isUnranked = api.gammodUnranked == true;
-            if (api.gammodMultiplier != null) multiplierValue = api.gammodMultiplier;
+        if (majorChange || minorChange || accTextChanged) {
+            pendingTextUpdate = true;
         }
-        
-        var paramsChanged = (_lastBuiltScoreInt != scoreInt || _lastBuiltMisses != misses || _lastBuiltAcc != acc || _lastBuiltRank != rankStr || _lastBuiltTier != tierStr || _lastBuiltMult != multiplierValue || _lastBuiltUnranked != isUnranked);
 
-        if (paramsChanged || _cachedText == "") {
-            _unrankedStart = -1; _unrankedEnd = -1;
-            _multStart = -1; _multEnd = -1;
-            _scoreStart = -1; _scoreEnd = -1;
-            _rankStart = -1;
-            
-            var scoreStr = FlxStringUtil.formatMoney(scoreInt, false, true);
+        uiUpdateTimer += event.elapsed;
+
+        if (pendingTextUpdate && (majorChange || uiUpdateTimer >= 0.033)) {
+            uiUpdateTimer = 0.0;
+            pendingTextUpdate = false;
+
+            lastScore = currentScoreInt;
+            lastVisualAcc = vAcc;
+
+            var scoreStr = FlxStringUtil.formatMoney(lastScore, false, true);
             var strMain = "";
             var needSep = false;
 
             if (_cShowScore) {
-                if (isUnranked) {
-                    strMain += "Score: ";
-                    _unrankedStart = strMain.length;
-                    strMain += "UNRANKED";
-                    _unrankedEnd = strMain.length;
-                } else {
-                    _scoreStart = strMain.length;
-                    strMain += "Score: " + scoreStr;
-                    _scoreEnd = strMain.length;
-                }
-                needSep = true;
-            }
-
-            if (multiplierValue != 1.0) {
-                if (needSep) strMain += separator;
-                _multStart = strMain.length;
-                var multStr = Std.string(multiplierValue);
-                if (multStr.indexOf(".") == -1) multStr += ".0";
-                strMain += "Mult: " + multStr + "x";
-                _multEnd = strMain.length;
+                strMain += "Score: " + scoreStr;
                 needSep = true;
             }
 
             if (_cShowMisses && !_cJudgesVisible) {
                 if (needSep) strMain += separator;
-                strMain += "Misses: " + misses;
+                strMain += "Misses: " + m;
                 needSep = true;
             }
 
             if (_cAccMode != "Off" && _cAccMode != "null" && _cAccMode != "false") {
                 if (needSep) strMain += separator;
-                
-                var accStr = Std.string(acc);
-                var dotIdx = accStr.indexOf(".");
-                if (dotIdx == -1) {
-                    accStr += ".00";
-                } else if (accStr.length - dotIdx == 2) {
-                    accStr += "0";
-                }
-                
-                strMain += "Acc: " + accStr + "%";
+                strMain += "Acc: " + vAcc + "%";
                 needSep = true;
             }
 
-            cachedSuffix = "";
+            var cachedSuffix = "";
             var suffixNeedSep = false;
 
             if (_cShowRank) {
-                var fRank = formatRank(rankStr);
-                cachedRankLen = fRank.length;
-                cachedSuffix += "Rank: ";
-                cachedSuffix += fRank;
+                var rankStr = formatRank(data[8]);
+                cachedSuffix += "Rank: " + rankStr;
                 suffixNeedSep = true;
-
-                currentTargetFmt = getRankFormat(rankStr);
             }
 
             if (_cShowTier) {
                 if (suffixNeedSep) cachedSuffix += separator;
-                cachedSuffix += tierStr;
+                cachedSuffix += data[9];
             }
 
             var newText:String = "";
             if (strMain != "") newText += strMain;
-            
-            var rIdx:Int = newText.length;
-            
+
             if (cachedSuffix != "") {
-                if (newText != "") {
-                    newText += separator;
-                    rIdx += separator.length;
-                }
+                if (newText != "") newText += separator;
                 newText += cachedSuffix;
             }
 
-            _rankStart = rIdx + 6;
-            _cachedText = newText;
-
-            _lastBuiltScoreInt = scoreInt;
-            _lastBuiltMisses = misses;
-            _lastBuiltAcc = acc;
-            _lastBuiltRank = rankStr;
-            _lastBuiltTier = tierStr;
-            _lastBuiltMult = multiplierValue;
-            _lastBuiltUnranked = isUnranked;
-        }
-
-        var isHighscore = false;
-        var hsColor:Int = 0xFFFFFFFF;
-        if (api != null && api.gammodHighscoreActive == true) {
-            isHighscore = true;
-            hsColor = FlxColor.fromHSB(_rainbowHue, 1.0, 1.0);
-        }
-
-        var textChanged = (uiText.text != _cachedText);
-        if (textChanged) {
-            uiText.text = _cachedText;
-        }
-
-        if (textChanged || isHighscore) {
-            uiText.clearFormats();
-
-            if (_lastBuiltUnranked && _unrankedStart != -1) {
-                if (_fmtUnranked == null) _fmtUnranked = new FlxTextFormat(0xFFFF0000);
-                uiText.addFormat(_fmtUnranked, _unrankedStart, _unrankedEnd);
-            }
-
-            if (_lastBuiltMult != 1.0 && _multStart != -1) {
-                if (_fmtMult == null) _fmtMult = new FlxTextFormat(0xFF66FFFF);
-                uiText.addFormat(_fmtMult, _multStart, _multEnd);
-            }
-
-            if (isHighscore && _scoreStart != -1) {
-                if (_fmtHighscore == null) _fmtHighscore = new FlxTextFormat(hsColor);
-                else _fmtHighscore.format.color = hsColor;
-                uiText.addFormat(_fmtHighscore, _scoreStart, _scoreEnd);
-            }
-
-            if (_cShowRank && currentTargetFmt != null && _rankStart != -1) {
-                uiText.addFormat(currentTargetFmt, _rankStart, _rankStart + cachedRankLen);
-            }
-
-            if (textChanged) uiText.screenCenter(0x01);
-        }
-    }
-    
-    override function onNoteHit(event) {
-        super.onNoteHit(event);
-        if (isPreview) return;
-
-        if (securityTriggered) {
-            event.cancel();
-            if (PlayState.instance != null) PlayState.instance.noteMiss(event.note);
-        }
-        
-        try {
-            var note = event.note;
-            if (note != null && note.noteData != null && !note.noteData.getMustHitNote()) return;
-        } catch(e:Dynamic) {}
-
-        if (_cScoreBop && uiText != null) {
-            uiText.scale.set(1.1, 1.1);
-        }
-    }
-
-    override public function onUpdate(event) {
-        var elapsed = event.elapsed;
-        
-        if (uiText != null && uiText.exists && _cScoreBop) {
-            var lerpFactor = 1.0 - (elapsed * 15.0);
-            if (lerpFactor < 0) lerpFactor = 0;
-            uiText.scale.x = 1.0 + ((uiText.scale.x - 1.0) * lerpFactor);
-            uiText.scale.y = 1.0 + ((uiText.scale.y - 1.0) * lerpFactor);
-        }
-        
-        if (isPreview) {
-            if (uiText != null && uiText.exists) {
-                if (api != null) {
-                    var newMode = Std.string(api.getKssValue("kssette_acc_mode"));
-                    if (newMode != _cAccMode) {
-                        _cAccMode = newMode;
-                        lastVisualAcc = -1.0; 
-                    }
-                    _cSmooth = (api.getKssValue("kssette_smooth_display") == true);
-                }
-                
-                if (_cScoreBop) {
-                    if (api != null && api.preview_scoreBopTrigger) {
-                        api.preview_scoreBopTrigger = false;
-                        uiText.scale.set(1.1, 1.1);
-                    }
-                }
-                
-                var targetVisualAcc:Float = 100.0;
-                if (_cAccMode == "Ascending") {
-                    targetVisualAcc = api != null ? api.preview_simulatedAcc : 0.0;
-                } else if (_cAccMode == "Classic") {
-                    targetVisualAcc = 100.0;
-                }
-                
-                if (!_cSmooth) {
-                    displayedAcc = targetVisualAcc;
-                } else {
-                    displayedAcc += (targetVisualAcc - displayedAcc) * (event.elapsed * 8);
-                    if (Math.abs(targetVisualAcc - displayedAcc) < 0.001) displayedAcc = targetVisualAcc;
-                }
-                
-                var visualAcc:Float = Math.floor(displayedAcc * 100) / 100;
-                
-                if (visualAcc != lastVisualAcc) {
-                    lastVisualAcc = visualAcc;
-                    updateAccuracyText(123456, 0, visualAcc, "PERFECT_GOLD", "SFC");
-                }
-            }
-            return;
-        }
-
-        var elapsed = event.elapsed;
-        var state = PlayState.instance;
-        if (state != null && api != null) {
-            if (api.getKssValue("kssette_icon_pos") == "Corners" && state.healthBarBG != null && state.healthBar != null && state.iconP1 != null && state.iconP2 != null) {
-                state.iconP1.autoUpdate = false;
-                state.iconP2.autoUpdate = false;
-                
-                if (state.iconP1 != null) state.iconP1.isLegacyStyle = false;
-                if (state.iconP2 != null) state.iconP2.isLegacyStyle = false;
-
-                var lerpFactor = 1.0 - (elapsed * 15.0);
-                if (lerpFactor < 0) lerpFactor = 0;
-                
-                var p1Scale:Float = api.cachedP1Scale;
-                var p2Scale:Float = api.cachedP2Scale;
-
-                state.iconP1.scale.x = p1Scale + ((state.iconP1.scale.x - p1Scale) * lerpFactor);
-                state.iconP1.scale.y = p1Scale + ((state.iconP1.scale.y - p1Scale) * lerpFactor);
-                state.iconP2.scale.x = p2Scale + ((state.iconP2.scale.x - p2Scale) * lerpFactor);
-                state.iconP2.scale.y = p2Scale + ((state.iconP2.scale.y - p2Scale) * lerpFactor);
-
-                var hp1 = state.health;
-                var hp2 = 2.0 - state.health;
-                
-                var gSide = "NORMAL";
-                if (api.gammodPlayerSide != null) gSide = api.gammodPlayerSide;
-                
-                if (gSide == "OPPOSITE") {
-                    hp1 = 2.0 - state.health;
-                    hp2 = state.health;
-                }
-
-                if (state.iconP1 != null) state.iconP1.updateHealthIcon(hp1);
-                if (state.iconP2 != null) state.iconP2.updateHealthIcon(hp2);
-
-                state.iconP1.updateHitbox();
-                state.iconP2.updateHitbox();
-
-                var centerY = state.healthBar.y + (state.healthBar.height / 2);
-                
-                state.iconP1.x = state.healthBarBG.x + state.healthBarBG.width - (state.iconP1.width / 2);
-                state.iconP2.x = state.healthBarBG.x - (state.iconP2.width / 2);
-                
-                state.iconP1.y = centerY - (state.iconP1.height / 2);
-                state.iconP2.y = centerY - (state.iconP2.height / 2);
-            } else if (state.iconP1 != null && state.iconP2 != null) {
-                if (state.iconP1.autoUpdate == false) state.iconP1.autoUpdate = true;
-                if (state.iconP2.autoUpdate == false) state.iconP2.autoUpdate = true;
-                if (state.iconP1 != null) state.iconP1.isLegacyStyle = true;
-                if (state.iconP2 != null) state.iconP2.isLegacyStyle = true;
-            }
-        }
-
-        if (!securityTriggered) {
-            frameUpdateTimer += elapsed;
-            if (frameUpdateTimer < 0.008) return;
-            elapsed = frameUpdateTimer;
-            frameUpdateTimer = 0.0;
-        } else {
-            frameUpdateTimer = 0.0;
-        }
-
-        if (state == null || api == null) return;
-        
-        if (timeText != null && timeText.exists) {
-            var showT:Bool = _cShowTime;
-            timeText.visible = showT;
-            if (showT && state.conductorInUse != null) {
-                var remainingSeconds:Int = Math.floor((state.currentSongLengthMs - state.conductorInUse.songPosition) / 1000);
-                if (remainingSeconds < 0) remainingSeconds = 0;
-                
-                if (remainingSeconds != lastTimeSeconds) {
-                    lastTimeSeconds = remainingSeconds;
-                    timeText.text = "[" + FlxStringUtil.formatTime(remainingSeconds, false) + "]";
-                }
-            }
-        }
-
-        if (modeText != null && modeText.exists) {
-            if (cachedModeMsg != "" && cachedModeMsg != "null") {
-                if (modeText.text != cachedModeMsg) modeText.text = cachedModeMsg;
-                if (!modeText.visible) modeText.visible = true;
-                if (modeText.alpha != 1) modeText.alpha = 1;
-                
-                modeText.x -= 200 * elapsed;
-                if (modeText.x + modeText.width < 0) modeText.x = FlxG.width;
-            } else {
-                if (modeText.visible) modeText.visible = false; 
-            }
-        }
-
-        if (_cIsBotplay) {
-            if (!state.startingSong && !state.isEndingSong && uiText != null && uiText.exists) {
-                if (modeText == null || !modeText.exists || !modeText.visible || modeText.alpha <= 0 || modeText.text != cachedModeMsg) {
-                    securityTriggered = true;
-                }
-            }
-        }
-
-        if (securityTriggered) {
-            if (state.playerStrumline != null) {
-                state.playerStrumline.visible = false;
-                var targets = state.playerStrumline.getNotesMayHit();
-                if (targets != null) {
-                    for (note in targets) {
-                        if (note != null && note.alive && !note.hasBeenHit) {
-                            note.hasBeenHit = true;
-                            state.noteMiss(note);
-                        }
-                    }
-                }
-            }
-            if (state.health > 0) state.health -= 0.005;
-        }
-
-        if (uiText == null || !uiText.exists) return;
-
-        var t = Highscore.tallies;
-        var m:Int = (t != null) ? t.missed : 0;
-        var h:Int = (t != null) ? t.totalNotesHit : 0;
-        var c:Int = (t != null) ? t.maxCombo : 0;
-        var currentScoreInt:Int = Math.floor(state.songScore);
-
-        var majorChange:Bool = (m != lastMisses || h != lastNotesHit || c != lastMaxCombo);
-        var minorChange:Bool = (currentScoreInt != lastScore);
-
-        if (cachedActualTotal == -1 && t != null) {
-            var tn:Dynamic = Reflect.getProperty(t, "totalNotes");
-            if (tn != null && tn > 0) cachedActualTotal = Std.int(tn);
-            if (cachedActualTotal <= 0) cachedActualTotal = cachedTotalNotes;
-        }
-
-        if (majorChange) {
-            if (_cJudgesVisible && t != null) {
-                if (t.sick != lastSick) { judgeValues[0].text = Std.string(t.sick); lastSick = t.sick; }
-                if (t.good != lastGood) { judgeValues[1].text = Std.string(t.good); lastGood = t.good; }
-                if (t.bad != lastBad) { judgeValues[2].text = Std.string(t.bad); lastBad = t.bad; }
-                if (t.shit != lastShit) { judgeValues[3].text = Std.string(t.shit); lastShit = t.shit; }
-                if (t.missed != lastMissesJudge) { judgeValues[4].text = Std.string(t.missed); lastMissesJudge = t.missed; }
-                if (t.maxCombo != lastMaxComboJudge) { judgeValues[5].text = Std.string(t.maxCombo); lastMaxComboJudge = t.maxCombo; }
-            }
-
-            lastMisses = m;
-            lastMaxCombo = c;
-            lastNotesHit = h;
-            
-            if (_cShowRank) cachedRankStr = api.getRankID(state);
-            if (_cShowTier) cachedTierStr = api.getComboTier(state);
-
-            targetAcc = 0.0;
-            if (_cAccMode == "Ascending") {
-                if (t != null) {
-                    var totalHits:Int = t.totalNotesHit + t.missed;
-                    if (totalHits > 0) {
-                        var rawAcc:Float = ((t.sick + t.good - t.missed) / totalHits) * 100;
-                        var realAcc:Float = Math.floor(Math.max(0, rawAcc) * 100) / 100;
-
-                        var processed:Int = t.sick + t.good + t.bad + t.shit + t.missed;
-                        var totalPlayerNotes:Int = cachedActualTotal;
-                        
-                        if (processed > totalPlayerNotes) totalPlayerNotes = processed;
-
-                        var noteProgress:Float = (totalPlayerNotes > 0) ? (processed / totalPlayerNotes) : 1.0;
-                        if (noteProgress > 1.0) noteProgress = 1.0;
-                        
-                        var songProgress:Float = 0.0;
-                        if (state.currentSongLengthMs > 0 && state.conductorInUse != null) {
-                            songProgress = state.conductorInUse.songPosition / state.currentSongLengthMs;
-                        }
-                        if (Math.isNaN(songProgress) || songProgress < 0) songProgress = 0;
-                        if (songProgress >= 0.995) noteProgress = 1.0;
-                        
-                        targetAcc = realAcc * noteProgress;
-                    }
-                }
-            } else if (_cAccMode == "Classic") {
-                if (t != null) {
-                    var totalHits:Int = t.totalNotesHit + t.missed;
-                    if (totalHits > 0) {
-                        var raw:Float = ((t.sick + t.good - t.missed) / totalHits) * 100;
-                        targetAcc = Math.floor(Math.max(0, raw) * 100) / 100;
-                    }
-                }
-            }
-
-            if (!_cSmooth) displayedAcc = targetAcc;
-        }
-
-        if (_cAccMode != "Off" && _cAccMode != "null" && _cAccMode != "false") {
-            if (_cSmooth) {
-                var tAcc = displayedAcc;
-                if (majorChange) {
-                    tAcc = targetAcc;
-                } else if (_cAccMode == "Ascending" && t != null) {
-                    var totalHits:Int = t.totalNotesHit + t.missed;
-                    if (totalHits > 0) {
-                        var rawAcc:Float = ((t.sick + t.good - t.missed) / totalHits) * 100;
-                        var realAcc:Float = Math.floor(Math.max(0, rawAcc) * 100) / 100;
-                        
-                        var processed:Int = t.sick + t.good + t.bad + t.shit + t.missed;
-                        var totalPlayerNotes:Int = cachedActualTotal;
-                        
-                        if (processed > totalPlayerNotes) totalPlayerNotes = processed;
-                        var noteProgress:Float = (totalPlayerNotes > 0) ? (processed / totalPlayerNotes) : 1.0;
-                        if (noteProgress > 1.0) noteProgress = 1.0;
-                        
-                        var songProgress:Float = 0.0;
-                        if (state.currentSongLengthMs > 0 && state.conductorInUse != null) {
-                            songProgress = state.conductorInUse.songPosition / state.currentSongLengthMs;
-                        }
-                        if (songProgress >= 0.995) noteProgress = 1.0;
-                        tAcc = realAcc * noteProgress;
-                    }
-                } else if (_cAccMode == "Classic") {
-                    tAcc = targetAcc;
-                }
-                
-                displayedAcc += (tAcc - displayedAcc) * (elapsed * 8);
-                if (Math.abs(tAcc - displayedAcc) < 0.001) displayedAcc = tAcc;
-            }
-        }
-
-        var visualAcc:Float = Math.floor(displayedAcc * 100) / 100;
-        var accTextChanged:Bool = (visualAcc != lastVisualAcc);
-
-        var gammodChanged:Bool = false;
-        if (api != null) {
-            if (_lastBuiltUnranked != (api.gammodUnranked == true)) gammodChanged = true;
-            var currentMult:Float = api.gammodMultiplier != null ? api.gammodMultiplier : 1.0;
-            if (_lastBuiltMult != currentMult) gammodChanged = true;
-        }
-
-        if (majorChange || minorChange || accTextChanged || gammodChanged) {
-            pendingTextUpdate = true;
-        }
-
-        if (api != null && api.gammodHighscoreActive == true) {
-            _rainbowHue += elapsed * 150;
-            if (_rainbowHue >= 360) _rainbowHue -= 360;
-            pendingTextUpdate = true;
-        }
-
-        uiUpdateTimer += elapsed;
-        
-        if (pendingTextUpdate && (majorChange || uiUpdateTimer >= 0.033)) {
-            uiUpdateTimer = 0.0;
-            pendingTextUpdate = false;
-            
-            lastScore = currentScoreInt;
-            lastVisualAcc = visualAcc;
-
-            updateAccuracyText(lastScore, m, visualAcc, cachedRankStr, cachedTierStr);
-        }
-    }
-
-    function onStepHit(event:StepHitScriptEvent) {
-        var state = PlayState.instance;
-        if (state == null || api == null) return;
-        
-        if (api.getKssValue("kssette_icon_pos") == "Corners" && state.iconP1 != null && state.iconP2 != null) {
-            var bop1 = api.cachedP1Bop;
-            var bop2 = api.cachedP2Bop;
-            
-            if (bop1 > 0 && event.step % bop1 == 0) {
-                var p1Scale:Float = api.cachedP1Scale;
-                state.iconP1.scale.set(p1Scale * 1.2, p1Scale * 1.2);
-            }
-            if (bop2 > 0 && event.step % bop2 == 0) {
-                var p2Scale:Float = api.cachedP2Scale;
-                state.iconP2.scale.set(p2Scale * 1.2, p2Scale * 1.2);
+            if (uiText.text != newText) {
+                uiText.text = newText;
+                uiText.x = (FlxG.width - uiText.width) / 2;
             }
         }
     }

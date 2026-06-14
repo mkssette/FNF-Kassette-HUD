@@ -1,1594 +1,192 @@
-package kassettehud.util;
+package khudlite.util;
 
 import flixel.FlxG;
-import flixel.text.FlxText;
-import flixel.text.FlxTextBorderStyle;
+import flixel.FlxSprite;
+import flixel.text.FlxBitmapText;
+import flixel.text.FlxTextAlign;
+import funkin.Preferences;
 import funkin.save.Save;
 import funkin.modding.module.Module;
 import funkin.modding.module.ModuleHandler;
-import funkin.ui.options.OptionsState;
 import funkin.modding.events.StateChangeScriptEvent;
 import funkin.modding.events.UpdateScriptEvent;
-import funkin.modding.events.ScriptEvent;
 import funkin.play.PlayState;
 import funkin.play.scoring.Scoring;
 import funkin.Highscore;
-import funkin.Paths;
 import flixel.util.FlxStringUtil;
-import flixel.util.FlxColor;
-import flixel.FlxSprite;
+import flixel.math.FlxMath;
+import StringTools;
 import Std;
 import Math;
-import StringTools;
-import Reflect;
-import funkin.util.ReflectUtil;
-import funkin.util.FileUtil;
-import funkin.modding.PolymodHandler;
-import funkin.data.notestyle.NoteStyleRegistry;
-import funkin.modding.base.ScriptedMusicBeatState;
-import openfl.utils.Assets;
-import funkin.Preferences;
 
 class KssetteApi extends Module {
-    final optionsID:String = "kassette-hud";
-    public var hudVersion:String = "0.2.2";
-    public var preview_bf:Dynamic = null;
-    public var preview_dad:Dynamic = null;
-    public var preview_scoreBopTrigger:Bool = false;
-    public var preview_simulatedAcc:Float = 0.0;
-    var optionKeys:Array<String> = [
-        "kssette_show_score", "kssette_show_misses",
-        "kssette_acc_mode", "kssette_show_rank", "kssette_show_tier",
-        "kssette_middlescroll", "kssette_opponent_pos", "kssette_opponent_bg", "kssette_ghost_tapping",
-        "kssette_ghost_sing", "kssette_show_timebar", "kssette_info_pos",
-        "kssette_show_song_title", "kssette_show_song_diff",
-        "kssette_show_song_time", "kssette_judge_pos", "kssette_mobile_keyboard", "kssette_mobile_opp_notes",
-        "kssette_timebar_pos", "kssette_show_breakbar", "kssette_resume_countdown",
-        "kssette_smooth_display", "kssette_custom_font",
-        "kssette_custom_pixel_font",
-        "kssette_intro_text", "kssette_intro_font_title", "kssette_intro_font_artist",
-        "kssette_subtitles_anim", "kssette_subtitles_pos", "kssette_smart_karaoke",
-        "kssette_colored_healthbar", "kssette_night_mode", "kssette_night_start", "kssette_night_end", "kssette_night_opacity",
-        "kssette_hitsound", "kssette_hitsound_volume", "kssette_icon_pos", "kssette_score_pos", "kssette_score_bop", "kssette_breakbar_style", "kssette_breakbar_pos"
-    ];
-    public var preview_missesCount:Int = 0;
-    public var preview_playerTurn:Bool = true;
-    public var preview_turnProgress:Float = 0.0;
-    public var missesCount:Int = 0;
+    final optionsID:String = "kassette-hud-lite";
+    public var hudVersion:String = "lt.1.1";
     public var isMobileMode:Bool = false;
-    public var isCompromised:Bool = false;
-    private var expectedResponse:String = "";
-    private var heartbeatTimer:Float = 4.0;
-    private var gracePeriod:Float = 3.0;
 
-    public var playerNoteTimes:Array<Dynamic> = [];
-    public var currentNoteIndex:Int = 0;
+    public var currentScore:Int = 0;
+    public var currentMisses:Int = 0;
+    public var currentSicks:Int = 0;
+    public var currentGoods:Int = 0;
+    public var currentBads:Int = 0;
+    public var currentShits:Int = 0;
+    public var currentMaxCombo:Int = 0;
+    
+    public var currentRank:String = "?";
+    public var currentTier:String = "N/A";
+    
+    public var targetAcc:Float = 0.0;
+    public var visualAcc:Float = 0.0;
 
-    var lastRankScore:Int = -1;
-    var lastRankMisses:Int = -1;
-    var cachedRank:String = "?";
-    var lastTierMisses:Int = -1;
-    var lastTierGoods:Int = -1;
-    var lastTierBads:Int = -1;
-    var lastTierShits:Int = -1;
-    var cachedTier:String = "N/A";
-
-    var _accModule:Dynamic = null;
-    var _integrityTimer:Float = 0.0;
-    
-    var _cachedSongName:String = null;
-    var _checkedSongName:Bool = false;
-    
-    var _cachedSongArtist:String = null;
-    var _checkedSongArtist:Bool = false;
-    
-    var _cachedSongAlbum:String = null;
-    var _checkedSongAlbum:Bool = false;
-    
-    var _cachedSongId:String = null;
-    var _checkedSongId:Bool = false;
-    
-    var _qtModule:Dynamic = null;
-    var _cachedBotplay:Bool = false;
-    var _cachedGammodAuto:Bool = false;
-    var _cachedModeMsg:String = null;
-
-    public var cachedFontMap:Map<String, String> = null;
-    public var cachedResolvedFonts:Map<String, String> = null;
-    public var cachedCustomFontPath:String = "";
-    public var lastFontKey:String = "";
-    public var cachedCustomPixelFontPath:String = "";
-    public var lastPixelFontKey:String = "";
-    
-    public var preloadedAllFonts:Array<Dynamic> = [];
-    public var preloadedFamiliesData:Array<Dynamic> = [];
-    public var fontsPreloaded:Bool = false;
-    var _kssCache:Map<String, Dynamic> = null;
-    var _kssCacheReady:Bool = false;
-    var _mobileLikePc:Bool = true;
-    var _cachedHudFont:String = "";
-    var _cachedHudStyleId:String = "";
-    var _breakData:Dynamic = {active: false, progress: 0.0, timeLeft: 0.0};
-
-    var _isInPlayState:Bool = false;
-
-    var _lastP1Id:String = "";
-    var _lastP2Id:String = "";
-    var _hbUpdateTimer:Float = 0.0;
-    var _p1Color:Int = 0xFF66FF33;
-    var _p2Color:Int = 0xFFFF0000;
-    
-    var _iconColorCache:Dynamic = null;
-    
-    var _cColoredHB:Bool = false;
-    var _lastParsedChartId:String = "";
-    
-    public var cachedP1Scale:Float = 1.0;
-    public var cachedP2Scale:Float = 1.0;
-    public var cachedP1Bop:Int = 4;
-    public var cachedP2Bop:Int = 4;
-
-    public var isGammodMode:Bool = false;
-    public var gammodUnranked:Bool = false;
-    public var gammodPlaybackRate:Float = 1.0;
-    public var gammodMultiplier:Float = 1.0;
-    public var gammodAutoPlay:Bool = false;
-    public var gammodPlayerSide:String = "NORMAL";
-    public var gammodHighscoreActive:Bool = false;
-
-    var _gammodHandler:Dynamic = null;
-    var _gammodMult:Dynamic = null;
-    var _gammodRate:Dynamic = null;
-    var _gammodAuto:Dynamic = null;
-    var _gammodSide:Dynamic = null;
-    var _gammodPlay:Dynamic = null;
-    var _gammodCheckTimer:Float = 0.0;
+    public var songProgressTicks:Float = 0.0;
 
     public function new() {
         super('KssetteApi', 1000);
-        isMobileMode = (FlxG.onMobile); 
-        _isInPlayState = false;
-        
+        isMobileMode = FlxG.onMobile; 
         initSettings();
-        refreshOptionCache();
-        preloadFontsIndex();
-        isCompromised = false;
-        _lastParsedChartId = "";
-    }
-    
-    override function onSongEnd(event:ScriptEvent) {
-        super.onSongEnd(event);
-        clearGammodCache();
-    }
-
-    function clearGammodCache() {
-        _gammodHandler = null;
-        _gammodMult = null;
-        _gammodRate = null;
-        _gammodAuto = null;
-        _gammodSide = null;
-        _gammodPlay = null;
-        _lastParsedChartId = "";
-        playerNoteTimes = [];
-    }
-
-    public function preloadFontsIndex():Void {
-        if (fontsPreloaded) return;
-        var fontMap:Dynamic = getAvailableFonts();
-        
-        if (fontMap != null) {
-            var keys:Array<String> = [];
-            var kIter = fontMap.keys();
-            for (k in kIter) keys.push(Std.string(k));
-            
-            var allFonts:Array<Dynamic> = [];
-            var variantParts = ["-bold", "-italic", "-regular", "-light", "-medium", "-semibold", "-black", "_bold", "_italic", "_regular", " bold", " italic", " regular"];
-            for (k in keys) {
-                var fFile = fontMap.get(k);
-                var fPath = "VCR OSD Mono";
-                fPath = resolveCustomFont(fFile);
-
-                var rawName = k;
-                var lowerK = k.toLowerCase();
-                if (StringTools.endsWith(lowerK, ".ttf") || StringTools.endsWith(lowerK, ".otf")) {
-                    rawName = k.substr(0, k.length - 4);
-                }
-
-                var familyRaw = rawName;
-                var rawLower = rawName.toLowerCase();
-                var variantName = "Regular";
-                
-                for (v in variantParts) {
-                    var vIdx = rawLower.lastIndexOf(v);
-                    if (vIdx != -1 && vIdx > 0) {
-                        familyRaw = rawName.substr(0, vIdx);
-                        var vRaw = rawName.substr(vIdx + 1);
-                        var cleanV = "";
-                        for (i in 0...vRaw.length) {
-                            var char = vRaw.charAt(i);
-                            if (char != "-" && char != "_" && char != " ") cleanV += char;
-                        }
-                        if (cleanV.length > 0) {
-                            variantName = cleanV.substr(0,1).toUpperCase() + cleanV.substr(1);
-                        } else {
-                            variantName = vRaw;
-                        }
-                        break;
-                    }
-                }
-
-                if (familyRaw.toLowerCase() == "vcr" || k == "VCR (Default)") { familyRaw = "VCR OSD Mono"; variantName = "Default"; }
-                if (familyRaw.toLowerCase() == "pixel" || k == "Senpai Pixel (Default)") { familyRaw = "Senpai Pixel"; variantName = "Default"; }
-
-                allFonts.push({
-                    key: k,
-                    file: fFile,
-                    path: fPath,
-                    family: familyRaw,
-                    variant: variantName
-                });
-            }
-
-            var familiesData:Array<Dynamic> = [];
-            for (f in allFonts) {
-                var fam = f.family;
-                var found = false;
-                for (fd in familiesData) {
-                    if (fd.name == fam) {
-                        fd.variants.push(f);
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    familiesData.push({name: fam, variants: [f]});
-                }
-            }
-
-            familiesData.sort(function(a:Dynamic, b:Dynamic):Int {
-                var nameA:String = a.name.toLowerCase();
-                var nameB:String = b.name.toLowerCase();
-                if (nameA < nameB) return -1;
-                if (nameA > nameB) return 1;
-                return 0;
-            });
-            
-            preloadedAllFonts = allFonts;
-            preloadedFamiliesData = familiesData;
-        }
-        fontsPreloaded = true;
     }
 
     function initSettings() {
-        var changed:Bool = false;
+        var options = [
+            "kssette_show_hud", "kssette_show_score", "kssette_show_misses",
+            "kssette_acc_mode", "kssette_show_rank", "kssette_show_tier",
+            "kssette_middlescroll", "kssette_opponent_pos", "kssette_show_timebar", 
+            "kssette_info_pos", "kssette_show_song_time", "kssette_judge_pos", 
+            "kssette_mobile_keyboard", "kssette_timebar_pos", 
+            "kssette_smooth_display", "kssette_hide_splashes"
+        ];
 
-        for (opt in optionKeys) {
+        for (opt in options) {
             if (!Save.instance.modOptions.exists(opt)) {
-                var defaultVal:Dynamic = "On";
-                switch (opt) {
-                    case "kssette_middlescroll", "kssette_opponent_bg", "kssette_ghost_sing", "kssette_judge_pos", "kssette_smart_karaoke", "kssette_night_mode", "kssette_hitsound", "kssette_mobile_keyboard", "kssette_score_bop":
-                        defaultVal = "Off";
-                    case "kssette_mobile_opp_notes":
-                        defaultVal = "On";
-                    case "kssette_opponent_pos":
-                        defaultVal = "Left";
-                    case "kssette_acc_mode":
-                        defaultVal = "Classic";
-                    case "kssette_info_pos":
-                        defaultVal = "Below Score";
-                    case "kssette_timebar_pos":
-                        defaultVal = "Bottom";
-                    case "kssette_custom_font", "kssette_intro_font_title", "kssette_intro_font_artist":
-                        defaultVal = "vcr.ttf";
-                    case "kssette_custom_pixel_font":
-                        defaultVal = "pixel.otf";
-                    case "kssette_night_start":
-                        defaultVal = "20:00";
-                    case "kssette_night_end":
-                        defaultVal = "06:00";
-                    case "kssette_night_opacity":
-                        defaultVal = "65%";
-                    case "kssette_hitsound_volume":
-                        defaultVal = "100%";
-                    case "kssette_icon_pos":
-                        defaultVal = "Default";
-                    case "kssette_ghost_tapping":
-                        defaultVal = isMobileMode ? "Off" : "On";
-                    case "kssette_breakbar_style":
-                        defaultVal = "Default";
-                    case "kssette_breakbar_pos":
-                        defaultVal = "Center";
-                }
-
+                var defaultVal:Dynamic = "On"; 
+                if (opt == "kssette_middlescroll" || opt == "kssette_mobile_keyboard" || opt == "kssette_hide_splashes" || opt == "kssette_judge_pos") defaultVal = "Off"; 
+                if (opt == "kssette_opponent_pos") defaultVal = "Left";
+                if (opt == "kssette_acc_mode") defaultVal = "Classic";
+                if (opt == "kssette_info_pos") defaultVal = "Below Score";
+                if (opt == "kssette_timebar_pos") defaultVal = "Bottom";
                 Save.instance.modOptions.set(opt, defaultVal);
-                changed = true;
             }
         }
-        if (changed) Save.instance.flush();
+        Save.instance.flush();
     }
 
     public function registerModule(name:String, module:Dynamic) {}
 
-    function clearSongCache():Void {
-        _checkedSongName = false;
-        _cachedSongName = null;
-        _checkedSongArtist = false;
-        _cachedSongArtist = null;
-        _checkedSongAlbum = false;
-        _cachedSongAlbum = null;
-        _checkedSongId = false;
-        _cachedSongId = null;
-        _cachedModeMsg = null;
-        _cachedBotplay = false;
-        _cachedGammodAuto = false;
-        _cachedHudFont = "";
-        _cachedHudStyleId = "";
-        _lastParsedChartId = "";
-        playerNoteTimes = [];
-    }
-
-    function clearScoreCache():Void {
-        lastRankScore = -1;
-        lastRankMisses = -1;
-        cachedRank = "?";
-        lastTierMisses = -1;
-        lastTierGoods = -1;
-        lastTierBads = -1;
-        lastTierShits = -1;
-        cachedTier = "N/A";
-    }
-
-    public function refreshOptionCache():Void {
-        _kssCache = ["__dummy__" => null];
-        _kssCache.remove("__dummy__");
-
-        _mobileLikePc = true;
-        if (FlxG.onMobile) {
-            var mobileVal:Dynamic = Save.instance.modOptions.get("kssette_mobile_keyboard");
-            _mobileLikePc = (mobileVal == "On" || mobileVal == true);
-        }
-
-        for (key in optionKeys) {
-            var kssVal = normalizeKssValue(key, Save.instance.modOptions.get(key));
-            _kssCache.set(key, kssVal);
-        }
-
-        _kssCacheReady = true;
-        _cachedHudFont = "";
-        _cachedHudStyleId = "";
-    }
-
-    function normalizeKssValue(key:String, val:Dynamic):Dynamic {
-        if (FlxG.onMobile && !_mobileLikePc) {
+    public function getKssValue(key:String):Dynamic { 
+        var val = Save.instance.modOptions.get(key);
+        if (FlxG.onMobile && !isMobileLikePC()) {
             if (key == "kssette_middlescroll") return "Off";
             if (key == "kssette_opponent_pos") return "Left";
-            if (key == "kssette_opponent_bg") return "Off";
         }
-
-        if (key == "kssette_intro_text") {
-            if (val == true) return "Classic";
-            if (val == false) return "Off";
-            var valStr = Std.string(val);
-            if (valStr == "On" || valStr == "on" || valStr == "true") return "Classic";
-            if (valStr == "Off" || valStr == "off" || valStr == "false") return "Off";
-            return val;
-        }
-
-        if (key == "kssette_hitsound") {
-            if (val == true) return "On Note Hit";
-            if (val == false) return "Off";
-            var valStr = Std.string(val);
-            if (valStr == "On" || valStr == "on" || valStr == "true") return "On Note Hit";
-            if (valStr == "Off" || valStr == "off" || valStr == "false") return "Off";
-            return val;
-        }
-
-        if (val == true) return true;
-        if (val == false) return false;
-        var valStr = Std.string(val);
-        if (valStr == "On" || valStr == "on" || valStr == "true") return true;
-        if (valStr == "Off" || valStr == "off" || valStr == "false") return false;
+        if (val == "On") return true;
+        if (val == "Off") return false;
         return val;
     }
 
-    public function invalidateCache():Void {
-        refreshOptionCache();
-        clearSongCache();
-    }
+    public function getSongProgressTicks():Float { return songProgressTicks; }
     
-    public function preCacheIconColor(iconId:String, isPlayer:Bool = false):Void {
-        if (iconId == null || iconId == "" || iconId == "generic_p1" || iconId == "generic_p2") return;
-        if (Reflect.hasField(_iconColorCache, iconId)) return;
-
-        var graphic = null;
-        graphic = funkin.Paths.image('icons/' + iconId);
-        if (graphic == null) {
-            graphic = funkin.Paths.image('icons/icon-' + iconId);
-        }
-
-        if (graphic != null) {
-            var tempIcon = new flixel.FlxSprite().loadGraphic(graphic);
-            extractIconColor(tempIcon, isPlayer, iconId);
-            tempIcon.destroy();
-        }
+    public function getAccData():Array<Dynamic> { 
+        return [visualAcc, currentMisses, currentMaxCombo, currentScore, currentSicks, currentGoods, currentBads, currentShits, currentRank, currentTier]; 
     }
 
-    public function updateIconCache():Void {
-        var state = PlayState.instance;
-        if (state == null) return;
-
-        if (state.iconP1 != null) {
-            var prop1 = ReflectUtil.hasField(state.iconP1, "bopEvery") ? Reflect.getProperty(state.iconP1, "bopEvery") : null;
-            if (prop1 == null) prop1 = ReflectUtil.hasField(state.iconP1, "bopEvery") ? Reflect.field(state.iconP1, "bopEvery") : null;
-            if (prop1 != null) cachedP1Bop = prop1;
-            else cachedP1Bop = 4;
-
-            var scale1:Float = 1.0;
-            var isPixel1 = ReflectUtil.hasField(state.iconP1, "isPixelIcon") ? Reflect.getProperty(state.iconP1, "isPixelIcon") : null;
-            if (isPixel1 == null) isPixel1 = ReflectUtil.hasField(state.iconP1, "isPixelIcon") ? Reflect.field(state.iconP1, "isPixelIcon") : null;
-            if (isPixel1 == true) scale1 = 5.0;
-            else if (state.iconP1.antialiasing == false) scale1 = 5.0;
-            cachedP1Scale = scale1;
-        }
-
-        if (state.iconP2 != null) {
-            var prop2 = ReflectUtil.hasField(state.iconP2, "bopEvery") ? Reflect.getProperty(state.iconP2, "bopEvery") : null;
-            if (prop2 == null) prop2 = ReflectUtil.hasField(state.iconP2, "bopEvery") ? Reflect.field(state.iconP2, "bopEvery") : null;
-            if (prop2 != null) cachedP2Bop = prop2;
-            else cachedP2Bop = 4;
-
-            var scale2:Float = 1.0;
-            var isPixel2 = ReflectUtil.hasField(state.iconP2, "isPixelIcon") ? Reflect.getProperty(state.iconP2, "isPixelIcon") : null;
-            if (isPixel2 == null) isPixel2 = ReflectUtil.hasField(state.iconP2, "isPixelIcon") ? Reflect.field(state.iconP2, "isPixelIcon") : null;
-            if (isPixel2 == true) scale2 = 5.0;
-            else if (state.iconP2.antialiasing == false) scale2 = 5.0;
-            cachedP2Scale = scale2;
-        }
-    }
-
-    override public function onSongRetry(event:ScriptEvent) {
-        invalidateCache();
-        super.onSongRetry(event);
-        clearGammodCache();
-    }
-
-    override public function onCountdownStart(event:ScriptEvent) {
-        invalidateCache();
-
-        var state = PlayState.instance;
-        if (state != null && state.isChartingMode && state.isMinimalMode) {
-            Reflect.setField(state, "isMinimalMode", false);
-            Reflect.callMethod(state, Reflect.field(state, "initStage"), []);
-            Reflect.callMethod(state, Reflect.field(state, "initCharacters"), []);
-            state.refresh();
-        }
-
+    override public function onCountdownStart(event) {
         super.onCountdownStart(event);
-        updateIconCache();
-        
-        _gammodHandler = ModuleHandler.getModule("GammodModifierHandler");
-        _gammodMult = ModuleHandler.getModule("GammodMult");
-        _gammodRate = ModuleHandler.getModule("GammodPlaybackRate");
-        _gammodAuto = ModuleHandler.getModule("GammodAutoPlay");
-        _gammodSide = ModuleHandler.getModule("GammodPlayerSide");
-        _gammodPlay = ModuleHandler.getModule("GammodPlayModule");
-
-        _gammodCheckTimer = 0.25;
-
-        if (_gammodPlay != null) {
-            var gPlay:Dynamic = _gammodPlay;
-            if (gPlay.curMultTxt != null) gPlay.curMultTxt.visible = false;
-            if (gPlay.curNoRankTxt != null) gPlay.curNoRankTxt.visible = false;
-            if (gPlay.scoreTxtFX != null) gPlay.scoreTxtFX.visible = false;
-            if (gPlay.scoreTxtFXOut != null) gPlay.scoreTxtFXOut.visible = false;
-        }
-
-        clearScoreCache();
-        
-        _accModule = null;
-        _qtModule = null;
-        _integrityTimer = 0.0;
-
-        _lastP1Id = "";
-        _lastP2Id = "";
-        _hbUpdateTimer = 0.0;
-        
-        _cColoredHB = getKssValue("kssette_colored_healthbar") == true;
-        if (Reflect.hasField(FlxG, "kssIconColorCache")) {
-            _iconColorCache = Reflect.field(FlxG, "kssIconColorCache");
-        } else {
-            _iconColorCache = {};
-            Reflect.setField(FlxG, "kssIconColorCache", _iconColorCache);
-        }
-        
-        if (state != null && _cColoredHB) {
-            if (state.iconP1 != null) {
-                var p1Id = "generic_p1";
-                if (state.iconP1.characterId != null) p1Id = Std.string(state.iconP1.characterId);
-                if (!Reflect.hasField(_iconColorCache, p1Id)) extractIconColor(state.iconP1, true, p1Id);
-            }
-            
-            if (state.iconP2 != null) {
-                var p2Id = "generic_p2";
-                if (state.iconP2.characterId != null) p2Id = Std.string(state.iconP2.characterId);
-                if (!Reflect.hasField(_iconColorCache, p2Id)) extractIconColor(state.iconP2, false, p2Id);
-            }
-        }
-        
-        var currentChartId = getSongTitle() + "_" + getDifficulty();
-
-        if (_lastParsedChartId != currentChartId) {
-            playerNoteTimes = [];
-            
-            if (state != null && state.currentChart != null) {
-                if (_cColoredHB && Reflect.hasField(state.currentChart, "events")) {
-                    var events:Array<Dynamic> = Reflect.field(state.currentChart, "events");
-                    if (events != null) {
-                        for (ev in events) {
-                            var evName = "";
-                            if (Reflect.hasField(ev, "id")) evName = Std.string(Reflect.field(ev, "id"));
-                            else if (Reflect.hasField(ev, "name")) evName = Std.string(Reflect.field(ev, "name"));
-                            else if (Reflect.hasField(ev, "e")) evName = Std.string(Reflect.field(ev, "e"));
-
-                            if (evName == "SetHealthIcon" || evName == "ChangeCharacter") {
-                                var val = null;
-                                if (Reflect.hasField(ev, "value")) val = Reflect.field(ev, "value");
-                                else if (Reflect.hasField(ev, "v")) val = Reflect.field(ev, "v");
-                                
-                                if (val != null) {
-                                    var iconId = "";
-                                    if (Reflect.hasField(val, "id")) iconId = Std.string(Reflect.field(val, "id"));
-                                    else if (Reflect.hasField(val, "character")) iconId = Std.string(Reflect.field(val, "character"));
-                                    
-                                    var isPlayerEvent = false;
-                                    if (Reflect.hasField(val, "char")) {
-                                        var charVal = Std.parseInt(Std.string(Reflect.field(val, "char")));
-                                        if (charVal == 0) isPlayerEvent = true; 
-                                    }
-
-                                    if (iconId != "" && iconId != "null" && iconId != "generic_p1" && iconId != "generic_p2") {
-                                        preCacheIconColor(iconId, isPlayerEvent);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if (getKssValue("kssette_show_breakbar") == true && state.currentChart.notes != null) {
-                    var notesArray:Array<Dynamic> = state.currentChart.notes;
-                    var len:Int = notesArray.length;
-                    
-                    if (len > 0) {
-                        var firstNote = notesArray[0];
-                        var hasMustHitMethod = false;
-                        var hasMustHitProp = false;
-                        var hasDataProp = false;
-                        var hasDProp = false;
-                        
-                        try { var dummy = firstNote.getMustHitNote(); hasMustHitMethod = true; } catch(e:Dynamic) {}
-                        if (!hasMustHitMethod) {
-                            try { var dummy = firstNote.mustHitNote; hasMustHitProp = true; } catch(e:Dynamic) {}
-                        }
-                        if (!hasMustHitMethod && !hasMustHitProp) {
-                            try { var dummy = firstNote.data; hasDataProp = true; } catch(e:Dynamic) {}
-                            if (!hasDataProp) try { var dummy = firstNote.d; hasDProp = true; } catch(e:Dynamic) {}
-                        }
-                        
-                        var hasTimeProp = false;
-                        var hasTProp = false;
-                        try { var dummy = firstNote.time; hasTimeProp = true; } catch(e:Dynamic) {}
-                        if (!hasTimeProp) try { var dummy = firstNote.t; hasTProp = true; } catch(e:Dynamic) {}
-                        
-                        var hasLengthProp = false;
-                        var hasLProp = false;
-                        var hasSustainProp = false;
-                        try { var dummy = firstNote.length; hasLengthProp = true; } catch(e:Dynamic) {}
-                        if (!hasLengthProp) try { var dummy = firstNote.l; hasLProp = true; } catch(e:Dynamic) {}
-                        if (!hasLengthProp && !hasLProp) try { var dummy = firstNote.sustainLength; hasSustainProp = true; } catch(e:Dynamic) {}
-                        
-                        for (i in 0...len) {
-                            var note = notesArray[i];
-                            var isPlayer = false;
-                            
-                            if (hasMustHitMethod) {
-                                if (note.getMustHitNote() == true) isPlayer = true;
-                            } else if (hasMustHitProp) {
-                                if (note.mustHitNote == true) isPlayer = true;
-                            } else if (hasDataProp) {
-                                var d = note.data;
-                                if (d != null && Std.parseInt(Std.string(d)) >= 4) isPlayer = true;
-                            } else if (hasDProp) {
-                                var d = note.d;
-                                if (d != null && Std.parseInt(Std.string(d)) >= 4) isPlayer = true;
-                            }
-                            
-                            if (isPlayer) {
-                                var noteTime:Float = -1;
-                                var noteLen:Float = 0;
-                                
-                                if (hasTimeProp) {
-                                    if (note.time != null) noteTime = Std.parseFloat(Std.string(note.time));
-                                } else if (hasTProp) {
-                                    if (note.t != null) noteTime = Std.parseFloat(Std.string(note.t));
-                                }
-                                
-                                if (hasLengthProp) {
-                                    if (note.length != null) noteLen = Std.parseFloat(Std.string(note.length));
-                                } else if (hasLProp) {
-                                    if (note.l != null) noteLen = Std.parseFloat(Std.string(note.l));
-                                } else if (hasSustainProp) {
-                                    if (note.sustainLength != null) noteLen = Std.parseFloat(Std.string(note.sustainLength));
-                                }
-                                
-                                if (noteTime != -1) playerNoteTimes.push({start: noteTime, end: noteTime + noteLen});
-                            }
-                        }
-                    }
-                    playerNoteTimes.sort(function(a, b) {
-                        if (a.start < b.start) return -1;
-                        if (a.start > b.start) return 1;
-                        return 0;
-                    });
-                }
-            }
-            _lastParsedChartId = currentChartId;
-        }
-
-        currentNoteIndex = 0;
+        currentScore = 0; currentMisses = 0; currentSicks = 0; currentGoods = 0; currentBads = 0; currentShits = 0;
+        currentMaxCombo = 0; currentRank = "?"; currentTier = "N/A"; targetAcc = 0.0; visualAcc = 0.0;
+        songProgressTicks = 0.0;
     }
 
-    public function extractIconColor(icon:Dynamic, isPlayer:Bool = false, iconId:String = null):Int {
-        var isCacheable = (iconId != null && iconId != "" && iconId != "generic_p1" && iconId != "generic_p2");
-        var fallbackColor:Int = isPlayer ? 0xFF66FF33 : 0xFFFF0000;
-
-        if (isCacheable) {
-            if (Reflect.hasField(_iconColorCache, iconId)) {
-                return Reflect.field(_iconColorCache, iconId);
-            }
-        }
-
-        if (icon == null) {
-            if (isCacheable) Reflect.setField(_iconColorCache, iconId, fallbackColor);
-            return fallbackColor;
-        }
-        
-        var bitmap = null;
-        if (icon.pixels != null) bitmap = icon.pixels;
-        if (bitmap == null) {
-            if (icon.graphic != null && icon.graphic.bitmap != null) bitmap = icon.graphic.bitmap;
-        }
-        
-        if (bitmap == null) {
-            if (isCacheable) Reflect.setField(_iconColorCache, iconId, fallbackColor);
-            return fallbackColor;
-        }
-        
-        var bWidth:Int = 150;
-        var bHeight:Int = 150;
-        if (bitmap.width != null) bWidth = Std.int(bitmap.width);
-        if (bitmap.height != null) bHeight = Std.int(bitmap.height);
-        
-        var w:Int = bWidth > 150 ? 150 : bWidth;
-        var h:Int = bHeight > 150 ? 150 : bHeight;
-        
-        var detail:Int = 4; 
-        var frequency:Map<Int, Int> = [-1 => 0];
-        frequency.remove(-1);
-        var bestColor:Int = fallbackColor;
-        var maxFreq:Int = 0;
-        
-        var x:Int = 0;
-        while (x < w) {
-            var y:Int = 0;
-            while (y < h) {
-                var pixel32:Int = bitmap.getPixel32(x, y);
-                var alpha:Int = (pixel32 >> 24) & 0xFF;
-                
-                if (alpha > 200) {
-                    var rgb:Int = pixel32 & 0xFFFFFF;
-                    if (rgb != 0x000000 && rgb != 0xFFFFFF && rgb != 0x000001) {
-                        var count:Null<Int> = frequency.get(rgb);
-                        if (count == null) count = 0;
-                        count++;
-                        frequency.set(rgb, count);
-                        if (count > maxFreq) {
-                            maxFreq = count;
-                            bestColor = rgb;
-                        }
-                    }
-                }
-                y += detail;
-            }
-            x += detail;
-        }
-        
-        if (maxFreq == 0) {
-            if (isCacheable) Reflect.setField(_iconColorCache, iconId, fallbackColor);
-            return fallbackColor;
-        }
-        
-        var finalColor = 0xFF000000 | bestColor;
-        
-        if (isCacheable) {
-            Reflect.setField(_iconColorCache, iconId, finalColor);
-        }
-
-        return finalColor;
-    }
-
-    public function getBreakData():Dynamic {
-        var state = PlayState.instance;
-        if (state == null || state.conductorInUse == null || playerNoteTimes.length == 0) {
-            _breakData.active = false;
-            _breakData.progress = 0.0;
-            _breakData.timeLeft = 0.0;
-            return _breakData;
-        }
-
-        var currentTime = state.conductorInUse.songPosition;
-
-        while (currentNoteIndex < playerNoteTimes.length && playerNoteTimes[currentNoteIndex].start <= currentTime) {
-            currentNoteIndex++;
-        }
-
-        if (currentNoteIndex >= playerNoteTimes.length) {
-            _breakData.active = false;
-            _breakData.progress = 0.0;
-            _breakData.timeLeft = 0.0;
-            return _breakData;
-        }
-
-        var nextTime = playerNoteTimes[currentNoteIndex].start;
-        var prevTime:Float = 0;
-        if (currentNoteIndex > 0) prevTime = playerNoteTimes[currentNoteIndex - 1].end;
-        
-        var gap = nextTime - prevTime;
-        if (gap >= 2500) {
-            var timeSincePrev = currentTime - prevTime;
-            var timeUntilNext = nextTime - currentTime;
-
-            if (timeSincePrev > 400 && timeUntilNext > 400) {
-                var totalVisibleTime = gap - 800; 
-                var currentVisibleTime = timeSincePrev - 400;
-                var progress = currentVisibleTime / totalVisibleTime;
-                _breakData.active = true;
-                _breakData.progress = progress;
-                _breakData.timeLeft = timeUntilNext;
-                return _breakData;
-            }
-        }
-        _breakData.active = false;
-        _breakData.progress = 0.0;
-        _breakData.timeLeft = 0.0;
-        return _breakData;
+    override public function onNoteSplash(event) {
+        if (getKssValue("kssette_hide_splashes") == true) event.cancel();
     }
 
     public function isMobileLikePC():Bool {
         if (!FlxG.onMobile) return true;
-        if (!_kssCacheReady) refreshOptionCache();
-        return _mobileLikePc;
-    }
-
-        public function isForcedDownscroll():Bool {
-        return isMobileMode && !_mobileLikePc;
-    }
-
-    public function getDownscroll():Bool {
-        return Preferences.downscroll || isForcedDownscroll();
-    }
-
-    public function getSongTitle():String {
-        if (_checkedSongName) return _cachedSongName;
-        
-        _checkedSongName = true;
-        _cachedSongName = "Unknown";
-        
-        var state = PlayState.instance;
-        if (state == null) return "Unknown";
-        
-        var titleStr = "Unknown";
-        if (state.currentChart != null && state.currentChart.songName != null) {
-            var s = Std.string(state.currentChart.songName);
-            if (s != "" && s != "null") titleStr = s;
-        }
-
-        if (titleStr == "Unknown" || titleStr == "null") {
-            if (state.currentSong != null && state.currentSong.songName != null) {
-                var s = Std.string(state.currentSong.songName);
-                if (s != "" && s != "null") titleStr = s;
-            } else if (state.currentSong != null && state.currentSong.id != null) {
-                var s = Std.string(state.currentSong.id);
-                if (s != "" && s != "null") titleStr = s;
-            }
-        }
-        
-        if (titleStr != "Unknown" && titleStr != "null") _cachedSongName = titleStr;
-        return _cachedSongName;
-    }
-
-    public function getSongArtist():String {
-        if (_checkedSongArtist) return _cachedSongArtist;
-        
-        _checkedSongArtist = true;
-        _cachedSongArtist = "Unknown Artist";
-        
-        var state = PlayState.instance;
-        if (state == null) return "Unknown Artist";
-        
-        var artistStr = "Unknown Artist";
-        if (state.currentChart != null) {
-            var cArtist = Reflect.getProperty(state.currentChart, "songArtist");
-            if (cArtist == null) cArtist = Reflect.getProperty(state.currentChart, "artist");
-            
-            var meta = Reflect.getProperty(state.currentChart, "metadata");
-            if (cArtist == null && meta != null) cArtist = Reflect.getProperty(meta, "artist");
-
-            if (cArtist != null && Std.string(cArtist) != "" && Std.string(cArtist) != "null") {
-                _cachedSongArtist = Std.string(cArtist);
-                return _cachedSongArtist;
-            }
-        }
-
-        if (artistStr == "Unknown Artist" || artistStr == "null") {
-            if (state.currentSong != null) {
-                var sArtist = Std.string(state.currentSong.artist);
-                if (sArtist != "" && sArtist != "null") {
-                    artistStr = sArtist;
-                } else if (state.currentSong.metadata != null && state.currentSong.metadata.artist != null) {
-                    var mArtist = Std.string(state.currentSong.metadata.artist);
-                    if (mArtist != "" && mArtist != "null") artistStr = mArtist;
-                }
-            }
-        }
-        
-        if (artistStr != "Unknown Artist" && artistStr != "null") _cachedSongArtist = artistStr;
-        return _cachedSongArtist;
-    }
-
-    public function getDifficulty():String {
-        if (getKssValue("kssette_show_song_diff") != true) return "";
-        var state = PlayState.instance;
-        if (state == null) return "NORMAL";
-        var diff:String = Std.string(state.currentDifficulty);
-        return (diff == null || diff == "" || diff == "null") ? "NORMAL" : diff.toUpperCase();
-    }
-
-    public function getTimeRemaining():String {
-        if (getKssValue("kssette_show_song_time") != true) return "";
-        var state = PlayState.instance;
-        if (state == null || state.conductorInUse == null) return "0:00";
-        var remaining:Float = (state.currentSongLengthMs - state.conductorInUse.songPosition) / 1000;
-        if (remaining < 0) remaining = 0;
-        return FlxStringUtil.formatTime(remaining, false);
-    }
-
-    public function getSongProgress():Float {
-        var state = PlayState.instance;
-        if (state == null || state.currentSongLengthMs <= 0) return 0.0;
-        return Math.min(1.0, Math.max(0.0, state.conductorInUse.songPosition / state.currentSongLengthMs));
-    }
-
-    public function getNoteCount():Int {
-        if (getKssValue("kssette_acc_mode") != "Ascending") return 0;
-        var state = PlayState.instance;
-        if (state == null || state.currentChart == null || state.currentChart.notes == null) return 0;
-        var count:Int = 0;
-        for (note in state.currentChart.notes) {
-            var isPlayer = false;
-            try {
-                if (note.getMustHitNote() == true) isPlayer = true;
-            } catch(e:Dynamic) {
-                var d = Reflect.getProperty(note, "data");
-                if (d == null) d = Reflect.getProperty(note, "d");
-                if (d != null && Std.parseInt(Std.string(d)) >= 4) isPlayer = true;
-                if (Reflect.getProperty(note, "mustHitNote") == true) isPlayer = true;
-            }
-            if (isPlayer) count++;
-        }
-        return (count == 0) ? Std.int(state.currentChart.notes.length / 2) : count;
-    }
-
-    public function getNoteStyle():String {
-        var state = PlayState.instance;
-        if (state == null) return "funkin";
-        if (state.currentChart != null && state.currentChart.playData != null && state.currentChart.playData.noteStyle != null) {
-            return state.currentChart.playData.noteStyle;
-        }
-        return "funkin";
-    }
-
-    public function getRankID(state:PlayState):String {
-        if (getKssValue("kssette_show_rank") != true) return "?";
-        var t = Highscore.tallies;
-        if (t == null || (t.totalNotesHit + t.missed) <= 0) return "?";
-        
-        if (state.songScore == lastRankScore && t.missed == lastRankMisses && cachedRank != "?") return cachedRank;
-
-        lastRankScore = state.songScore;
-        lastRankMisses = t.missed;
-        cachedRank = Scoring.calculateRank({
-            score: state.songScore,
-            tallies: {
-                sick: t.sick,
-                good: t.good,
-                bad: t.bad,
-                shit: t.shit,
-                miss: t.missed,
-                combo: t.combo,
-                maxCombo: t.maxCombo,
-                totalNotesHit: t.totalNotesHit,
-                totalNotes: t.totalNotesHit + t.missed
-            }
-        });
-        return cachedRank;
-    }
-
-    public function getComboTier(state:PlayState):String {
-        if (getKssValue("kssette_show_tier") != true) return "";
-        var t = Highscore.tallies;
-        if (t == null) return "N/A";
-        
-        if (t.missed == lastTierMisses && t.good == lastTierGoods && t.bad == lastTierBads && t.shit == lastTierShits && cachedTier != "N/A") return cachedTier;
-
-        lastTierMisses = t.missed;
-        lastTierGoods = t.good;
-        lastTierBads = t.bad;
-        lastTierShits = t.shit;
-
-        if (t.missed == 0) {
-            if (t.good == 0 && t.bad == 0 && t.shit == 0) cachedTier = "SFC";
-            else if (t.bad == 0 && t.shit == 0) cachedTier = "GFC";
-            else cachedTier = "FC";
-        } else {
-            cachedTier = (t.missed < 10) ? "SDCB" : "Clear";
-        }
-        return cachedTier;
-    }
-
-    public function getAccuracy(state:PlayState):Float {
-        var t = Highscore.tallies;
-        if (t == null) return 0.0;
-        var total:Int = t.totalNotesHit + t.missed;
-        if (total <= 0) return 0.0;
-        var raw:Float = ((t.sick + t.good - t.missed) / total) * 100;
-        return Math.floor(Math.max(0, raw) * 100) / 100;
-    }
-
-    public function getAscendingAccuracy(state:PlayState, cachedTotalNotes:Int):Float {
-        if (getKssValue("kssette_acc_mode") != "Ascending") return 0.0;
-        if (state == null) return 0.0;
-
-        var realAcc:Float = getAccuracy(state);
-        var totalPlayerNotes:Int = cachedTotalNotes;
-        var processed:Int = 0;
-        
-        if (Highscore.tallies != null) {
-            processed = Highscore.tallies.sick + Highscore.tallies.good + Highscore.tallies.bad + Highscore.tallies.shit + Highscore.tallies.missed;
-            if (Reflect.hasField(Highscore.tallies, "totalNotes")) {
-                var realTotal:Dynamic = Reflect.field(Highscore.tallies, "totalNotes");
-                if (realTotal != null && realTotal > 0) totalPlayerNotes = Std.int(realTotal);
-            }
-        }
-
-        if (processed > totalPlayerNotes) totalPlayerNotes = processed;
-
-        var noteProgress:Float = (totalPlayerNotes > 0) ? (processed / totalPlayerNotes) : 1.0;
-        if (noteProgress > 1.0) noteProgress = 1.0;
-        
-        var songProgress:Float = getSongProgress();
-        if (Math.isNaN(songProgress) || songProgress < 0) songProgress = 0;
-        if (songProgress >= 0.995) noteProgress = 1.0;
-        
-        return realAcc * noteProgress;
-    }
-
-    public function getChallenge():String {
-        var msg = getModeMessage();
-        var isBotting:Bool = (msg.indexOf('Botplay') != -1 || msg.indexOf('AutoPlay') != -1);
-        var randomId = FlxG.random.int(100, 999);
-        var challenge = 'sync_' + randomId;
-
-        if (isBotting) {
-            expectedResponse = 'err_' + (randomId * 3);
-        } else {
-            expectedResponse = 'ok_' + (randomId * 3);
-        }
-        return challenge;
-    }
-
-    public function sendResponse(response:String):Void {
-        if (response == expectedResponse && expectedResponse != "") {
-            heartbeatTimer = 4.0; 
-            gracePeriod = 0;      
-        } else {
-            if (gracePeriod <= 0) isCompromised = true;
-        }
-    }
-
-    public function getModeMessage():String {
-        var state = PlayState.instance;
-        if (state == null) return "";
-        
-        var gammodAutoMod = ModuleHandler.getModule("GammodAutoPlay");
-        var gAutoPlay = gammodAutoPlay;
-        if (gammodAutoMod != null) {
-            var autoRaw:Dynamic = null;
-            autoRaw = Reflect.getProperty(gammodAutoMod, "value");
-            if (autoRaw == null) autoRaw = Reflect.field(gammodAutoMod, "value");
-            if (autoRaw == null) autoRaw = gammodAutoMod.scriptGet("value");
-            gAutoPlay = (autoRaw != null && Std.string(autoRaw).toUpperCase() != "DISABLED");
-            gammodAutoPlay = gAutoPlay;
-        }
-
-        var botplay:Bool = state.isBotPlayMode || (Save.instance.modOptions.get("BotMode") == true) || gAutoPlay;
-        
-        if (!botplay) {
-            if (!_checkedSongId) {
-                _checkedSongId = true;
-                _cachedSongId = (state.currentSong != null && state.currentSong.id != null) ? state.currentSong.id : ((state.currentChart != null && state.currentChart.songName != null) ? state.currentChart.songName : "");
-            }
-            if (_cachedSongId != null && _cachedSongId.toLowerCase() == "termination") {
-                if (_qtModule == null) _qtModule = ModuleHandler.getModule("QTdodgeModule");
-                if (_qtModule != null && Reflect.hasField(_qtModule, "scriptGet")) {
-                    var scriptGetFn:Dynamic = Reflect.field(_qtModule, "scriptGet");
-                    if (scriptGetFn != null && scriptGetFn("qtBotplay") == true) botplay = true;
-                }
-            }
-        }
-        
-        if (_cachedModeMsg != null && botplay == _cachedBotplay && gAutoPlay == _cachedGammodAuto) return _cachedModeMsg;
-        
-        _cachedBotplay = botplay;
-        _cachedGammodAuto = gAutoPlay;
-        var songName:String = getSongTitle();
-
-        if (botplay) {
-            if (gammodAutoPlay) _cachedModeMsg = 'Watching "' + songName + '" with AutoPlay';
-            else _cachedModeMsg = 'Watching "' + songName + '" with Botplay';
-        } else {
-            _cachedModeMsg = "";
-        }
-        
-        return _cachedModeMsg; 
-    }
-
-    public function isOptionLocked(key:String):Bool {
-        var ms = Save.instance.modOptions.get("kssette_middlescroll");
-        if (ms == null) ms = "Off";
-
-        if (key == "kssette_opponent_bg" && ms != "Off") return true;
-        if (key == "kssette_opponent_pos" && ms == "Off") return true;
-        if (key == "kssette_breakbar_pos" && ms != "Off") return true;
-
-        var gt = Save.instance.modOptions.get("kssette_ghost_tapping");
-        if (gt == null) gt = isMobileMode ? "Off" : "On";
-        if (key == "kssette_ghost_sing" && gt == "Off") return true;
-
-        var jp = Save.instance.modOptions.get("kssette_judge_pos");
-        if (jp == null) jp = "Off";
-        if (key == "kssette_show_misses" && jp != "Off") return true;
-
-        var intro = Save.instance.modOptions.get("kssette_intro_text");
-        if (intro == null) intro = "Classic";
-        if (key == "kssette_intro_pos" && (intro == "Off" || intro == false || intro == "Clap")) return true;
-        if (key == "kssette_intro_album" && (intro == "Off" || intro == false)) return true;
-
-        return false;
-    }
-
-    public function getKssValue(key:String):Dynamic { 
-        if (key == "isCompromised") return isCompromised;
-        if (!_kssCacheReady) refreshOptionCache();
-        
-        var val:Dynamic = null;
-        if (_kssCache != null && _kssCache.exists(key)) val = _kssCache.get(key);
-        else val = normalizeKssValue(key, Save.instance.modOptions.get(key));
-        
-        if (isOptionLocked(key)) {
-            if (key == "kssette_opponent_bg" || key == "kssette_ghost_sing" || key == "kssette_show_misses") return false;
-            if (key == "kssette_breakbar_pos") return "Center";
-        }
-
-        return val;
-    }
-
-    function getModFolders():Array<String> {
-        var folders:Array<String> = [];
-        try {
-            var loadedMods = PolymodHandler.loadedModIds;
-            if (loadedMods != null && loadedMods.length > 0) for (mod in loadedMods) folders.push(mod);
-        } catch(e:Dynamic) {}
-
-        if (folders.length == 0) {
-            try {
-                var readMods = FileUtil.readDir("mods");
-                if (readMods != null) for (mod in readMods) folders.push(mod);
-            } catch(e:Dynamic) {}
-        }
-        return folders;
-    }
-
-    public function getAvailableFonts():Map<String, String> {
-        if (cachedFontMap != null) return cachedFontMap;
-        
-        var fonts:Map<String, String> = [
-            "VCR (Default)" => "vcr.ttf",
-            "Senpai Pixel (Default)" => "pixel.otf"
-        ]; 
-        var blacklist = ["vcr.ttf", "pixel.otf", "ds_digii.ttf", "ds_digib.ttf", "ds_digi.ttf", "nokiafc22.ttf", "arial.ttf", "5by7_b.ttf", "consolas.ttf", "quantico_bolditalic.ttf", "quantico_bold.ttf", "quantico_regular.ttf", "inconsolata_semibold.ttf", "inconsolata_bold.ttf", "inconsolata_medium.ttf", "vcr_italic.ttf", "inconsolata_extralight.ttf", "insolata_regular.ttf", "5by7.ttf", "quantico_italic.ttf", "monsterrat.ttf", "vcr_bold.ttf", "vcr_bolditalic.ttf", "incosolata_black.ttf"];
-
-        var files = Assets.list();
-        if (files != null) {
-            try {
-                for (file in files) {
-                    var f = file.toLowerCase();
-                    var normalizedFile = StringTools.replace(f, "\\", "/");
-                    if (normalizedFile.indexOf("fonts/") != -1 && (StringTools.endsWith(normalizedFile, ".ttf") || StringTools.endsWith(normalizedFile, ".otf"))) {
-                        var normalizedPath = StringTools.replace(file, "\\", "/");
-                        var slashIdx = normalizedPath.lastIndexOf("/");
-                        var fileName = slashIdx == -1 ? normalizedPath : normalizedPath.substr(slashIdx + 1);
-                        if (blacklist.indexOf(fileName.toLowerCase()) == -1) {
-                            fonts.set(fileName, fileName);
-                        }
-                    }
-                }
-            } catch(e:Dynamic) {}
-        }
-        
-        for (folder in getModFolders()) {
-            var path = "mods/" + folder + "/fonts";
-            try {
-                var dirFiles = FileUtil.readDir(path);
-                if (dirFiles != null) {
-                    for (file in dirFiles) {
-                        var f = file.toLowerCase();
-                        if (StringTools.endsWith(f, ".ttf") || StringTools.endsWith(f, ".otf")) {
-                            if (blacklist.indexOf(f) == -1) {
-                                fonts.set(file, file); 
-                            }
-                        }
-                    }
-                }
-            } catch(e:Dynamic) {}
-        }
-
-        cachedFontMap = fonts;
-        return fonts;
-    }
-
-    public function resolveCustomFont(fontKey:String):String {
-        if (fontKey == "vcr.ttf" || fontKey == "VCR OSD Mono" || fontKey == "null" || fontKey == "") return "VCR OSD Mono";
-        if (fontKey == "pixel.otf" || fontKey == "Pixel Arial 11" || fontKey == "Senpai Pixel (Default)") return Paths.font("pixel.otf");
-        if (cachedResolvedFonts == null) {
-            cachedResolvedFonts = ["__dummy__" => ""];
-            cachedResolvedFonts.remove("__dummy__");
-        }
-        if (cachedResolvedFonts.exists(fontKey)) return cachedResolvedFonts.get(fontKey);
-        
-        var foundPath:String = ""; 
-        var files = Assets.list();
-        if (files != null) {
-            try {
-                for (file in files) {
-                    var f = file.toLowerCase();
-                    var normalizedFile = StringTools.replace(f, "\\", "/");
-                    if (normalizedFile.indexOf("fonts/") != -1 && StringTools.endsWith(normalizedFile, fontKey.toLowerCase())) {
-                        foundPath = file;
-                        break;
-                    }
-                }
-            } catch(e:Dynamic) {}
-        }
-
-        if (foundPath == "") {
-            for (folder in getModFolders()) {
-                if (foundPath != "") break; 
-                var path = "mods/" + folder + "/fonts";
-                try {
-                    var dirFiles = FileUtil.readDir(path);
-                    if (dirFiles != null) {
-                        for (f in dirFiles) {
-                            if (f.toLowerCase() == fontKey.toLowerCase()) {
-                                foundPath = "mods/" + folder + "/fonts/" + f;
-                                break;
-                            }
-                        }
-                    }
-                } catch(e:Dynamic) {}
-            }
-        }
-        
-        if (foundPath == "") foundPath = "VCR OSD Mono";
-        cachedResolvedFonts.set(fontKey, foundPath);
-        return foundPath;
-    }
-
-    public function getCustomFont():String {
-        var fontKey:String = Std.string(getKssValue("kssette_custom_font"));
-        if (fontKey == lastFontKey && cachedCustomFontPath != "") return cachedCustomFontPath;
-        var resolved = resolveCustomFont(fontKey);
-        lastFontKey = fontKey;
-        cachedCustomFontPath = resolved;
-        return resolved;
-    }
-
-    public function getCustomPixelFont():String {
-        var fontKey:String = Std.string(getKssValue("kssette_custom_pixel_font"));
-        if (fontKey == lastPixelFontKey && cachedCustomPixelFontPath != "") return cachedCustomPixelFontPath;
-        var resolved = resolveCustomFont(fontKey);
-        lastPixelFontKey = fontKey;
-        cachedCustomPixelFontPath = resolved;
-        return resolved;
-    }
-
-    public function getHudFont():String {
-        var styleId:String = "funkin";
-        
-        if (PlayState.instance != null) {
-            if (PlayState.instance.currentChart != null) {
-                var pData = Reflect.getProperty(PlayState.instance.currentChart, "playData");
-                if (pData != null) {
-                    var nStyle = Reflect.getProperty(pData, "noteStyle");
-                    if (nStyle != null) styleId = Std.string(nStyle);
-                } else {
-                    var nStyle = Reflect.getProperty(PlayState.instance.currentChart, "noteStyle");
-                    if (nStyle != null) styleId = Std.string(nStyle);
-                }
-            }
-        }
-
-        if (_cachedHudFont != "" && _cachedHudStyleId == styleId) return _cachedHudFont;
-
-        var currentStyleId:String = styleId;
-        var depth:Int = 0;
-        var maxDepth:Int = 5;
-        
-        while (currentStyleId != null && depth < maxDepth) {
-            var styleEntry = NoteStyleRegistry.instance.fetchEntry(currentStyleId);
-            if (styleEntry == null) break;
-            
-            var data = Reflect.getProperty(styleEntry, "_data");
-            if (data == null) data = Reflect.field(styleEntry, "_data");
-
-            if (data != null) {
-                var assets = Reflect.getProperty(data, "assets");
-                if (assets == null) assets = Reflect.field(data, "assets");
-
-                if (assets != null) {
-                    var note = Reflect.getProperty(assets, "note");
-                    if (note == null) note = Reflect.field(assets, "note");
-
-                    if (note != null) {
-                        var isPixelVal:Dynamic = Reflect.getProperty(note, "isPixel");
-                        if (isPixelVal == null) isPixelVal = Reflect.field(note, "isPixel");
-                        
-                        if (isPixelVal == true || isPixelVal == "true") {
-                            _cachedHudStyleId = styleId;
-                            _cachedHudFont = getCustomPixelFont();
-                            return _cachedHudFont;
-                        } else if (isPixelVal == false || isPixelVal == "false") {
-                            break;
-                        }
-                    }
-                }
-                
-                var fallbackStyle = Reflect.getProperty(data, "fallback");
-                if (fallbackStyle == null) fallbackStyle = Reflect.field(data, "fallback");
-
-                if (fallbackStyle != null && Std.string(fallbackStyle) != "" && Std.string(fallbackStyle) != "null") {
-                    currentStyleId = Std.string(fallbackStyle);
-                } else {
-                    currentStyleId = null;
-                }
-            } else {
-                currentStyleId = null;
-            }
-            depth++;
-        }
-        
-        _cachedHudStyleId = styleId;
-        _cachedHudFont = getCustomFont();
-        return _cachedHudFont;
-    }
-
-    function checkGammod(elapsed:Float) {
-        if (_gammodPlay != null) {
-            var gPlay:Dynamic = _gammodPlay;
-            if (gPlay.curMultTxt != null) gPlay.curMultTxt.visible = false;
-            if (gPlay.curNoRankTxt != null) gPlay.curNoRankTxt.visible = false;
-            if (gPlay.scoreTxtFX != null) gPlay.scoreTxtFX.visible = false;
-            if (gPlay.scoreTxtFXOut != null) gPlay.scoreTxtFXOut.visible = false;
-            gammodHighscoreActive = (gPlay.didHighscoreEvents == true);
-        } else {
-            gammodHighscoreActive = false;
-        }
-
-        _gammodCheckTimer += elapsed;
-        if (_gammodCheckTimer < 0.25) return;
-        
-        _gammodCheckTimer = 0.0;
-
-        var gammodHandler = _gammodHandler;
-        var modsOnRaw:Dynamic = null;
-        if (gammodHandler != null) {
-            modsOnRaw = Reflect.getProperty(gammodHandler, "mods_on");
-            if (modsOnRaw == null) modsOnRaw = Reflect.field(gammodHandler, "mods_on");
-            if (modsOnRaw == null) {
-                modsOnRaw = gammodHandler.scriptGet("mods_on");
-            }
-            if (modsOnRaw == null) {
-                var activeArray:Dynamic = gammodHandler.getActive();
-                if (activeArray != null && activeArray.length > 0) modsOnRaw = true;
-            }
-            isGammodMode = (modsOnRaw == true);
-        } else {
-            isGammodMode = false;
-        }
-
-        var gammodMult = _gammodMult;
-        var unrankedRaw:Dynamic = null;
-        var multRaw:Dynamic = null;
-        if (gammodMult != null) {
-            unrankedRaw = Reflect.getProperty(gammodMult, "unranked");
-            if (unrankedRaw == null) unrankedRaw = Reflect.field(gammodMult, "unranked");
-            if (unrankedRaw == null) {
-                unrankedRaw = gammodMult.scriptGet("unranked");
-            }
-            if (unrankedRaw == null) {
-                unrankedRaw = Reflect.field(gammodMult, "isUnranked")();
-            }
-            gammodUnranked = (unrankedRaw == true);
-
-            multRaw = Reflect.getProperty(gammodMult, "score_multiplier");
-            if (multRaw == null) multRaw = Reflect.field(gammodMult, "score_multiplier");
-            if (multRaw == null) {
-                multRaw = gammodMult.scriptGet("score_multiplier");
-            }
-            if (multRaw == null) {
-                multRaw = Reflect.field(gammodMult, "curMult")();
-            }
-            if (multRaw != null) gammodMultiplier = multRaw;
-            else gammodMultiplier = 1.0;
-        } else {
-            gammodUnranked = false;
-            gammodMultiplier = 1.0;
-        }
-
-        var gammodRate = _gammodRate;
-        var rateRaw:Dynamic = null;
-        if (gammodRate != null) {
-            rateRaw = Reflect.getProperty(gammodRate, "value");
-            if (rateRaw == null) rateRaw = Reflect.field(gammodRate, "value");
-            if (rateRaw == null) {
-                rateRaw = gammodRate.scriptGet("value");
-            }
-            if (rateRaw != null) gammodPlaybackRate = rateRaw;
-            else gammodPlaybackRate = 1.0;
-        } else {
-            gammodPlaybackRate = 1.0;
-        }
-
-        var gammodAutoMod = _gammodAuto;
-        var autoRaw:Dynamic = null;
-        if (gammodAutoMod != null) {
-            autoRaw = Reflect.getProperty(gammodAutoMod, "value");
-            if (autoRaw == null) autoRaw = Reflect.field(gammodAutoMod, "value");
-            if (autoRaw == null) {
-                autoRaw = gammodAutoMod.scriptGet("value");
-            }
-            gammodAutoPlay = (autoRaw != null && Std.string(autoRaw).toUpperCase() != "DISABLED");
-        } else {
-            gammodAutoPlay = false;
-        }
-
-        var gammodSideMod = _gammodSide;
-        var sideRaw:Dynamic = null;
-        if (gammodSideMod != null) {
-            sideRaw = Reflect.getProperty(gammodSideMod, "value");
-            if (sideRaw == null) sideRaw = Reflect.field(gammodSideMod, "value");
-            if (sideRaw == null) {
-                sideRaw = gammodSideMod.scriptGet("value");
-            }
-            if (sideRaw != null) gammodPlayerSide = Std.string(sideRaw).toUpperCase();
-            else gammodPlayerSide = "NORMAL";
-        } else {
-            gammodPlayerSide = "NORMAL";
-        }
+        var val = Save.instance.modOptions.get("kssette_mobile_keyboard");
+        return (val == "On");
     }
 
     override public function onUpdate(event:UpdateScriptEvent) {
-        if (Highscore.tallies != null) missesCount = Highscore.tallies.missed;
-
+        super.onUpdate(event);
         var state = PlayState.instance;
-        if (state == null) {
-            if (_isInPlayState) {
-                _isInPlayState = false;
-                clearGammodCache();
-            }
-            return;
+        if (state == null) return;
+
+        if (state.conductorInUse != null && state.currentSongLengthMs > 0) {
+            var currentPosMs:Float = state.conductorInUse.songPosition;
+            if (currentPosMs < 0) currentPosMs = 0;
+            var currentTick:Float = Math.floor(currentPosMs / 1000);
+            var totalTicks:Float = state.currentSongLengthMs / 1000;
+            songProgressTicks = currentTick / totalTicks;
+            if (songProgressTicks < 0) songProgressTicks = 0;
+            if (songProgressTicks > 1) songProgressTicks = 1;
         }
 
-        checkGammod(event.elapsed);
+        var t = Highscore.tallies;
+        if (t != null) {
+            currentMisses = t.missed; currentSicks = t.sick; currentGoods = t.good;
+            currentBads = t.bad; currentShits = t.shit; currentMaxCombo = t.maxCombo;
 
-        if (_isInPlayState) {
-            if (state.scoreText != null) state.scoreText.visible = false;
+            var totalNotes = t.totalNotesHit + t.missed;
+            if (totalNotes > 0) {
+                var rawAcc = ((t.sick + t.good - t.missed) / totalNotes) * 100;
+                targetAcc = FlxMath.roundDecimal(rawAcc, 2);
+                if (Math.isNaN(targetAcc) || targetAcc < 0) targetAcc = 0.0;
+            } else targetAcc = 0.0;
 
-            if (getKssValue("kssette_colored_healthbar") == true) {
-                var _gammodPlay = ModuleHandler.getModule("GammodPlayModule");
-                if (_gammodPlay != null) {
-                    try { _gammodPlay.scriptSet("healthBarOverride", false); } catch(e:Dynamic) {}
-                    try { Reflect.setProperty(_gammodPlay, "healthBarOverride", false); } catch(e:Dynamic) {}
+            currentScore = Math.floor(state.songScore);
+
+            currentRank = Scoring.calculateRank({
+                score: state.songScore,
+                tallies: {
+                    sick: t.sick, good: t.good, bad: t.bad, shit: t.shit, missed: t.missed,
+                    combo: t.combo, maxCombo: t.maxCombo, totalNotesHit: t.totalNotesHit, totalNotes: totalNotes
                 }
+            });
 
-                _hbUpdateTimer += event.elapsed;
-                if (_hbUpdateTimer >= 0.05) {
-                    _hbUpdateTimer = 0.0;
-                    var hb = state.healthBar;
-                    if (hb != null) {
-                        var p1 = state.iconP1;
-                        var p2 = state.iconP2;
-                        
-                        var curP1:String = "none1";
-                        if (p1 != null) {
-                            var id1 = Reflect.getProperty(p1, "characterId");
-                            if (id1 == null) id1 = Reflect.getProperty(p1, "iconId");
-                            if (id1 != null) curP1 = Std.string(id1);
-                        }
-                        
-                        var curP2:String = "none2";
-                        if (p2 != null) {
-                            var id2 = Reflect.getProperty(p2, "characterId");
-                            if (id2 == null) id2 = Reflect.getProperty(p2, "iconId");
-                            if (id2 != null) curP2 = Std.string(id2);
-                        }
-                        
-                        if (curP1 != _lastP1Id || curP2 != _lastP2Id) {
-                            _lastP1Id = curP1;
-                            _lastP2Id = curP2;
-                            
-                            _p1Color = extractIconColor(p1, true, curP1);
-                            _p2Color = extractIconColor(p2, false, curP2);
-                            
-                            if (gammodPlayerSide == "OPPOSITE") {
-                                hb.createFilledBar(_p1Color, _p2Color);
-                            } else {
-                                hb.createFilledBar(_p2Color, _p1Color);
-                            }
-                            hb.updateBar();
-                        }
-                    }
-                }
-            } else if (getKssValue("kssette_colored_healthbar") != true && _lastP1Id != "") {
-                var _gammodPlay = ModuleHandler.getModule("GammodPlayModule");
-                if (_gammodPlay != null) {
-                    try { _gammodPlay.scriptSet("healthBarOverride", true); } catch(e:Dynamic) {}
-                    try { Reflect.setProperty(_gammodPlay, "healthBarOverride", true); } catch(e:Dynamic) {}
-                }
+            if (t.missed == 0) {
+                if (t.good == 0 && t.bad == 0 && t.shit == 0) currentTier = "SFC";
+                else if (t.bad == 0 && t.shit == 0) currentTier = "GFC";
+                else currentTier = "FC";
+            } else if (t.missed < 10) currentTier = "SDCB";
+            else currentTier = "Clear";
+        }
 
-                _lastP1Id = "";
-                _lastP2Id = "";
-                var hb = state.healthBar;
-                if (hb != null) {
-                    if (gammodPlayerSide == "OPPOSITE") {
-                        hb.createFilledBar(0xFF66FF33, 0xFFFF0000);
-                    } else {
-                        hb.createFilledBar(0xFFFF0000, 0xFF66FF33);
-                    }
-                    hb.updateBar();
-                }
-            }
-
-
-
-            if (state.startingSong) return;
-
-            if (!isCompromised) {
-                if (gracePeriod > 0) gracePeriod -= event.elapsed;
-                heartbeatTimer -= event.elapsed;
-                _integrityTimer += event.elapsed;
-
-                if (heartbeatTimer <= 0 && gracePeriod <= 0) {
-                    isCompromised = true;
-                } else if (gracePeriod <= 0 && _integrityTimer >= 0.5) {
-                    _integrityTimer = 0.0;
-                    if (_accModule == null) _accModule = ModuleHandler.getModule("KssetteAccuracy");
-                    
-                    if (_accModule == null) {
-                        isCompromised = true;
-                    } else {
-                        var msg = getModeMessage();
-                        var isBotting:Bool = (msg != null && (msg.indexOf('Botplay') != -1 || msg.indexOf('AutoPlay') != -1));
-                        
-                        if (isBotting) {
-                            if (Reflect.hasField(_accModule, "modeText")) {
-                                var modeTxt = Reflect.field(_accModule, "modeText");
-                                if (modeTxt == null || modeTxt.visible == false || modeTxt.alpha < 0.1 || (modeTxt.text.indexOf("Botplay") == -1 && modeTxt.text.indexOf("AutoPlay") == -1)) {
-                                    isCompromised = true;
-                                }
-                            } else {
-                                isCompromised = true;
-                            }
-                        }
-                    }
-                }
-            }
+        if (getKssValue("kssette_smooth_display") == true) {
+            visualAcc += (targetAcc - visualAcc) * (event.elapsed * 8);
+            if (Math.abs(targetAcc - visualAcc) < 0.001) visualAcc = targetAcc;
         } else {
-            heartbeatTimer = 4.0;
-            gracePeriod = 3.0;
-            isCompromised = false;
-            _integrityTimer = 0.0;
-            _accModule = null;
+            visualAcc = targetAcc;
         }
     }
 
     override public function onStateChangeEnd(event:StateChangeScriptEvent):Void {
         var target = event.targetState;
-        refreshOptionCache();
-        
-        if (Std.isOfType(target, OptionsState)) {
-            addSettingsCategory(target);
-        }
-
-        if (Std.isOfType(target, PlayState)) {
-            _isInPlayState = true;
-            createHUDWatermark(target);
-        } else {
-            if (_isInPlayState) {
-                _isInPlayState = false;
-                clearGammodCache();
-            }
-        }
+        if (Std.isOfType(target, PlayState)) createHUDWatermark(target);
     }
 
     function createHUDWatermark(state:PlayState) {
         if (state == null || state.camHUD == null) return;
-        checkGammod(0.0);
-        
-        var platform = isMobileMode ? (isMobileLikePC() ? "Mobile+KB" : "Mobile") : "PC";
         var safeMargin:Float = isMobileMode ? 85 : 8;
-        
         var timeBarPos = getKssValue("kssette_timebar_pos");
         var yPos:Float = (timeBarPos == "Bottom" || timeBarPos == "Bottom Right") ? 10 : (FlxG.height - 24);
 
-        var gammodAdd:String = isGammodMode ? " + GAMMOD" : "";
-        var watermark = new FlxText(0, yPos, FlxG.width - safeMargin, "Kassette HUD " + platform + " [" + hudVersion + "]" + gammodAdd, 16);
-        watermark.setFormat("VCR OSD Mono", 16, FlxColor.WHITE, "right", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
-        watermark.alpha = 0.5; watermark.zIndex = 1000; watermark.cameras = [state.camHUD];
+        var refText = state.scoreText;
+        var watermark = new FlxBitmapText(0, 0, "Kassette HUD LITE", refText != null ? refText.font : null);
+        
+        if (refText != null) {
+            watermark.borderColor = refText.borderColor;
+            watermark.borderStyle = refText.borderStyle;
+            watermark.borderSize = refText.borderSize;
+            watermark.borderQuality = refText.borderQuality;
+        }
+
+        watermark.alignment = FlxTextAlign.RIGHT;
+        watermark.x = FlxG.width - watermark.width - safeMargin;
+        watermark.y = yPos;
+        watermark.alpha = 0.5; 
+        watermark.zIndex = 1000; 
+        watermark.cameras = [state.camHUD];
+        
         state.add(watermark);
-    }
-
-    public function addSettingsCategory(state:OptionsState) {
-        var codex = state.optionsCodex;
-        var mainPage = codex.pages.get('options');
-        if (mainPage == null) return;
-
-        var label = isMobileMode ? "KASSETTE HUD MOBILE" : "KASSETTE HUD";
-        
-        var i:Int = mainPage.items.members.length - 1;
-        while (i >= 0) {
-            var item = mainPage.items.members[i];
-            if (item != null && (item.label == "KASSETTE HUD" || item.label == "KASSETTE HUD MOBILE")) {
-                mainPage.items.remove(item, true); 
-                item.destroy();
-            }
-            i--;
-        }
-
-        var item = mainPage.createItem(label, function() { 
-            FlxG.camera.fade(FlxColor.BLACK, 0.4, false, function() {
-                FlxG.switchState(ScriptedMusicBeatState.init("KssetteMenuState"));
-            });
-        });
-        
-        var pref = mainPage.items.getItem("PREFERENCES");
-        if (pref != null) {
-            mainPage.items.members.remove(item);
-            mainPage.items.members.insert(mainPage.items.members.indexOf(pref) + 1, item);
-        }
-        
-        for (i in 0...mainPage.items.length) { 
-            if (mainPage.items.members[i] != null) mainPage.items.members[i].y = 100 * (i + 1); 
-        }
     }
 }

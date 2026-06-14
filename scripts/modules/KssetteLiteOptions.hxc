@@ -1,0 +1,225 @@
+package khudlite.util;
+
+import flixel.FlxG;
+import flixel.FlxSprite;
+import funkin.save.Save;
+import funkin.ui.options.OptionsState;
+import funkin.ui.options.PreferencesMenu;
+import funkin.modding.module.Module;
+import funkin.modding.module.ModuleHandler;
+import funkin.modding.events.StateChangeScriptEvent;
+import Std;
+import Reflect;
+
+class KssetteOptions extends Module {
+    final optionsID:String = "kassette-hud-lite";
+    var cachedUpdateLocks:Dynamic = null;
+
+    public function new() {
+        super('KssetteOptions', 1001);
+    }
+
+    override public function onStateChangeEnd(event:StateChangeScriptEvent):Void {
+        var target = event.targetState;
+        if (Std.isOfType(target, OptionsState)) {
+            addSettingsCategory(target);
+        }
+    }
+
+    override public function onUpdate(event) {
+        super.onUpdate(event);
+        if (cachedUpdateLocks != null) cachedUpdateLocks(false);
+    }
+
+    public function buildKassettePage(state:OptionsState) {
+        var codex = state.optionsCodex;
+        
+        if (codex.pages.exists(optionsID)) return;
+
+        var page = new PreferencesMenu();
+        if (page.items != null) page.items.clear();
+        if (page.preferenceItems != null) page.preferenceItems.clear();
+        if (page.preferenceDesc != null) page.preferenceDesc = [];
+        
+        page.onExit.add(function() {
+            cachedUpdateLocks = null;
+            codex.switchPage("options");
+        });
+
+        codex.addPage(optionsID, page);
+
+        var createSeparator = function(text:String) {
+            var itemIndex = page.items.length;
+            page.items.createItem(0, (120 * itemIndex) + 30, text, "bold", function(){}, true);
+            page.preferenceItems.add(new FlxSprite().makeGraphic(0, 0, 0x00000000));
+            if (page.preferenceDesc != null) page.preferenceDesc.push(""); 
+        };
+
+        var onOffMap = ["On" => "On", "Off" => "Off"];
+
+        var updateLocks = null;
+        updateLocks = function() {
+            var msMode = Save.instance.modOptions.get("kssette_middlescroll");
+            var msOff = (msMode == "Off" || msMode == null || msMode == false || msMode == "false");
+
+            var jpMode = Save.instance.modOptions.get("kssette_judge_pos");
+            var jpNotOff = (jpMode != "Off" && jpMode != null);
+
+            for (i in 0...page.items.members.length) {
+                var item:Dynamic = page.items.members[i];
+                var pref:Dynamic = page.preferenceItems.members[i];
+                if (item != null) {
+                    var blocked = false;
+                    var name:String = item.name;
+
+                    if (name == "Middle Opponent Pos" && msOff) blocked = true;
+                    if (name == "Show Misses" && jpNotOff) blocked = true;
+
+                    var isSelected = (i == page.items.selectedIndex);
+                    
+                    if (blocked) {
+                        item.alpha = 0.4;
+                        if (pref != null) pref.alpha = 0.4;
+                    } else {
+                        item.alpha = isSelected ? 1.0 : 0.6;
+                        if (pref != null) pref.alpha = 1.0;
+                    }
+                    
+                    if (Reflect.hasField(item, "available")) {
+                        Reflect.setProperty(item, "available", !blocked);
+                    }
+                }
+            }
+        };
+
+        var lastSel = -1;
+        cachedUpdateLocks = function(force:Bool = false) {
+            if (page == null || page.items == null) return;
+            if (force || page.items.selectedIndex != lastSel) {
+                lastSel = page.items.selectedIndex;
+                updateLocks();
+            }
+        };
+
+        var updateAndSave = function(key:String, val:Dynamic) {
+            Save.instance.modOptions.set(key, val);
+            Save.instance.flush();
+            if (cachedUpdateLocks != null) cachedUpdateLocks(true);
+        };
+
+        var api = ModuleHandler.getModule("KssetteApi");
+        var isMob = FlxG.onMobile;
+        var isMobPC = false;
+        
+        if (api != null) {
+            var res = api.scriptCall("isMobileLikePC", []);
+            if (res != null) isMobPC = res;
+        }
+
+        if (isMob) {
+            page.createPrefItemEnum("PC/Hitbox Mode", "Enable if using a Hitbox or Keyboard on mobile.", onOffMap, function(v) { updateAndSave("kssette_mobile_keyboard", v); }, Save.instance.modOptions.get("kssette_mobile_keyboard"));
+        }
+        
+        createSeparator("-- Mod Options --");
+        if (!isMob || isMobPC) {
+            var middleScrollMap = ["Off" => "Off", "On" => "On", "P Style" => "P Style", "Like Mobile" => "Like Mobile", "Hidden Notes" => "Hidden Notes"];
+            page.createPrefItemEnum("Middle Scroll", "Moves your notes to the center.", middleScrollMap, function(v) { updateAndSave("kssette_middlescroll", v); }, Save.instance.modOptions.get("kssette_middlescroll"));
+        }
+        
+        var judgePosMap = ["Left" => "Left", "Right" => "Right", "Top Left" => "Top Left", "Top Right" => "Top Right", "Off" => "Off"];
+        page.createPrefItemEnum("Judge Counter", "Shows a counter for Sicks, Goods, Bads, etc.", judgePosMap, function(v) { updateAndSave("kssette_judge_pos", v); }, Save.instance.modOptions.get("kssette_judge_pos"));
+
+        createSeparator("-- Performance --");
+        page.createPrefItemEnum("Smooth Display", "Makes the score and accuracy numbers scroll smoothly.", onOffMap, function(v) { updateAndSave("kssette_smooth_display", v); }, Save.instance.modOptions.get("kssette_smooth_display"));
+        page.createPrefItemEnum("Hide Splashes", "Removes the particles when hitting 'Sick!'.", onOffMap, function(v) { updateAndSave("kssette_hide_splashes", v); }, Save.instance.modOptions.get("kssette_hide_splashes"));
+
+        createSeparator("-- Positions --");
+        if (!isMob || isMobPC) {
+            var oppPosMap = ["Left" => "Left", "Right" => "Right"];
+            page.createPrefItemEnum("Middle Opponent Pos", "Where to put the opponent's notes when Middle Scroll is ON.", oppPosMap, function(v) { updateAndSave("kssette_opponent_pos", v); }, Save.instance.modOptions.get("kssette_opponent_pos"));
+        }
+        
+        var scorePosInit = Save.instance.modOptions.get("kssette_score_pos");
+        if (scorePosInit == null) scorePosInit = "Vanilla";
+        page.createPrefItemEnum("Score Bar Pos", "Choose where the score text is placed relative to the health bar.", ["Vanilla" => "Vanilla", "Inverted" => "Inverted"], function(v) { updateAndSave("kssette_score_pos", v); }, scorePosInit);
+        
+        var timeBarPosMap = ["Top" => "Top", "Bottom" => "Bottom", "Top Left" => "Top Left", "Top Right" => "Top Right", "Bottom Left" => "Bottom Left", "Bottom Right" => "Bottom Right", "Vertical Left" => "Vertical Left", "Vertical Right" => "Vertical Right", "In Health" => "In Health"];
+        page.createPrefItemEnum("Time Bar Pos", "Choose where the Song Progress Bar is placed on screen.", timeBarPosMap, function(v) { updateAndSave("kssette_timebar_pos", v); }, Save.instance.modOptions.get("kssette_timebar_pos"));
+        
+        var infoMap = ["Below Score" => "Below Score", "Bottom Left" => "Bottom Left", "Above Arrows" => "Above Arrows"];
+        var currInfo = Std.string(Save.instance.modOptions.get("kssette_info_pos"));
+
+        page.createPrefItemEnum("Info Text Pos", "Where to show the Song Name and Difficulty.", infoMap, function(v) { updateAndSave("kssette_info_pos", v); }, currInfo);
+        
+        createSeparator("-- HUD Elements --");
+        var createSlider = function(text, desc, key) { 
+            page.createPrefItemEnum(text, desc, onOffMap, function(v) { updateAndSave(key, v); }, Save.instance.modOptions.get(key)); 
+        };
+        
+        createSlider("Show Misses", "Show a counter for how many notes you've missed.", "kssette_show_misses");
+        page.createPrefItemEnum("Accuracy Mode", "Enable or disable accuracy display.", ["Classic" => "Classic", "Off" => "Off"], function(v) { updateAndSave("kssette_acc_mode", v); }, Save.instance.modOptions.get("kssette_acc_mode"));
+        createSlider("Show Rank", "Show your current Rank (P, E, G) based on performance.", "kssette_show_rank");
+        createSlider("Show FC Tier", "Show your Combo Status (SFC, GFC, FC, Clear).", "kssette_show_tier");
+        createSlider("Show Time Bar", "Show a bar indicating progress.", "kssette_show_timebar");
+
+        if (cachedUpdateLocks != null) cachedUpdateLocks(true);
+    }
+
+    public function addSettingsCategory(state:OptionsState) {
+        var codex = state.optionsCodex;
+        var mainPage = codex.pages.get('options');
+        if (mainPage == null) return;
+
+        var labelStr = "Kassette HUD LITE";
+        var targetItem = null;
+        
+        for (i in 0...mainPage.items.members.length) {
+            var item = mainPage.items.members[i];
+            if (item != null && (item.name == "KASSETTE HUD" || item.name == "KASSETTE HUD MOBILE" || item.name == "KASSETTE LITE" || item.name == "KASSETTE LITE MOBILE" || item.name == "Kassette HUD LITE")) {
+                targetItem = item;
+                break;
+            }
+        }
+
+        if (targetItem != null) {
+            targetItem.name = labelStr;
+            targetItem.label.text = labelStr;
+            targetItem.callback = function() { 
+                buildKassettePage(state);
+                codex.switchPage(optionsID); 
+            };
+        } else {
+            targetItem = mainPage.createItem(labelStr, function() { 
+                buildKassettePage(state);
+                codex.switchPage(optionsID); 
+            });
+
+            var prefIndex = -1;
+            for (i in 0...mainPage.items.members.length) {
+                var item = mainPage.items.members[i];
+                if (item != null && item.name != null && item.name.toUpperCase() == "PREFERENCES") {
+                    prefIndex = i;
+                    break;
+                }
+            }
+
+            if (prefIndex != -1) {
+                mainPage.items.remove(targetItem, true);
+                mainPage.items.insert(prefIndex + 1, targetItem);
+                
+                var validIndex = 0;
+                for (i in 0...mainPage.items.members.length) {
+                    var item = mainPage.items.members[i];
+                    if (item != null) {
+                        try {
+                            item.y = 100 + (validIndex * 100);
+                        } catch(e:Dynamic) {}
+                        validIndex++;
+                    }
+                }
+            }
+        }
+
+        buildKassettePage(state);
+    }
+}

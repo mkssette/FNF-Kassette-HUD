@@ -1,106 +1,37 @@
-package kassettehud.util;
+package khudlite.util;
 
 import funkin.modding.module.Module;
 import funkin.modding.module.ModuleHandler;
 import funkin.play.PlayState;
 import flixel.FlxG;
 import flixel.FlxSprite;
-import flixel.FlxCamera;
 import Std;
-import Reflect;
 import funkin.Preferences;
-import funkin.modding.events.SubStateScriptEvent;
-import funkin.play.PauseSubState;
-import funkin.ui.FullScreenScaleMode;
 
 class KssetteTimeBar extends Module {
-    public var timeBar:FlxSprite;
+    public var timeBar:FlxSprite; 
     public var timeBarBG:FlxSprite;
-    var barSize:Float = 11;
+    var barSize:Float = 11; 
     var cachedActive:Bool = false;
     var timeBarPos:String = "Bottom";
     var apiModule:Dynamic = null;
 
-    var playState:PlayState = null;
-    var songLengthMs:Float = 0.0;
-    var updateTimer:Float = 0.0;
-    var customCam:FlxCamera = null;
+    var cachedX:Float = 0;
+    var cachedY:Float = 0;
 
-    public var isPreview:Bool = false;
-    public var previewCam:FlxCamera = null;
-
-    public function new() {
-        super("KssetteTimeBar");
+    public function new() { 
+        super("KssetteTimeBar"); 
     }
 
-    function isOn(val:Dynamic):Bool {
-        if (val == true) return true;
-        var s = Std.string(val);
-        return s == "On" || s == "on" || s == "true";
-    }
-
-    function hudCamera(state:PlayState):FlxCamera {
-        return state.camHUD;
-    }
-
-    function makeBar(y:Float, h:Int, color:Int, z:Int, cam:FlxCamera):FlxSprite {
-        var bar = new FlxSprite(0, y).makeGraphic(FlxG.width, h, color);
-        bar.origin.set(0, 0);
-        bar.scrollFactor.set(0, 0);
-        bar.zIndex = z;
-        bar.cameras = [cam];
-        if (PlayState.instance != null && !isPreview) PlayState.instance.add(bar);
-        else FlxG.state.add(bar);
-        return bar;
-    }
-
-    public function cleanupUI() {
-        playState = null;
-        songLengthMs = 0.0;
-        updateTimer = 0.0;
-        if (timeBar != null) {
-            if (PlayState.instance != null && !isPreview) PlayState.instance.remove(timeBar, true);
-            FlxG.state.remove(timeBar, true);
-            timeBar.destroy();
+    function setupProgressHUD(state:PlayState) {
+        if (timeBar != null) { 
+            timeBar.destroy(); 
+            state.remove(timeBar); 
         }
-        if (timeBarBG != null) {
-            if (PlayState.instance != null && !isPreview) PlayState.instance.remove(timeBarBG, true);
-            FlxG.state.remove(timeBarBG, true);
-            timeBarBG.destroy();
+        if (timeBarBG != null) { 
+            timeBarBG.destroy(); 
+            state.remove(timeBarBG); 
         }
-        if (customCam != null) {
-            FlxG.cameras.remove(customCam);
-            customCam.destroy();
-            customCam = null;
-        }
-        timeBar = null;
-        timeBarBG = null;
-    }
-
-    public function setupUI(cam:FlxCamera) {
-        cleanupUI();
-
-        var isBorder:Bool = (timeBarPos == "Top" || timeBarPos == "Bottom" || timeBarPos == "Vertical Left" || timeBarPos == "Vertical Right");
-        var targetCam:FlxCamera = cam;
-
-        if (isBorder && !isPreview) {
-            if (customCam == null) {
-                customCam = new FlxCamera();
-                customCam.bgColor = 0x00000000;
-                FlxG.cameras.add(customCam, false);
-            }
-            targetCam = customCam;
-        }
-
-        var zIdx:Int = isBorder ? 1018 : (timeBarPos == "In Health" ? 109 : 15);
-
-        timeBarBG = makeBar(0, Std.int(barSize + 4), 0xFF000000, zIdx, targetCam);
-        timeBar = makeBar(2, Std.int(barSize), 0xFFFFFFFF, zIdx + 1, targetCam);
-        FlxG.state.refresh();
-    }
-
-    public function updatePositions() {
-        if (timeBarBG == null || timeBar == null) return;
 
         var isVertical:Bool = (timeBarPos == "Vertical Left" || timeBarPos == "Vertical Right");
         var isInHealth:Bool = (timeBarPos == "In Health");
@@ -111,66 +42,57 @@ class KssetteTimeBar extends Module {
         var currentBarW:Int = isVertical ? Std.int(barSize) : currentBgW;
         var currentBarH:Int = isVertical ? currentBgH : Std.int(barSize);
 
-        if (Std.int(timeBarBG.width) != currentBgW || Std.int(timeBarBG.height) != currentBgH) {
-            timeBarBG.makeGraphic(currentBgW, currentBgH, 0xFF000000);
-            timeBar.makeGraphic(currentBarW, currentBarH, 0xFFFFFFFF);
-        }
+        timeBarBG = new FlxSprite(0, 0).makeGraphic(currentBgW, currentBgH, 0xFF000000);
+        timeBarBG.origin.set(0, 0); 
+        timeBarBG.scrollFactor.set(0, 0); 
+        timeBarBG.zIndex = 998;
+        if (state.camHUD != null) timeBarBG.cameras = [state.camHUD];
+        state.add(timeBarBG);
+        
+        timeBar = new FlxSprite(0, 2).makeGraphic(currentBarW, currentBarH, 0xFFFFFFFF);
+        timeBar.origin.set(0, isVertical ? currentBarH : 0); 
+        timeBar.scrollFactor.set(0, 0); 
+        timeBar.zIndex = 999;
+        if (state.camHUD != null) timeBar.cameras = [state.camHUD];
+        state.add(timeBar);
 
-        timeBarBG.origin.set(0, 0);
-        timeBar.origin.set(0, isVertical ? currentBarH : 0);
-
-        var cachedX:Float = 0;
-        var cachedY:Float = 0;
-        var paddingX:Float = 0;
+        var paddingX:Float = 0; 
         var paddingY:Float = 20;
 
-        var cutoutSize:Float = 0.0;
-        var isMob:Bool = FlxG.onMobile;
-        if (apiModule != null && apiModule.isMobileMode == true) isMob = true;
-
-        if (isMob) {
-            cutoutSize = FullScreenScaleMode.gameNotchSize.x;
-            if (cutoutSize <= 0) {
-                cutoutSize = FullScreenScaleMode.gameCutoutSize.x;
+        if (timeBarPos == "Top") {
+            cachedY = 0;
+            cachedX = (FlxG.width - currentBgW) / 2;
+        } else if (timeBarPos == "Top Left") {
+            cachedX = paddingX; cachedY = paddingY;
+        } else if (timeBarPos == "Top Right") {
+            cachedX = FlxG.width - currentBgW - paddingX; cachedY = paddingY;
+        } else if (timeBarPos == "Bottom Left") {
+            cachedX = paddingX; cachedY = FlxG.height - currentBgH - paddingY;
+        } else if (timeBarPos == "Bottom Right") {
+            cachedX = FlxG.width - currentBgW - paddingX; cachedY = FlxG.height - currentBgH - paddingY;
+        } else if (timeBarPos == "Vertical Left") {
+            cachedX = paddingX; cachedY = 0;
+        } else if (timeBarPos == "Vertical Right") {
+            cachedX = FlxG.width - currentBgW - paddingX; cachedY = 0;
+        } else if (timeBarPos == "In Health") {
+            var hbX:Float = (FlxG.width - currentBgW) / 2;
+            var downscrollValue:Bool = Preferences.downscroll;
+            var hbY:Float = downscrollValue ? FlxG.height * 0.11 : FlxG.height * 0.89;
+            var hbH:Float = 19;
+            if (state.healthBarBG != null) {
+                hbX = state.healthBarBG.x + (state.healthBarBG.width - currentBgW) / 2;
+                hbY = state.healthBarBG.y;
+                hbH = state.healthBarBG.height;
             }
-            if (cutoutSize < 60.0) cutoutSize = 60.0; // Anti-Notch
-        }
-
-        switch (timeBarPos) {
-            case "Top":
-                cachedX = (FlxG.width - currentBgW) / 2;
-            case "Top Left":
-                cachedX = paddingX + cutoutSize; cachedY = paddingY;
-            case "Top Right":
-                cachedX = FlxG.width - currentBgW - paddingX - cutoutSize; cachedY = paddingY;
-            case "Bottom Left":
-                cachedX = paddingX + cutoutSize; cachedY = FlxG.height - currentBgH - paddingY;
-            case "Bottom Right":
-                cachedX = FlxG.width - currentBgW - paddingX - cutoutSize; cachedY = FlxG.height - currentBgH - paddingY;
-            case "Vertical Left":
-                cachedX = paddingX + cutoutSize; cachedY = 0;
-            case "Vertical Right":
-                cachedX = FlxG.width - currentBgW - paddingX - cutoutSize; cachedY = 0;
-            case "In Health":
-                var hbX:Float = (FlxG.width - currentBgW) / 2;
-                var downscrollValue:Bool = Preferences.downscroll;
-                if (apiModule != null && apiModule.getDownscroll != null) downscrollValue = apiModule.getDownscroll();
-                var hbY:Float = downscrollValue ? FlxG.height * 0.11 : FlxG.height * 0.89;
-                var hbH:Float = 19;
-                if (playState != null && playState.healthBarBG != null) {
-                    hbX = playState.healthBarBG.x + (playState.healthBarBG.width - currentBgW) / 2;
-                    hbY = playState.healthBarBG.y;
-                    hbH = playState.healthBarBG.height;
-                }
-                cachedX = hbX;
-                cachedY = downscrollValue ? hbY + hbH : hbY - currentBgH;
-            default:
-                cachedX = (FlxG.width - currentBgW) / 2;
-                cachedY = FlxG.height - currentBgH;
+            cachedX = hbX;
+            cachedY = downscrollValue ? hbY + hbH : hbY - currentBgH;
+        } else {
+            cachedY = FlxG.height - currentBgH;
+            cachedX = (FlxG.width - currentBgW) / 2;
         }
 
         timeBarBG.x = cachedX;
-        timeBarBG.y = cachedY;
+        timeBarBG.y = cachedY; 
         
         if (isVertical) {
             timeBar.x = cachedX + 2;
@@ -181,127 +103,33 @@ class KssetteTimeBar extends Module {
         }
     }
 
-    public function buildPreview(cam:FlxCamera) {
-        isPreview = true;
-        previewCam = cam;
-
-        setupUI(cam);
-        updatePreview();
-    }
-
-    public function updatePreview() {
-        if (!isPreview) return;
-
-        apiModule = ModuleHandler.getModule("KssetteApi");
-        if (apiModule != null) {
-            cachedActive = isOn(apiModule.getKssValue("kssette_show_timebar"));
-            timeBarPos = Std.string(apiModule.getKssValue("kssette_timebar_pos"));
-        }
-
-        updatePositions();
-
-        if (timeBarBG != null) timeBarBG.visible = cachedActive;
-        if (timeBar != null) {
-            timeBar.visible = cachedActive;
-            var isVertical:Bool = (timeBarPos == "Vertical Left" || timeBarPos == "Vertical Right");
-            if (isVertical) {
-                timeBar.scale.y = 0.5;
-                timeBar.scale.x = 1.0;
-            } else {
-                timeBar.scale.x = 0.5;
-                timeBar.scale.y = 1.0;
-            }
-        }
-    }
-
     override public function onCountdownStart(event) {
         super.onCountdownStart(event);
-        isPreview = false;
-
         apiModule = ModuleHandler.getModule("KssetteApi");
-        if (apiModule == null) return;
-        
-        apiModule.registerModule("KssetteTimeBar", this);
-        cachedActive = isOn(apiModule.getKssValue("kssette_show_timebar"));
-        timeBarPos = Std.string(apiModule.getKssValue("kssette_timebar_pos"));
-
-        var state = PlayState.instance;
-        playState = null;
-        songLengthMs = 0.0;
-        updateTimer = 0.0;
-        if (state != null && state.camHUD != null) {
-            setupUI(hudCamera(state));
-            playState = state;
-            songLengthMs = state.currentSongLengthMs;
-            updatePositions();
-
-            if (timeBarBG != null) timeBarBG.visible = cachedActive;
-            if (timeBar != null) {
-                timeBar.visible = cachedActive;
-                var isVertical:Bool = (timeBarPos == "Vertical Left" || timeBarPos == "Vertical Right");
-                if (isVertical) {
-                    timeBar.scale.y = 0;
-                    timeBar.scale.x = 1.0;
-                } else {
-                    timeBar.scale.x = 0;
-                    timeBar.scale.y = 1.0;
-                }
-            }
+        if (apiModule != null) {
+            apiModule.scriptCall("registerModule", ["KssetteTimeBar", this]);
+            cachedActive = apiModule.scriptCall("getKssValue", ["kssette_show_timebar"]) == true;
+            timeBarPos = Std.string(apiModule.scriptCall("getKssValue", ["kssette_timebar_pos"]));
         }
-    }
-
-    override public function onSubStateOpenBegin(event:SubStateScriptEvent) {
-        super.onSubStateOpenBegin(event);
-        if (event.targetState != null && Std.isOfType(event.targetState, PauseSubState)) {
-            var isBorder:Bool = (timeBarPos == "Top" || timeBarPos == "Bottom" || timeBarPos == "Vertical Left" || timeBarPos == "Vertical Right");
-            if (isBorder) {
-                if (timeBarBG != null) timeBarBG.visible = false;
-                if (timeBar != null) timeBar.visible = false;
-            }
-        }
-    }
-
-    override public function onSubStateCloseEnd(event:SubStateScriptEvent) {
-        super.onSubStateCloseEnd(event);
-        if (event.targetState != null && Std.isOfType(event.targetState, PauseSubState)) {
-            var isBorder:Bool = (timeBarPos == "Top" || timeBarPos == "Bottom" || timeBarPos == "Vertical Left" || timeBarPos == "Vertical Right");
-            if (isBorder) {
-                if (timeBarBG != null) timeBarBG.visible = cachedActive;
-                if (timeBar != null) timeBar.visible = cachedActive;
-            }
-        }
+        if (cachedActive && PlayState.instance != null) setupProgressHUD(PlayState.instance);
     }
 
     override public function onUpdate(event) {
-
-        if (isPreview) return;
-
-        if (customCam != null && playState != null && playState.camHUD != null) {
-            if (customCam.visible != playState.camHUD.visible) customCam.visible = playState.camHUD.visible;
-            if (customCam.alpha != playState.camHUD.alpha) customCam.alpha = playState.camHUD.alpha;
-        }
-
-        if (!cachedActive || timeBar == null || !timeBar.exists || playState == null || playState.conductorInUse == null) return;
-        if (songLengthMs <= 0) {
-            songLengthMs = playState.currentSongLengthMs;
-            if (songLengthMs <= 0) return;
-        }
-
-        updateTimer += event.elapsed;
-        if (updateTimer < 0.008) return;
-        updateTimer = 0.0;
-
-        var progress:Float = playState.conductorInUse.songPosition / songLengthMs;
-        if (progress < 0) progress = 0;
-        else if (progress > 1) progress = 1;
-            
-        var isVertical:Bool = (timeBarPos == "Vertical Left" || timeBarPos == "Vertical Right");
-        if (isVertical) {
-            timeBar.scale.y = progress;
-            timeBar.scale.x = 1.0;
-        } else {
-            timeBar.scale.x = progress;
-            timeBar.scale.y = 1.0;
+        super.onUpdate(event);
+        
+        if (!cachedActive || timeBar == null || !timeBar.exists || apiModule == null) return;
+        
+        // Funciona 100% al estilo ticks usando scriptCall de FNF 
+        var progress:Dynamic = apiModule.scriptCall("getSongProgressTicks", []);
+        if (progress != null) {
+            var isVertical:Bool = (timeBarPos == "Vertical Left" || timeBarPos == "Vertical Right");
+            if (isVertical) {
+                if (timeBar.scale.y != progress) timeBar.scale.y = progress;
+                if (timeBar.scale.x != 1.0) timeBar.scale.x = 1.0;
+            } else {
+                if (timeBar.scale.x != progress) timeBar.scale.x = progress;
+                if (timeBar.scale.y != 1.0) timeBar.scale.y = 1.0;
+            }
         }
     }
 }

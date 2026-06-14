@@ -1,31 +1,16 @@
 {
-  "title": "Kassette HUD",
-  "description": "Custom Hud for V-Slice",
-  "author": "Mikassette",
-  "contributors": [
+    "title": "Kassette HUD",
+    "description": "Custom Hud for V-Slice",
+    "author": "Mikassette",
+    "contributors": [
     {
       "name": "Mikassette",
       "role": "Creator",
       "url": "https://x.com/mikulessi"
-    },
-    {
-      "name": "Zelta",
-      "role": "Menu Music and SFX composer",
-      "url": "https://gamebanana.com/members/1893619"
-    },
-    {
-      "name": "DeadSyntax",
-      "role": "Optimization Coder",
-      "url": "https://github.com/DeadSyntaxdev"
-    },
-    {
-      "name": "zoomfastasabullet",
-      "role": "His Mod Compatibility and Mobile Falling Notes co-coder",
-      "url": "https://gamebanana.com/members/2953593"
     }
   ],
-  "api_version": "0.8.4",
-  "mod_version": "0.2.2",
-  "id": "kassette-hud",
-  "license": ""
+    "api_version": "0.8.4",
+    "mod_version": "0.1.7",
+    "id": "kassette-hud",
+    "license": ""
 }
