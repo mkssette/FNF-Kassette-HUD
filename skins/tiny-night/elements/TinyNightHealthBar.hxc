@@ -51,10 +51,16 @@ class TinyNightHealthBar extends KssetteHealthBar {
                 }
             }
             if (previewIconP1 != null) {
+                previewIconP1.scale.x = 0.7;
+                previewIconP1.scale.y = 0.7;
+                previewIconP1.updateHitbox();
                 previewIconP1.x = blockX + barBlockW - previewIconP1.width;
                 previewIconP1.y = stackTopY + lineH + gapToUi + rowH + gap1 + gap2 + 10;
             }
             if (previewIconP2 != null) {
+                previewIconP2.scale.x = 0.7;
+                previewIconP2.scale.y = 0.7;
+                previewIconP2.updateHitbox();
                 previewIconP2.x = blockX;
                 previewIconP2.y = stackTopY + lineH + gapToUi + rowH + gap1 + gap2 + 10;
             }
@@ -84,10 +90,16 @@ class TinyNightHealthBar extends KssetteHealthBar {
             }
             
             if (state.iconP1 != null) {
+                state.iconP1.scale.x = 0.7;
+                state.iconP1.scale.y = 0.7;
+                state.iconP1.updateHitbox();
                 state.iconP1.x = blockX + barBlockW - state.iconP1.width;
                 if (bg != null) state.iconP1.y = bg.y + bg.height + gap2;
             }
             if (state.iconP2 != null) {
+                state.iconP2.scale.x = 0.7;
+                state.iconP2.scale.y = 0.7;
+                state.iconP2.updateHitbox();
                 state.iconP2.x = blockX;
                 if (bg != null) state.iconP2.y = bg.y + bg.height + gap2;
             }
