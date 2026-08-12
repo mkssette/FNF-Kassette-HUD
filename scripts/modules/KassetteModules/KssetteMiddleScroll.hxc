@@ -59,8 +59,7 @@ class KssMiddlescroll extends Module {
     var cachedMobileOppNotes:Bool = true;
     /** True after the first frame where we shift strumline positions. */
     var hasShifted:Bool = false;
-    /** Cached reference to KssetteApi module. */
-    var apiModule:Dynamic = null;
+    var originalScrollSpeeds:Array<Float> = [1, 1, 1, 1];
     /** Cached reference to the opponent strumline. */
     var cachedOppStrum:Dynamic = null;
     /** Cached reference to the opponent strumline receptor members array. */
@@ -113,6 +112,7 @@ class KssMiddlescroll extends Module {
      *   - Applies Arrow-layout nudge offsets for mobile-without-external-input.
      */
     override function onCountdownStart(event:ScriptEvent):Void {
+        var apiModule = ModuleHandler.getModule("KssetteApi");
         hasShifted = false;
         pHasShifted = false;
         cachedOppStrum = null;
@@ -124,21 +124,17 @@ class KssMiddlescroll extends Module {
         cachedCutoutSize = -1.0;
         
         var isMobLayout = false;
-        apiModule = ModuleHandler.getModule("KssetteApi");
-        
-        if (apiModule == null) return;
 
-        apiModule.registerModule("KssMiddlescroll", this);
-        
-        var rawMode:Dynamic = apiModule.getKssValue("kssette_middlescroll");
+
+        var rawMode:Dynamic = apiModule != null ? apiModule.getKssValue("kssette_middlescroll") : null;
         if (rawMode == true) cachedMode = "On";
         else if (rawMode == false) cachedMode = "Off";
         else cachedMode = Std.string(rawMode);
 
-        var rawHideOpp:Dynamic = apiModule.getKssValue("kssette_hide_opponent");
+        var rawHideOpp:Dynamic = apiModule != null ? apiModule.getKssValue("kssette_hide_opponent") : null;
         var hideOpp:Bool = isOn(rawHideOpp);
 
-        var rawOppOp:Dynamic = apiModule.getKssValue("kssette_opponent_opacity");
+        var rawOppOp:Dynamic = apiModule != null ? apiModule.getKssValue("kssette_opponent_opacity") : null;
         var oppOpacity:Float = 1.0;
         if (rawOppOp != null) {
             var valStr = StringTools.replace(Std.string(rawOppOp), "%", "");
@@ -147,18 +143,22 @@ class KssMiddlescroll extends Module {
         }
         cachedOppOpacity = oppOpacity;
 
-        cachedOppPos = Std.string(apiModule.getKssValue("kssette_opponent_pos"));
-        var rawOppBg:Dynamic = apiModule.getKssValue("kssette_opponent_bg");
+        cachedOppPos = apiModule != null ? Std.string(apiModule.getKssValue("kssette_opponent_pos")) : "Left";
+        var rawOppBg:Dynamic = apiModule != null ? apiModule.getKssValue("kssette_opponent_bg") : null;
         cachedOppBg = isOn(rawOppBg);
         
-        var rawMobOppNotes:Dynamic = apiModule.getKssValue("kssette_mobile_opp_notes");
+        var rawMobOppNotes:Dynamic = apiModule != null ? apiModule.getKssValue("kssette_mobile_opp_notes") : null;
         cachedMobileOppNotes = isOn(rawMobOppNotes);
         
         var isMob = false;
         var isMobPC = false;
         
-        if (apiModule.isMobileMode != null) isMob = apiModule.isMobileMode;
-        if (apiModule.isMobileLikePC != null) isMobPC = apiModule.isMobileLikePC();
+        if (apiModule != null) {
+            isMob = apiModule.isMobileMode == true;
+            isMobPC = apiModule.isMobileLikePC == true;
+        } else {
+            isMob = FlxG.onMobile;
+        }
         cachedIsMobPC = isMobPC;
         
         if (isMob && !isMobPC) isMobLayout = true;
@@ -443,7 +443,7 @@ class KssMiddlescroll extends Module {
                     
                     if (note.holdNoteSprite != null) {
                         var holdNote = note.holdNoteSprite;
-                        holdNote.flipY = false;
+                        holdNote.flipY = (opp.isDownscroll == true);
 
                         var holdWidthMul:Float = pixel ? 0.15 : 1.05;
                         var holdScale:Float = targetScale * holdWidthMul;
@@ -468,7 +468,9 @@ class KssMiddlescroll extends Module {
      *   5. One-time compact shift for active modes (pHasShifted / hasShifted gates).
      *   6. Splash repositioning (~30fps) to follow compact receptor positions.
      */
-    override function onUpdate(event:UpdateScriptEvent) {
+    override public function onUpdate(event:Dynamic) {
+        var apiModule = ModuleHandler.getModule("KssetteApi");
+        var elapsed:Float = (Std.isOfType(event, Float)) ? event : (event != null ? event.elapsed : 0);
         
         var applyArrowLogic = cachedIsArrows;
         var isModActive = (cachedMode == "On" || cachedMode == "P Style" || cachedMode == "Glass" || cachedMode == "Hidden Notes" || cachedMode == "Like Mobile");
@@ -495,12 +497,8 @@ class KssMiddlescroll extends Module {
         
         var cutoutSize:Float = cachedCutoutSize;
 
-        var showTimeBar:Bool = false;
-        var timeBarPos:String = "Bottom";
-        if (apiModule != null) {
-            showTimeBar = apiModule.getKssValue("kssette_show_timebar") == true;
-            timeBarPos = Std.string(apiModule.getKssValue("kssette_timebar_pos"));
-        }
+        var showTimeBar:Bool = apiModule != null ? (apiModule.getKssValue("kssette_show_timebar") == true) : false;
+        var timeBarPos:String = apiModule != null ? Std.string(apiModule.getKssValue("kssette_timebar_pos")) : "null";
 
         var marginLeft:Float = Constants.STRUMLINE_X_OFFSET + cutoutSize;
         var marginRight:Float = Constants.STRUMLINE_X_OFFSET + cutoutSize;
@@ -672,14 +670,38 @@ class KssMiddlescroll extends Module {
                 }
 
                 var compactStartX:Float = marginLeft;
+                var exactTotalWidth:Float = (targetSpacing * (receptors.length - 1)) + receptors[receptors.length - 1].width;
                 
                 if (cachedMode == "Like Mobile") {
-                    compactStartX = 10 + cachedCutoutSize;
+                    if (cachedOppPos == "Right") {
+                        compactStartX = FlxG.width - (10 + cachedCutoutSize) - exactTotalWidth;
+                    } else {
+                        compactStartX = 10 + cachedCutoutSize;
+                    }
+                } else if (cachedOppPos == "Right") {
+                    compactStartX = FlxG.width - marginRight - exactTotalWidth;
                 }
 
-                if (cachedMode != "Like Mobile" && cachedOppPos == "Right") {
-                    var exactTotalWidth:Float = (targetSpacing * (receptors.length - 1)) + receptors[receptors.length - 1].width;
-                    compactStartX = FlxG.width - marginRight - exactTotalWidth;
+                // Anti-overlap protection for Middlescroll
+                if (myStrum != null && !applyArrowLogic) {
+                    var pLeft = myStrum.x;
+                    var pRight = myStrum.x + 448;
+                    var pNotes = myStrum.strumlineNotes.members;
+                    if (pNotes != null && pNotes.length > 0) {
+                        pLeft = pNotes[0].x;
+                        var lastN = pNotes[pNotes.length - 1];
+                        pRight = lastN.x + lastN.width;
+                    }
+                    
+                    if (cachedOppPos != "Right") {
+                        if (compactStartX + exactTotalWidth > pLeft - 10) {
+                            compactStartX = pLeft - exactTotalWidth - 10;
+                        }
+                    } else {
+                        if (compactStartX < pRight + 10) {
+                            compactStartX = pRight + 10;
+                        }
+                    }
                 }
 
                 for (i in 0...receptors.length) {

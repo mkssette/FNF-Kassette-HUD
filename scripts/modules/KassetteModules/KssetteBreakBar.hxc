@@ -45,6 +45,7 @@ import flixel.text.FlxTextBorderStyle;
 import flixel.math.FlxPoint;
 import flixel.math.FlxRect;
 import flixel.util.FlxSpriteUtil;
+import flixel.FlxCamera;
 
 class KssetteBreakBar extends Module {
     /** Horizontal offset for 'Default' and 'Pie' styles. */
@@ -82,7 +83,7 @@ class KssetteBreakBar extends Module {
     /** Cached flag indicating if the break bar is active. */
     var cachedActive:Bool = false;
     /** Clip rect for the fill sprite in 'Default' style. */
-    var fillClip:flixel.math.FlxRect = null;
+    var fillClip:FlxRect = null;
     /** Last applied fill width to prevent redundant updates. */
     var lastFillW:Int = -1;
     /** Timer to throttle per-frame update frequency. */
@@ -102,7 +103,7 @@ class KssetteBreakBar extends Module {
     /** True when rendering in the options menu preview instead of gameplay. */
     public var isPreview:Bool = false;
     /** Camera to render into during preview mode. */
-    public var previewCam:flixel.FlxCamera = null;
+    public var previewCam:FlxCamera = null;
     /** Accumulated time used to animate the preview break bar. */
     var previewBreakTimer:Float = 0.0;
     
@@ -199,7 +200,7 @@ class KssetteBreakBar extends Module {
      * Configures and initializes all UI elements for the break bar.
      * @param cam The HUD camera to which elements are attached.
      */
-    public function setupUI(cam:flixel.FlxCamera) {
+    public function setupUI(cam:FlxCamera) {
         cleanupUI();
 
         if (apiModule != null) {
@@ -340,7 +341,7 @@ class KssetteBreakBar extends Module {
             barFill.origin.set(0, 0);
             barFill.alpha = 0;
             barFill.cameras = [cam];
-            fillClip = new flixel.math.FlxRect(0, 0, barWidth - 10, barHeight - 10);
+            fillClip = new FlxRect(0, 0, barWidth - 10, barHeight - 10);
             barFill.clipRect = fillClip;
             lastFillW = -1;
             if (state != null && !isPreview) state.add(barFill);
@@ -484,7 +485,7 @@ class KssetteBreakBar extends Module {
      * Entry point for the options menu preview. Builds the bar UI on the
      * given preview camera and triggers an initial preview render.
      */
-    public function buildPreview(cam:flixel.FlxCamera) {
+    public function buildPreview(cam:FlxCamera) {
         isPreview = true;
         previewCam = cam;
         apiModule = ModuleHandler.getModule("KssetteApi");

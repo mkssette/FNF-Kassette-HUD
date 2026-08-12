@@ -37,7 +37,7 @@ import funkin.data.notestyle.NoteStyleRegistry;
 
 class KssetteApi extends Module {
     final optionsID:String = "kassette-hud";
-    public var hudVersion:String = "0.2.4";
+    public var hudVersion:String = "0.2.5";
     public var preview_bf:Dynamic = null;
     public var preview_dad:Dynamic = null;
     public var preview_scoreBopTrigger:Bool = false;
