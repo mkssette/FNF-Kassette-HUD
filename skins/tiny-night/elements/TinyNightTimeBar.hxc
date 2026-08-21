@@ -1,12 +1,178 @@
 package kassettehud.util;
 
+import funkin.play.PlayState;
 import flixel.FlxG;
 import flixel.FlxSprite;
-import funkin.play.PlayState;
+import flixel.FlxCamera;
+import Std;
+import funkin.Preferences;
+import funkin.modding.events.SubStateScriptEvent;
+import funkin.play.PauseSubState;
+import kassettehud.util.KassetteHUDElement;
+import kassettehud.util.KssetteOptionsManager;
+import kassettehud.util.KassetteHUDDatahunter;
 
-class TinyNightTimeBar extends KssetteTimeBar {
+class TinyNightTimeBar extends KassetteHUDElement {
+    public var timeBar:FlxSprite;
+    public var timeBarBG:FlxSprite;
+    var cachedActive:Bool = false;
+    var songLengthMs:Float = 0.0;
+    var updateTimer:Float = 0.0;
+    public var previewCam:FlxCamera = null;
+
     public function new() {
-        super();
-        this.name = "KssetteTimeBar";
+        super("TinyNightTimeBar");
+        this.name = "TinyNightTimeBar";
+    }
+
+    function isOn(val:Dynamic):Bool {
+        if (val == true) return true;
+        var s = Std.string(val);
+        return s == "On" || s == "on" || s == "true";
+    }
+
+    function makeBar(y:Float, h:Int, color:Int, z:Int, cam:FlxCamera):FlxSprite {
+        var bar = new FlxSprite(0, y).makeGraphic(FlxG.width, h, color);
+        bar.origin.set(0, 0);
+        bar.scrollFactor.set(0, 0);
+        bar.zIndex = z;
+        safeAdd(bar, cam);
+        return bar;
+    }
+
+    public function cleanupUI() {
+        songLengthMs = 0.0;
+        updateTimer = 0.0;
+        safeDestroy(timeBar);
+        safeDestroy(timeBarBG);
+        timeBar = null;
+        timeBarBG = null;
+    }
+
+    public function setupUI(cam:FlxCamera) {
+        cleanupUI();
+        var zIdx:Int = 15;
+        timeBarBG = makeBar(0, 15, 0xFF000000, zIdx, cam);
+        timeBar = makeBar(2, 11, 0xFFFFFFFF, zIdx + 1, cam);
+        FlxG.state.refresh();
+    }
+
+    public function updatePositions() {
+        if (timeBarBG == null || timeBar == null) return;
+
+        var barShrinkRatio = 0.266;
+        var targetW = Std.int(360 * barShrinkRatio);
+
+        if (timeBarBG.frameWidth != targetW) {
+            timeBarBG.makeGraphic(targetW, Std.int(15), 0xFF000000);
+            timeBar.makeGraphic(targetW, Std.int(11), 0xFFFFFFFF);
+        }
+
+        timeBarBG.origin.set(0, 0);
+        timeBar.origin.set(0, 0);
+
+        var blockX:Float = 10.0;
+        var cachedX:Float = (FlxG.width - timeBarBG.width) / 2;
+        if (PlayState.instance != null && PlayState.instance.healthBarBG != null) {
+            cachedX = PlayState.instance.healthBarBG.x + (PlayState.instance.healthBarBG.width - timeBarBG.width) / 2;
+        }
+        var cachedY:Float = 0;
+        if (PlayState.instance != null && PlayState.instance.healthBarBG != null) {
+            cachedY = PlayState.instance.healthBarBG.y - timeBarBG.height - 4;
+        } else {
+            var songHunter = KassetteHUDDatahunter.song;
+            var downscroll = false;
+            if (songHunter != null) downscroll = songHunter.getDownscroll();
+            else downscroll = Preferences.downscroll;
+            var stackTopY:Float = downscroll ? 10.0 : (FlxG.height - 210.0 - 10.0);
+            var healthBarY = stackTopY + 26.0 + 34.0 + 26.0 + 8.0;
+            cachedY = healthBarY - timeBarBG.height - 4;
+        }
+
+        timeBarBG.x = cachedX;
+        timeBarBG.y = cachedY;
+        
+        timeBar.x = cachedX;
+        timeBar.y = cachedY + 2;
+    }
+
+    public function buildPreview(cam:FlxCamera) {
+        isPreview = true;
+        previewCam = cam;
+        setupUI(cam);
+        updatePreview();
+    }
+
+    public function updatePreview() {
+        if (!isPreview) return;
+        var optManager = KssetteOptionsManager.instance;
+        cachedActive = true; 
+        if (optManager != null) {
+            cachedActive = isOn(optManager.getKssValue("kssette_show_timebar"));
+        }
+        updatePositions();
+        if (timeBarBG != null) timeBarBG.visible = cachedActive;
+        if (timeBar != null) {
+            timeBar.visible = cachedActive;
+            timeBar.scale.x = 0.5;
+            timeBar.scale.y = 1.0;
+        }
+    }
+
+    override public function onCountdownStart(event:Dynamic) {
+        isPreview = false;
+        var optManager = KssetteOptionsManager.instance;
+        cachedActive = true;
+        if (optManager != null) cachedActive = isOn(optManager.getKssValue("kssette_show_timebar"));
+
+        var state = PlayState.instance;
+        songLengthMs = 0.0;
+        updateTimer = 0.0;
+        if (state != null && state.camHUD != null) {
+            setupUI(state.camHUD);
+            songLengthMs = state.currentSongLengthMs;
+            updatePositions();
+
+            if (timeBarBG != null) timeBarBG.visible = cachedActive;
+            if (timeBar != null) {
+                timeBar.visible = cachedActive;
+                timeBar.scale.x = 0; 
+                timeBar.scale.y = 1.0;
+            }
+        }
+    }
+
+    override public function onUpdate(event:Dynamic) {
+        var elapsed:Float = (Std.isOfType(event, Float)) ? event : (event != null ? event.elapsed : 0);
+        if (isPreview) return;
+
+        var state = PlayState.instance;
+        if (!cachedActive || timeBar == null || !timeBar.exists || state == null || state.conductorInUse == null) return;
+
+        if (songLengthMs <= 0.0) {
+            songLengthMs = state.currentSongLengthMs;
+        }    
+        if (songLengthMs <= 0) return;
+
+        updateTimer += elapsed;
+        if (updateTimer < 0.008) return;
+        updateTimer = 0.0;
+        
+        var progress:Float = state.conductorInUse.songPosition / songLengthMs;
+        if (progress < 0) progress = 0;
+        else if (progress > 1) progress = 1;
+
+        timeBar.scale.x = progress; 
+        timeBar.scale.y = 1.0; 
+    }
+    
+    override public function destroy() {
+        if (timeBar != null) timeBar.destroy();
+        if (timeBarBG != null) timeBarBG.destroy();
+        
+        timeBar = null;
+        timeBarBG = null;
+
+        super.destroy();
     }
 }

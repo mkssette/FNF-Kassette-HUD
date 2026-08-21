@@ -10,6 +10,7 @@ import funkin.Paths;
 import funkin.data.notestyle.NoteStyleRegistry;
 import funkin.play.components.HealthIcon;
 import funkin.play.notes.Strumline;
+import funkin.play.notes.NoteSprite;
 import funkin.util.Constants;
 import flixel.FlxG;
 import flixel.FlxSprite;
@@ -450,7 +451,7 @@ class KssetteHUDPreview extends ScriptedMusicBeatSubState {
         
         var style = cachedNoteStyle;
         if (style == null) style = NoteStyleRegistry.instance.fetchDefault();
-        var fake = new funkin.play.notes.NoteSprite(style, dir);
+        var fake = new NoteSprite(style, dir);
         fake.direction = dir; 
         
         fake.scale.set(rec.scale.x, rec.scale.y);

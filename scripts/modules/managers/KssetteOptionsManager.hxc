@@ -167,6 +167,14 @@ class KssetteOptionsManager extends Module {
     }
 
     public function isOptionLocked(key:String):Bool {
+        var skinManager = KassetteSkinManager.instance;
+        if (skinManager != null) {
+            var currentSkin = skinManager.getCurrentSkin();
+            if (currentSkin != null && currentSkin.disabledOptions != null) {
+                if (currentSkin.disabledOptions.contains(key)) return true;
+            }
+        }
+
         var opt = getOptionDefinition(key);
         if (opt == null || opt.locked == null) return false;
         

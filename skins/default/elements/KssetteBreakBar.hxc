@@ -295,7 +295,7 @@ class KssetteBreakBar extends KassetteHUDElement {
             safeAdd(barFill, cam);
             
             breakIcon = new FunkinSprite(0, 0);
-            var iconImg = getSkinImage("break");
+            var iconImg = getSkinImage("break", "default");
             if (iconImg != null) {
                 breakIcon.loadGraphic(iconImg);
             } else {
@@ -331,7 +331,7 @@ class KssetteBreakBar extends KassetteHUDElement {
             safeAdd(barFill, cam);
 
             breakIcon = new FunkinSprite(0, 0);
-            var iconImg = getSkinImage("break");
+            var iconImg = getSkinImage("break", "default");
             if (iconImg != null) {
                 breakIcon.loadGraphic(iconImg);
             } else {

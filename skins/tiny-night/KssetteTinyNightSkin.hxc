@@ -11,6 +11,19 @@ class KssetteTinyNightSkin extends KassetteHUDSkin {
             author: "Fan (Ported)",
             description: "A compact, night-themed version of Kassette HUD based on a fan edit."
         });
+
+        this.disabledOptions = [
+            "kssette_icon_pos",
+            "kssette_score_pos",
+            "kssette_info_pos",
+            "kssette_timebar_pos",
+            "kssette_show_score",
+            "kssette_show_misses",
+            "kssette_show_rank",
+            "kssette_show_song_title",
+            "kssette_show_song_diff",
+            "kssette_score_bop"
+        ];
     }
 
     override public function buildElements():Dynamic {

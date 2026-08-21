@@ -16,6 +16,12 @@ class GammodDatahunter extends KassetteHUDDatahunter {
     public var gammodAutoPlay:Bool = false;
     public var gammodPlayerSide:String = "NORMAL";
     public var gammodHighscoreActive:Bool = false;
+    
+    public function setHealthBarOverride(value:Bool) {
+        if (_gammodPlay != null) {
+            _gammodPlay.scriptSet("healthBarOverride", value);
+        }
+    }
 
     var _gammodHandler:Dynamic = null;
     var _gammodMult:Dynamic = null;

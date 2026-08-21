@@ -122,10 +122,25 @@ class KassetteHUDElement {
      * Returns the loaded image graphic from the root of the current skin.
      * Functions like Paths.image, preserving internal folder structure (e.g., ui/hud/break).
      */
-    public function getSkinImage(imageName:String):Dynamic {
+    public function getSkinImage(imageName:String, ?targetSkinId:String):Dynamic {
         if (imageName == null || imageName == "") return null;
         
-        var relativePath = "skins/" + this.skinId + "/images/" + imageName + ".png";
+        var actualSkinId = (targetSkinId != null && targetSkinId != "") ? targetSkinId : this.skinId;
+        var bmp = _tryLoadImage(imageName, actualSkinId);
+        
+        if (bmp == null && actualSkinId != "default") {
+            bmp = _tryLoadImage(imageName, "default");
+        }
+        
+        if (bmp == null) {
+            trace("[KassetteHUDElement] Error loading skin image: " + imageName);
+        }
+        
+        return bmp;
+    }
+
+    private function _tryLoadImage(imageName:String, skinIdToUse:String):Dynamic {
+        var relativePath = "skins/" + skinIdToUse + "/images/" + imageName + ".png";
         
         // 1. Try standard Assets system
         try {
@@ -163,7 +178,6 @@ class KassetteHUDElement {
             } catch(e:Dynamic) {}
         }
         
-        trace("[KassetteHUDElement] Error loading skin image: " + relativePath);
         return null;
     }
 

@@ -12,6 +12,7 @@ class KassetteHUDSkin extends Module {
 
     public var elements = [];
     public var isBuilt:Bool = false;
+    public var disabledOptions:Array<String> = [];
     var _previewUpdateTimer:Float = 0.0;
 
     public function new(config:Dynamic = null) {

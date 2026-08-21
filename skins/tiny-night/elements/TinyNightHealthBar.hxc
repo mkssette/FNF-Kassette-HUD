@@ -3,15 +3,30 @@ package kassettehud.util;
 import flixel.FlxG;
 import flixel.FlxSprite;
 import funkin.play.PlayState;
+import flixel.FlxCamera;
+import funkin.Paths;
+import funkin.Preferences;
+import funkin.modding.module.ModuleHandler;
 
-class TinyNightHealthBar extends KssetteHealthBar {
+class TinyNightHealthBar extends KassetteHUDElement {
+    var previewHealthBarBG:FlxSprite;
+    var previewHealthBarFillP1:FlxSprite;
+    var previewHealthBarFillP2:FlxSprite;
+    var previewIconP1:FlxSprite;
+    var previewIconP2:FlxSprite;
+    var previewCam:FlxCamera;
+    
+    var _lastP1Id:String = "";
+    var _lastP2Id:String = "";
+    
     public function new() {
-        super();
-        this.name = "KssetteHealthBar";
+        super("TinyNightHealthBar");
+        this.name = "TinyNightHealthBar";
     }
 
-    override public function onUpdate(event:Dynamic) {
-        super.onUpdate(event);
+    override public function buildPreview(cam:FlxCamera) {
+        isPreview = true;
+        previewCam = cam;
         
         var blockX:Float = 10.0;
         var lineH:Float = 26.0;
@@ -21,49 +36,106 @@ class TinyNightHealthBar extends KssetteHealthBar {
         var gap2:Float = 4.0;
         var reservedH:Float = 210.0;
         var barBlockW:Float = 160.0;
+        var songHunter = KassetteHUDDatahunter.song;
+        var downscroll = false;
+        if (songHunter != null) downscroll = songHunter.getDownscroll();
+        else downscroll = Preferences.downscroll;
+        var stackTopY:Float = downscroll ? 10.0 : (FlxG.height - reservedH - 10.0);
+        var barShrinkRatio = 0.266;
+
+        previewHealthBarBG = new FlxSprite(0, 0);
+        try {
+            previewHealthBarBG.loadGraphic(Paths.image('healthBar'));
+        } catch(e:Dynamic) {
+            previewHealthBarBG.makeGraphic(601, 19, 0xFF000000);
+        }
+        previewHealthBarBG.setGraphicSize(Std.int(previewHealthBarBG.frameWidth * barShrinkRatio), Std.int(previewHealthBarBG.frameHeight));
+        previewHealthBarBG.updateHitbox();
+        previewHealthBarBG.x = blockX;
+        previewHealthBarBG.y = stackTopY + lineH + gapToUi + rowH + gap1;
+        previewHealthBarBG.scrollFactor.set(0, 0);
+        safeAdd(previewHealthBarBG, cam);
+
+        var fw = Std.int((previewHealthBarBG.frameWidth - 8) / 2);
+        var fh = Std.int(previewHealthBarBG.frameHeight - 8);
+
+        previewHealthBarFillP2 = new FlxSprite(0, 0).makeGraphic(fw, fh, 0xFFFFFFFF);
+        previewHealthBarFillP2.color = 0xFFFF0000;
+        previewHealthBarFillP2.setGraphicSize(Std.int(previewHealthBarFillP2.frameWidth * barShrinkRatio), Std.int(previewHealthBarFillP2.frameHeight));
+        previewHealthBarFillP2.updateHitbox();
+        previewHealthBarFillP2.x = previewHealthBarBG.x;
+        previewHealthBarFillP2.y = previewHealthBarBG.y + ((previewHealthBarBG.height - previewHealthBarFillP2.height) / 2);
+        previewHealthBarFillP2.scrollFactor.set(0, 0);
+        safeAdd(previewHealthBarFillP2, cam);
+
+        previewHealthBarFillP1 = new FlxSprite(0, 0).makeGraphic(fw, fh, 0xFFFFFFFF);
+        previewHealthBarFillP1.color = 0xFF66FF33;
+        previewHealthBarFillP1.setGraphicSize(Std.int(previewHealthBarFillP1.frameWidth * barShrinkRatio), Std.int(previewHealthBarFillP1.frameHeight));
+        previewHealthBarFillP1.updateHitbox();
+        previewHealthBarFillP1.x = previewHealthBarBG.x;
+        previewHealthBarFillP1.y = previewHealthBarBG.y + ((previewHealthBarBG.height - previewHealthBarFillP1.height) / 2);
+        previewHealthBarFillP1.scrollFactor.set(0, 0);
+        safeAdd(previewHealthBarFillP1, cam);
+
+        previewIconP1 = new FlxSprite();
+        try {
+            previewIconP1.loadGraphic(Paths.image('icons/icon-bf'), true, 150, 150);
+            previewIconP1.animation.add('icon', [0, 1], 0, false, false);
+            previewIconP1.animation.play('icon');
+        } catch(e:Dynamic) {}
+        previewIconP1.setGraphicSize(Std.int(previewIconP1.frameWidth * 0.7), Std.int(previewIconP1.frameHeight * 0.7));
+        previewIconP1.updateHitbox();
+        previewIconP1.x = blockX + barBlockW - previewIconP1.width;
+        previewIconP1.y = stackTopY + lineH + gapToUi + rowH + gap1 + gap2 + 10;
+        previewIconP1.flipX = true;
+        previewIconP1.scrollFactor.set(0, 0);
+        safeAdd(previewIconP1, cam);
+
+        previewIconP2 = new FlxSprite();
+        try {
+            previewIconP2.loadGraphic(Paths.image('icons/icon-dad'), true, 150, 150);
+            previewIconP2.animation.add('icon', [0, 1], 0, false, false);
+            previewIconP2.animation.play('icon');
+        } catch(e:Dynamic) {}
+        previewIconP2.setGraphicSize(Std.int(previewIconP2.frameWidth * 0.7), Std.int(previewIconP2.frameHeight * 0.7));
+        previewIconP2.updateHitbox();
+        previewIconP2.x = blockX;
+        previewIconP2.y = stackTopY + lineH + gapToUi + rowH + gap1 + gap2 + 10;
+        previewIconP2.scrollFactor.set(0, 0);
+        safeAdd(previewIconP2, cam);
         
-        var stackTopY:Float = FlxG.height - reservedH - 10.0;
+        previewHealthBarFillP2.zIndex = 111;
+        previewHealthBarFillP1.zIndex = 111;
+        previewHealthBarBG.zIndex = 110;
+        previewIconP1.zIndex = 112;
+        previewIconP2.zIndex = 112;
+    }
+
+    override function onCountdownStart(event:Dynamic) {
+        isPreview = false;
+        var state = PlayState.instance;
+        if (state == null) return;
+
+        if (state.healthBarBG != null) { state.healthBarBG.zIndex = 110; state.remove(state.healthBarBG, true); state.add(state.healthBarBG); }
+        if (state.healthBar   != null) { state.healthBar.zIndex   = 111; state.remove(state.healthBar,   true); state.add(state.healthBar);   }
+        if (state.iconP1      != null) { state.iconP1.zIndex      = 112; state.remove(state.iconP1,      true); state.add(state.iconP1);      }
+        if (state.iconP2      != null) { state.iconP2.zIndex      = 112; state.remove(state.iconP2,      true); state.add(state.iconP2);      }
         
+        _lastP1Id = "";
+        _lastP2Id = "";
+    }
+
+    override public function onUpdate(event:Dynamic) {
         if (isPreview) {
-            if (previewHealthBarBG != null) {
-                previewHealthBarBG.scale.x = 0.266;
-                previewHealthBarBG.scale.y = 1.0;
-                previewHealthBarBG.updateHitbox();
-                previewHealthBarBG.x = blockX;
-                previewHealthBarBG.y = stackTopY + lineH + gapToUi + rowH + gap1;
-            }
-            if (previewHealthBarFillP1 != null) {
-                previewHealthBarFillP1.scale.x = 0.266;
-                previewHealthBarFillP1.scale.y = 1.0;
-                previewHealthBarFillP1.updateHitbox();
-                if (previewHealthBarBG != null) {
-                    previewHealthBarFillP1.x = previewHealthBarBG.x;
-                    previewHealthBarFillP1.y = previewHealthBarBG.y + ((previewHealthBarBG.height - previewHealthBarFillP1.height) / 2);
-                }
-            }
-            if (previewHealthBarFillP2 != null) {
-                previewHealthBarFillP2.scale.x = 0.266;
-                previewHealthBarFillP2.scale.y = 1.0;
-                previewHealthBarFillP2.updateHitbox();
-                if (previewHealthBarBG != null) {
-                    previewHealthBarFillP2.x = previewHealthBarBG.x;
-                    previewHealthBarFillP2.y = previewHealthBarBG.y + ((previewHealthBarBG.height - previewHealthBarFillP2.height) / 2);
-                }
-            }
-            if (previewIconP1 != null) {
-                previewIconP1.scale.x = 0.7;
-                previewIconP1.scale.y = 0.7;
-                previewIconP1.updateHitbox();
-                previewIconP1.x = blockX + barBlockW - previewIconP1.width;
-                previewIconP1.y = stackTopY + lineH + gapToUi + rowH + gap1 + gap2 + 10;
-            }
-            if (previewIconP2 != null) {
-                previewIconP2.scale.x = 0.7;
-                previewIconP2.scale.y = 0.7;
-                previewIconP2.updateHitbox();
-                previewIconP2.x = blockX;
-                previewIconP2.y = stackTopY + lineH + gapToUi + rowH + gap1 + gap2 + 10;
-            }
+            var optManager = KssetteOptionsManager.instance;
+            if (optManager == null || previewHealthBarBG == null || !previewHealthBarBG.exists) return;
+            
+            var cachedActive = optManager.getKssValue("kssette_show_hud") == true;
+            previewHealthBarBG.visible = cachedActive;
+            if (previewHealthBarFillP1 != null) previewHealthBarFillP1.visible = cachedActive;
+            if (previewHealthBarFillP2 != null) previewHealthBarFillP2.visible = cachedActive;
+            if (previewIconP1 != null) previewIconP1.visible = cachedActive;
+            if (previewIconP2 != null) previewIconP2.visible = cachedActive;
             return;
         }
 
@@ -72,36 +144,112 @@ class TinyNightHealthBar extends KssetteHealthBar {
             var bg = state.healthBarBG;
             var bar = state.healthBar;
             
+            var barShrinkRatio = 0.266;
+            var barW = 0.0;
+            var blockX:Float = 10.0;
+            var lineH:Float = 26.0;
+            var gapToUi:Float = 34.0;
+            var rowH:Float = 26.0;
+            var gap1:Float = 8.0;
+            var reservedH:Float = 210.0;
+            
+            var songHunter = KassetteHUDDatahunter.song;
+            var downscroll = false;
+            if (songHunter != null) downscroll = songHunter.getDownscroll();
+            else downscroll = Preferences.downscroll;
+            
+            var stackTopY:Float = downscroll ? 10.0 : (FlxG.height - reservedH - 10.0);
+            
+            var barX = 0.0;
+            var barY = 0.0;
+            var barH = 0.0;
+            
             if (bg != null) {
-                bg.scale.x = 0.266;
-                bg.scale.y = 1.0;
-                bg.updateHitbox();
+                if (bg.scale.x != barShrinkRatio) {
+                    bg.scale.x = barShrinkRatio;
+                    bg.updateHitbox();
+                }
                 bg.x = blockX;
                 bg.y = stackTopY + lineH + gapToUi + rowH + gap1;
+                bg.updateHitbox();
+                
+                barX = bg.x;
+                barY = bg.y;
+                barH = bg.height;
+                barW = (bg.frameWidth != null && bg.frameWidth > 0 ? bg.frameWidth : bg.width / barShrinkRatio) * barShrinkRatio;
             }
             if (bar != null) {
-                bar.scale.x = 0.266;
-                bar.scale.y = 1.0;
-                bar.updateHitbox();
-                if (bg != null) {
-                    bar.x = bg.x;
-                    bar.y = bg.y + ((bg.height - bar.height) / 2);
+                if (bar.scale.x != barShrinkRatio) {
+                    bar.scale.x = barShrinkRatio;
+                    bar.updateHitbox();
+                }
+                bar.x = barX;
+                bar.y = barY + ((bg.height - bar.height) / 2);
+            }
+            
+            var curP1 = state.iconP1 != null ? Std.string(state.iconP1.characterId) : "";
+            var curP2 = state.iconP2 != null ? Std.string(state.iconP2.characterId) : "";
+            
+            var gammodHunter = KassetteHUDDatahunter.gammod;
+            if (gammodHunter != null) {
+                gammodHunter.setHealthBarOverride(false);
+            }
+            
+            if (curP1 != _lastP1Id || curP2 != _lastP2Id) {
+                _lastP1Id = curP1;
+                _lastP2Id = curP2;
+                
+                var iconHunter = KassetteHUDDatahunter.icon;
+                var _p1Color = iconHunter != null ? iconHunter.getIconColor(curP1, 0xFF66FF33) : 0xFF66FF33;
+                var _p2Color = iconHunter != null ? iconHunter.getIconColor(curP2, 0xFFFF0000) : 0xFFFF0000;
+                
+                var isSolo = false;
+                if (state.iconP2 == null || curP2 == "none" || curP2 == "") isSolo = true;
+                if (curP1 == curP2 && curP1 != "") isSolo = true;
+                
+                var gammodPlayerSide = gammodHunter != null ? gammodHunter.gammodPlayerSide : "NORMAL";
+                
+                if (bar != null) {
+                    if (isSolo) {
+                        bar.createFilledBar(0xFF000000, _p1Color);
+                    } else if (gammodPlayerSide == "OPPOSITE") {
+                        bar.createFilledBar(_p1Color, _p2Color);
+                    } else {
+                        bar.createFilledBar(_p2Color, _p1Color);
+                    }
+                    bar.updateBar();
                 }
             }
             
             if (state.iconP1 != null) {
-                state.iconP1.scale.x = 0.7;
-                state.iconP1.scale.y = 0.7;
+                state.iconP1.autoUpdate = false;
+                state.iconP1.shouldBop = false;
+                if (state.iconP1.bopTween != null) {
+                    state.iconP1.bopTween.cancel();
+                    state.iconP1.bopTween = null;
+                }
+                
+                state.iconP1.scale.x = 0.5;
+                state.iconP1.scale.y = 0.5;
                 state.iconP1.updateHitbox();
-                state.iconP1.x = blockX + barBlockW - state.iconP1.width;
-                if (bg != null) state.iconP1.y = bg.y + bg.height + gap2;
+                state.iconP1.x = barX + barW - state.iconP1.width;
+                state.iconP1.y = barY + barH + 4;
+                state.iconP1.flipX = true;
             }
             if (state.iconP2 != null) {
-                state.iconP2.scale.x = 0.7;
-                state.iconP2.scale.y = 0.7;
+                state.iconP2.autoUpdate = false;
+                state.iconP2.shouldBop = false;
+                if (state.iconP2.bopTween != null) {
+                    state.iconP2.bopTween.cancel();
+                    state.iconP2.bopTween = null;
+                }
+                
+                state.iconP2.scale.x = 0.5;
+                state.iconP2.scale.y = 0.5;
                 state.iconP2.updateHitbox();
-                state.iconP2.x = blockX;
-                if (bg != null) state.iconP2.y = bg.y + bg.height + gap2;
+                state.iconP2.x = barX;
+                state.iconP2.y = barY + barH + 4;
+                state.iconP2.flipX = false;
             }
         }
     }
