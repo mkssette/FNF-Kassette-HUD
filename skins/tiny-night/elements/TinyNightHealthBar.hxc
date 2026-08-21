@@ -136,6 +136,22 @@ class TinyNightHealthBar extends KassetteHUDElement {
             if (previewHealthBarFillP2 != null) previewHealthBarFillP2.visible = cachedActive;
             if (previewIconP1 != null) previewIconP1.visible = cachedActive;
             if (previewIconP2 != null) previewIconP2.visible = cachedActive;
+            if (previewHealthBarFillP1 != null && previewHealthBarFillP2 != null) {
+                var iconHunter = KassetteHUDDatahunter.icon;
+                var _p1Color = iconHunter != null ? iconHunter.getIconColor("bf", 0xFF66FF33) : 0xFF66FF33;
+                var _p2Color = iconHunter != null ? iconHunter.getIconColor("dad", 0xFFFF0000) : 0xFFFF0000;
+                
+                var gammodHunter = KassetteHUDDatahunter.gammod;
+                var gammodPlayerSide = gammodHunter != null ? gammodHunter.gammodPlayerSide : "NORMAL";
+                
+                if (gammodPlayerSide == "OPPOSITE") {
+                    previewHealthBarFillP1.color = _p2Color;
+                    previewHealthBarFillP2.color = _p1Color;
+                } else {
+                    previewHealthBarFillP1.color = _p1Color;
+                    previewHealthBarFillP2.color = _p2Color;
+                }
+            }
             return;
         }
 

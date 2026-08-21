@@ -903,14 +903,15 @@ class TinyNightAccuracy extends KassetteHUDElement {
         }
         
         if (isPreview) {
+            updateSettings();
+            updatePositions();
+            
             if (uiText != null && uiText.exists) {
                 if (optManager != null) {
-                    var newMode = Std.string(optManager.getKssValue("kssette_acc_mode"));
-                    if (newMode != _cAccMode) {
-                        _cAccMode = newMode;
+                    var newMode = _cAccMode;
+                    if (newMode != _cAccMode) { // wait _cAccMode is already updated by updateSettings
                         lastVisualAcc = -1.0; 
                     }
-                    _cSmooth = (optManager.getKssValue("kssette_smooth_display") == true);
                 }
                 
                 if (_cScoreBop) {

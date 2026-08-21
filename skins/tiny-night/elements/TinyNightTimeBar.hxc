@@ -73,7 +73,18 @@ class TinyNightTimeBar extends KassetteHUDElement {
 
         var blockX:Float = 10.0;
         var cachedX:Float = (FlxG.width - timeBarBG.width) / 2;
-        if (PlayState.instance != null && PlayState.instance.healthBarBG != null) {
+        
+        var optManager = KssetteOptionsManager.instance;
+        var tPos:String = "Top";
+        if (optManager != null) {
+            tPos = Std.string(optManager.getKssValue("kssette_timebar_pos"));
+        }
+        
+        if (tPos.indexOf("Left") != -1) {
+            cachedX = blockX;
+        } else if (tPos.indexOf("Right") != -1) {
+            cachedX = FlxG.width - timeBarBG.width - blockX;
+        } else if (PlayState.instance != null && PlayState.instance.healthBarBG != null) {
             cachedX = PlayState.instance.healthBarBG.x + (PlayState.instance.healthBarBG.width - timeBarBG.width) / 2;
         }
         var cachedY:Float = 0;
@@ -144,7 +155,10 @@ class TinyNightTimeBar extends KassetteHUDElement {
 
     override public function onUpdate(event:Dynamic) {
         var elapsed:Float = (Std.isOfType(event, Float)) ? event : (event != null ? event.elapsed : 0);
-        if (isPreview) return;
+        if (isPreview) {
+            updatePreview();
+            return;
+        }
 
         var state = PlayState.instance;
         if (!cachedActive || timeBar == null || !timeBar.exists || state == null || state.conductorInUse == null) return;

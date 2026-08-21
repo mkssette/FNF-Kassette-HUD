@@ -202,6 +202,12 @@ class KssetteSkinSelectorSubState extends ScriptedMusicBeatSubState {
                     parent.cachePreviewModules();
                     parent.initPreviews();
                     parent.updatePreviews();
+                    
+                    if (parent.optionItems != null) {
+                        for (it in parent.optionItems) {
+                            if (it != null) it.lockedState = null;
+                        }
+                    }
                 }
             }
 

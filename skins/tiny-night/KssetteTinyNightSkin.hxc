@@ -16,7 +16,6 @@ class KssetteTinyNightSkin extends KassetteHUDSkin {
             "kssette_icon_pos",
             "kssette_score_pos",
             "kssette_info_pos",
-            "kssette_timebar_pos",
             "kssette_show_score",
             "kssette_show_misses",
             "kssette_show_rank",
