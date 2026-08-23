@@ -18,6 +18,7 @@ import kassettehud.util.KassetteHUDElement;
 import kassettehud.util.KssetteOptionsManager;
 import kassettehud.util.KassetteHUDDatahunter;
 import kassettehud.util.KssetteUpdateManager;
+import kassettehud.util.KssetteFontManager;
 import funkin.play.stage.Stage;
 import funkin.play.character.BaseCharacter;
 import funkin.play.character.SparrowCharacter;
@@ -262,6 +263,9 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
         trace("[KssetteOptionsState] updatePreviews() STARTED");
         if (KssetteOptionsManager.instance != null) {
             KssetteOptionsManager.instance.refreshOptionCache();
+        }
+        if (KssetteFontManager.instance != null) {
+            KssetteFontManager.instance.invalidateCache();
         }
 
         if (previewModules.length == 0) cachePreviewModules();
@@ -703,7 +707,7 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
         }
         var wasSubMenuOpen = false;
         if (subOptions != null) {
-            wasSubMenuOpen = subOptions.isVolMenuOpen || subOptions.isTimeMenuOpen || subOptions.isOpMenuOpen || subOptions.isFontMenuOpen;
+            wasSubMenuOpen = subOptions.isVolMenuOpen || subOptions.isTimeMenuOpen || subOptions.isOpMenuOpen || subOptions.isFontMenuOpen || subOptions.wasMenuJustClosed;
         }
         if (this.subState != null) {
             wasSubMenuOpen = true;

@@ -341,9 +341,9 @@ class KssetteShowTitle extends KassetteHUDElement {
                 FlxTween.cancelTweensOf(albumSprite);
                 albumSprite.y = FlxG.height + 300;
                 albumSprite.alpha = 1;
-                FlxTween.tween(albumSprite, {y: albBaseY}, 0.4, {ease: FlxEase.expoOut, startDelay: 0.2, onComplete: function(t1:FlxTween) {
-                    FlxTween.tween(albumSprite, {y: albBaseY}, 3.0 - 0.2, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
-                        FlxTween.tween(albumSprite, {y: -350}, 0.5, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
+                if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {y: albBaseY}, 0.4, {ease: FlxEase.expoOut, startDelay: 0.2, onComplete: function(t1:FlxTween) {
+                    if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {y: albBaseY}, 3.0 - 0.2, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
+                        if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {y: -350}, 0.5, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
                             if (!isPreview && albumSprite != null) killObj(albumSprite);
                         }});
                     }});
@@ -354,9 +354,9 @@ class KssetteShowTitle extends KassetteHUDElement {
                 FlxTween.cancelTweensOf(titleTxt);
                 titleTxt.y = -200;
                 titleTxt.alpha = 1;
-                FlxTween.tween(titleTxt, {y: tBaseY}, 0.4, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
-                    FlxTween.tween(titleTxt, {y: tBaseY}, 3.0, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
-                        FlxTween.tween(titleTxt, {y: -200}, 0.5, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
+                if (titleTxt != null && titleTxt.exists) FlxTween.tween(titleTxt, {y: tBaseY}, 0.4, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
+                    if (titleTxt != null && titleTxt.exists) FlxTween.tween(titleTxt, {y: tBaseY}, 3.0, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
+                        if (titleTxt != null && titleTxt.exists) FlxTween.tween(titleTxt, {y: -200}, 0.5, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
                             if (!isPreview && titleTxt != null) killObj(titleTxt);
                         }});
                     }});
@@ -366,9 +366,9 @@ class KssetteShowTitle extends KassetteHUDElement {
                 FlxTween.cancelTweensOf(artistTxt);
                 artistTxt.y = FlxG.height + 200;
                 artistTxt.alpha = 1;
-                FlxTween.tween(artistTxt, {y: aBaseY}, 0.4, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
-                    FlxTween.tween(artistTxt, {y: aBaseY}, 3.0, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
-                        FlxTween.tween(artistTxt, {y: FlxG.height + 200}, 0.5, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
+                if (artistTxt != null && artistTxt.exists) FlxTween.tween(artistTxt, {y: aBaseY}, 0.4, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
+                    if (artistTxt != null && artistTxt.exists) FlxTween.tween(artistTxt, {y: aBaseY}, 3.0, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
+                        if (artistTxt != null && artistTxt.exists) FlxTween.tween(artistTxt, {y: FlxG.height + 200}, 0.5, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
                             if (!isPreview && artistTxt != null) killObj(artistTxt);
                         }});
                     }});
@@ -387,9 +387,9 @@ class KssetteShowTitle extends KassetteHUDElement {
             // Album is on Right. Starts on Right.
                     albumSprite.y = albBaseY;
                     albumSprite.x = FlxG.width + 300;
-                    FlxTween.tween(albumSprite, {x: albTargetX}, 1.0, {ease: FlxEase.expoOut, startDelay: 0.0, onComplete: function(t1:FlxTween) {
-                        FlxTween.tween(albumSprite, {x: albTargetX - 30}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
-                            FlxTween.tween(albumSprite, {x: FlxG.width + 300}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
+                    if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {x: albTargetX}, 1.0, {ease: FlxEase.expoOut, startDelay: 0.0, onComplete: function(t1:FlxTween) {
+                        if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {x: albTargetX - 30}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
+                            if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {x: FlxG.width + 300}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
                                 if (!isPreview && albumSprite != null) killObj(albumSprite);
                             }});
                         }});
@@ -398,9 +398,9 @@ class KssetteShowTitle extends KassetteHUDElement {
             // Album is on Left. Starts on Left.
                     albumSprite.y = albBaseY;
                     albumSprite.x = -300;
-                    FlxTween.tween(albumSprite, {x: albTargetX}, 1.0, {ease: FlxEase.expoOut, startDelay: 0.0, onComplete: function(t1:FlxTween) {
-                        FlxTween.tween(albumSprite, {x: albTargetX + 30}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
-                            FlxTween.tween(albumSprite, {x: -300}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
+                    if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {x: albTargetX}, 1.0, {ease: FlxEase.expoOut, startDelay: 0.0, onComplete: function(t1:FlxTween) {
+                        if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {x: albTargetX + 30}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
+                            if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {x: -300}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
                                 if (!isPreview && albumSprite != null) killObj(albumSprite);
                             }});
                         }});
@@ -408,9 +408,9 @@ class KssetteShowTitle extends KassetteHUDElement {
                 } else {
                     albumSprite.y = FlxG.height + 300;
                     albumSprite.x = albTargetX;
-                    FlxTween.tween(albumSprite, {y: albBaseY}, 1.0, {ease: FlxEase.expoOut, startDelay: 0.0, onComplete: function(t1:FlxTween) {
-                        FlxTween.tween(albumSprite, {y: albBaseY - 30}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
-                            FlxTween.tween(albumSprite, {y: -300}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
+                    if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {y: albBaseY}, 1.0, {ease: FlxEase.expoOut, startDelay: 0.0, onComplete: function(t1:FlxTween) {
+                        if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {y: albBaseY - 30}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
+                            if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {y: -300}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
                                 if (!isPreview && albumSprite != null) killObj(albumSprite);
                             }});
                         }});
@@ -422,9 +422,9 @@ class KssetteShowTitle extends KassetteHUDElement {
                 FlxTween.cancelTweensOf(titleTxt);
                 titleTxt.y = FlxG.height + 50;
                 titleTxt.alpha = 1;
-                FlxTween.tween(titleTxt, {y: tBaseY}, 1.0, {ease: FlxEase.expoOut, startDelay: 0.1, onComplete: function(t1:FlxTween) {
-                    FlxTween.tween(titleTxt, {y: tBaseY - 30}, 3.4, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
-                        FlxTween.tween(titleTxt, {y: -200}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
+                if (titleTxt != null && titleTxt.exists) FlxTween.tween(titleTxt, {y: tBaseY}, 1.0, {ease: FlxEase.expoOut, startDelay: 0.1, onComplete: function(t1:FlxTween) {
+                    if (titleTxt != null && titleTxt.exists) FlxTween.tween(titleTxt, {y: tBaseY - 30}, 3.4, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
+                        if (titleTxt != null && titleTxt.exists) FlxTween.tween(titleTxt, {y: -200}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
                             if (!isPreview && titleTxt != null) killObj(titleTxt);
                         }});
                     }});
@@ -434,9 +434,9 @@ class KssetteShowTitle extends KassetteHUDElement {
                 FlxTween.cancelTweensOf(artistTxt);
                 artistTxt.y = FlxG.height + 100;
                 artistTxt.alpha = 1;
-                FlxTween.tween(artistTxt, {y: aBaseY}, 1.0, {ease: FlxEase.expoOut, startDelay: 0.2, onComplete: function(t1:FlxTween) {
-                    FlxTween.tween(artistTxt, {y: aBaseY - 30}, 3.3, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
-                        FlxTween.tween(artistTxt, {y: -200}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
+                if (artistTxt != null && artistTxt.exists) FlxTween.tween(artistTxt, {y: aBaseY}, 1.0, {ease: FlxEase.expoOut, startDelay: 0.2, onComplete: function(t1:FlxTween) {
+                    if (artistTxt != null && artistTxt.exists) FlxTween.tween(artistTxt, {y: aBaseY - 30}, 3.3, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
+                        if (artistTxt != null && artistTxt.exists) FlxTween.tween(artistTxt, {y: -200}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
                             if (!isPreview && artistTxt != null) killObj(artistTxt);
                         }});
                     }});
@@ -449,26 +449,26 @@ class KssetteShowTitle extends KassetteHUDElement {
                 FlxTween.cancelTweensOf(albumSprite);
                 if (animPos == "Left") {
                     albumSprite.x = FlxG.width + 300;
-                    FlxTween.tween(albumSprite, {x: albTargetX}, 1.0, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
-                        FlxTween.tween(albumSprite, {x: albTargetX - 30}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
-                            FlxTween.tween(albumSprite, {x: FlxG.width + 300}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
+                    if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {x: albTargetX}, 1.0, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
+                        if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {x: albTargetX - 30}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
+                            if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {x: FlxG.width + 300}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
                                 if (!isPreview && albumSprite != null) killObj(albumSprite);
                             }});
                         }});
                     }});
                 } else if (animPos == "Right") {
                     albumSprite.x = -300;
-                    FlxTween.tween(albumSprite, {x: albTargetX}, 1.0, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
-                        FlxTween.tween(albumSprite, {x: albTargetX + 30}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
-                            FlxTween.tween(albumSprite, {x: -300}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
+                    if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {x: albTargetX}, 1.0, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
+                        if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {x: albTargetX + 30}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
+                            if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {x: -300}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
                                 if (!isPreview && albumSprite != null) killObj(albumSprite);
                             }});
                         }});
                     }});
                 } else {
-                    FlxTween.tween(albumSprite, {y: albBaseY}, 1.0, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
-                        FlxTween.tween(albumSprite, {y: albBaseY - 30}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
-                            FlxTween.tween(albumSprite, {y: -300}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
+                    if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {y: albBaseY}, 1.0, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
+                        if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {y: albBaseY - 30}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
+                            if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {y: -300}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
                                 if (!isPreview && albumSprite != null) killObj(albumSprite);
                             }});
                         }});
@@ -479,9 +479,9 @@ class KssetteShowTitle extends KassetteHUDElement {
                 FlxTween.cancelTweensOf(titleTxt);
                 titleTxt.x = -totalTitleWidth - 200;
                 titleTxt.alpha = 0;
-                FlxTween.tween(titleTxt, {x: titleTargetX - (floatDist/2), alpha: 1}, 1.0, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
-                    FlxTween.tween(titleTxt, {x: titleTargetX + (floatDist/2)}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
-                        FlxTween.tween(titleTxt, {x: FlxG.width + 200, alpha: 0}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
+                if (titleTxt != null && titleTxt.exists) FlxTween.tween(titleTxt, {x: titleTargetX - (floatDist/2), alpha: 1}, 1.0, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
+                    if (titleTxt != null && titleTxt.exists) FlxTween.tween(titleTxt, {x: titleTargetX + (floatDist/2)}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
+                        if (titleTxt != null && titleTxt.exists) FlxTween.tween(titleTxt, {x: FlxG.width + 200, alpha: 0}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
                             if (!isPreview && titleTxt != null) killObj(titleTxt);
                         }});
                     }});
@@ -492,9 +492,9 @@ class KssetteShowTitle extends KassetteHUDElement {
                 FlxTween.cancelTweensOf(artistTxt);
                 artistTxt.x = FlxG.width + 200;
                 artistTxt.alpha = 0;
-                FlxTween.tween(artistTxt, {x: artistTargetX + (floatDist/2), alpha: 1}, 1.0, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
-                    FlxTween.tween(artistTxt, {x: artistTargetX - (floatDist/2)}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
-                        FlxTween.tween(artistTxt, {x: -artistTxt.width - 200, alpha: 0}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
+                if (artistTxt != null && artistTxt.exists) FlxTween.tween(artistTxt, {x: artistTargetX + (floatDist/2), alpha: 1}, 1.0, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
+                    if (artistTxt != null && artistTxt.exists) FlxTween.tween(artistTxt, {x: artistTargetX - (floatDist/2)}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
+                        if (artistTxt != null && artistTxt.exists) FlxTween.tween(artistTxt, {x: -artistTxt.width - 200, alpha: 0}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
                             if (!isPreview && artistTxt != null) killObj(artistTxt);
                         }});
                     }});
@@ -620,15 +620,15 @@ class KssetteShowTitle extends KassetteHUDElement {
         isFadingOut = true;
         if (titleTxt != null && titleTxt.visible) {
             FlxTween.cancelTweensOf(titleTxt);
-            FlxTween.tween(titleTxt, {alpha: 0}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t:FlxTween) { if (!isPreview && titleTxt != null) killObj(titleTxt); }});
+            if (titleTxt != null && titleTxt.exists) FlxTween.tween(titleTxt, {alpha: 0}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t:FlxTween) { if (!isPreview && titleTxt != null) killObj(titleTxt); }});
         }
         if (artistTxt != null && artistTxt.visible) {
             FlxTween.cancelTweensOf(artistTxt);
-            FlxTween.tween(artistTxt, {alpha: 0}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t:FlxTween) { if (!isPreview && artistTxt != null) killObj(artistTxt); }});
+            if (artistTxt != null && artistTxt.exists) FlxTween.tween(artistTxt, {alpha: 0}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t:FlxTween) { if (!isPreview && artistTxt != null) killObj(artistTxt); }});
         }
         if (albumSprite != null && albumSprite.visible) {
             FlxTween.cancelTweensOf(albumSprite);
-            FlxTween.tween(albumSprite, {alpha: 0}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t:FlxTween) { if (!isPreview && albumSprite != null) killObj(albumSprite); }});
+            if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {alpha: 0}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t:FlxTween) { if (!isPreview && albumSprite != null) killObj(albumSprite); }});
         }
     }
 

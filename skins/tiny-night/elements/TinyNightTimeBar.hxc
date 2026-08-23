@@ -58,7 +58,7 @@ class TinyNightTimeBar extends KassetteHUDElement {
     }
 
     public function updatePositions() {
-        if (timeBarBG == null || timeBar == null) return;
+        if (timeBarBG == null || !timeBarBG.exists || timeBar == null || !timeBar.exists) return;
 
         var barShrinkRatio = 0.266;
         var targetW = Std.int(360 * barShrinkRatio);
@@ -68,8 +68,14 @@ class TinyNightTimeBar extends KassetteHUDElement {
             timeBar.makeGraphic(targetW, Std.int(11), 0xFFFFFFFF);
         }
 
-        timeBarBG.origin.set(0, 0);
-        timeBar.origin.set(0, 0);
+        if (timeBarBG.origin != null) {
+            timeBarBG.origin.x = 0;
+            timeBarBG.origin.y = 0;
+        }
+        if (timeBar.origin != null) {
+            timeBar.origin.x = 0;
+            timeBar.origin.y = 0;
+        }
 
         var blockX:Float = 10.0;
         var cachedX:Float = (FlxG.width - timeBarBG.width) / 2;
@@ -122,11 +128,13 @@ class TinyNightTimeBar extends KassetteHUDElement {
             cachedActive = isOn(optManager.getKssValue("kssette_show_timebar"));
         }
         updatePositions();
-        if (timeBarBG != null) timeBarBG.visible = cachedActive;
-        if (timeBar != null) {
+        if (timeBarBG != null && timeBarBG.exists) timeBarBG.visible = cachedActive;
+        if (timeBar != null && timeBar.exists) {
             timeBar.visible = cachedActive;
-            timeBar.scale.x = 0.5;
-            timeBar.scale.y = 1.0;
+            if (timeBar.scale != null) {
+                timeBar.scale.x = 0.5;
+                timeBar.scale.y = 1.0;
+            }
         }
     }
 

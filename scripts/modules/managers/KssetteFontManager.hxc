@@ -23,6 +23,15 @@ class KssetteFontManager extends Module {
         KssetteFontManager.instance = this;
     }
 
+    public function invalidateCache() {
+        _cachedHudFont = "";
+        _cachedHudStyleId = "";
+        lastFontKey = "";
+        lastPixelFontKey = "";
+        cachedCustomFontPath = "";
+        cachedCustomPixelFontPath = "";
+    }
+
     public function getHudFont():String {
         var styleId:String = "funkin";
         

@@ -56,24 +56,22 @@ class TinyNightHealthBar extends KassetteHUDElement {
         previewHealthBarBG.scrollFactor.set(0, 0);
         safeAdd(previewHealthBarBG, cam);
 
-        var fw = Std.int((previewHealthBarBG.frameWidth - 8) / 2);
-        var fh = Std.int(previewHealthBarBG.frameHeight - 8);
+        var fw = Std.int((previewHealthBarBG.width - 8) / 2);
+        var fh = Std.int(previewHealthBarBG.height - 8);
 
         previewHealthBarFillP2 = new FlxSprite(0, 0).makeGraphic(fw, fh, 0xFFFFFFFF);
         previewHealthBarFillP2.color = 0xFFFF0000;
-        previewHealthBarFillP2.setGraphicSize(Std.int(previewHealthBarFillP2.frameWidth * barShrinkRatio), Std.int(previewHealthBarFillP2.frameHeight));
         previewHealthBarFillP2.updateHitbox();
-        previewHealthBarFillP2.x = previewHealthBarBG.x;
-        previewHealthBarFillP2.y = previewHealthBarBG.y + ((previewHealthBarBG.height - previewHealthBarFillP2.height) / 2);
+        previewHealthBarFillP2.x = previewHealthBarBG.x + 4;
+        previewHealthBarFillP2.y = previewHealthBarBG.y + 4;
         previewHealthBarFillP2.scrollFactor.set(0, 0);
         safeAdd(previewHealthBarFillP2, cam);
 
         previewHealthBarFillP1 = new FlxSprite(0, 0).makeGraphic(fw, fh, 0xFFFFFFFF);
         previewHealthBarFillP1.color = 0xFF66FF33;
-        previewHealthBarFillP1.setGraphicSize(Std.int(previewHealthBarFillP1.frameWidth * barShrinkRatio), Std.int(previewHealthBarFillP1.frameHeight));
         previewHealthBarFillP1.updateHitbox();
-        previewHealthBarFillP1.x = previewHealthBarBG.x;
-        previewHealthBarFillP1.y = previewHealthBarBG.y + ((previewHealthBarBG.height - previewHealthBarFillP1.height) / 2);
+        previewHealthBarFillP1.x = previewHealthBarBG.x + 4 + fw;
+        previewHealthBarFillP1.y = previewHealthBarBG.y + 4;
         previewHealthBarFillP1.scrollFactor.set(0, 0);
         safeAdd(previewHealthBarFillP1, cam);
 
@@ -137,9 +135,14 @@ class TinyNightHealthBar extends KassetteHUDElement {
             if (previewIconP1 != null) previewIconP1.visible = cachedActive;
             if (previewIconP2 != null) previewIconP2.visible = cachedActive;
             if (previewHealthBarFillP1 != null && previewHealthBarFillP2 != null) {
-                var iconHunter = KassetteHUDDatahunter.icon;
-                var _p1Color = iconHunter != null ? iconHunter.getIconColor("bf", 0xFF66FF33) : 0xFF66FF33;
-                var _p2Color = iconHunter != null ? iconHunter.getIconColor("dad", 0xFFFF0000) : 0xFFFF0000;
+                var coloredHB = optManager.getKssValue("kssette_colored_healthbar") == true || Std.string(optManager.getKssValue("kssette_colored_healthbar")) == "true";
+                var _p1Color:flixel.util.FlxColor = 0xFF66FF33;
+                var _p2Color:flixel.util.FlxColor = 0xFFFF0000;
+                
+                if (coloredHB) {
+                    _p1Color = 0xFF31B0D1; 
+                    _p2Color = 0xFFAF66CE; 
+                }
                 
                 var gammodHunter = KassetteHUDDatahunter.gammod;
                 var gammodPlayerSide = gammodHunter != null ? gammodHunter.gammodPlayerSide : "NORMAL";
@@ -215,9 +218,19 @@ class TinyNightHealthBar extends KassetteHUDElement {
                 _lastP1Id = curP1;
                 _lastP2Id = curP2;
                 
-                var iconHunter = KassetteHUDDatahunter.icon;
-                var _p1Color = iconHunter != null ? iconHunter.getIconColor(curP1, 0xFF66FF33) : 0xFF66FF33;
-                var _p2Color = iconHunter != null ? iconHunter.getIconColor(curP2, 0xFFFF0000) : 0xFFFF0000;
+                var _p1Color = 0xFF66FF33;
+                var _p2Color = 0xFFFF0000;
+                
+                var optManager = KssetteOptionsManager.instance;
+                var coloredHB = optManager != null && optManager.getKssValue("kssette_colored_healthbar") == true;
+                
+                if (coloredHB) {
+                    var iconHunter = KassetteHUDDatahunter.icon;
+                    if (iconHunter != null) {
+                        _p1Color = iconHunter.getIconColor(curP1, 0xFF66FF33);
+                        _p2Color = iconHunter.getIconColor(curP2, 0xFFFF0000);
+                    }
+                }
                 
                 var isSolo = false;
                 if (state.iconP2 == null || curP2 == "none" || curP2 == "") isSolo = true;

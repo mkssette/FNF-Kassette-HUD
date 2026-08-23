@@ -490,7 +490,10 @@ class TinyNightAccuracy extends KassetteHUDElement {
         _cShowTier = false;
         
         _cAccMode = Std.string(optManager.getKssValue("kssette_acc_mode"));
-        _cJudgePos = "Off";
+        
+        var rawJPos = optManager.getKssValue("kssette_judge_pos");
+        _cJudgePos = Std.string(rawJPos);
+        if (_cJudgePos == "null" || _cJudgePos == "") _cJudgePos = "Bottom";
         
         var rawSmooth = optManager.getKssValue("kssette_smooth_display");
         _cSmooth = (rawSmooth == true || Std.string(rawSmooth) == "On" || Std.string(rawSmooth) == "true");
@@ -504,8 +507,8 @@ class TinyNightAccuracy extends KassetteHUDElement {
         var rawDiff = optManager.getKssValue("kssette_show_song_diff");
         _cShowDiff = false;
         
-        var rawBop = false;
-        _cScoreBop = false;
+        var rawBop = optManager.getKssValue("kssette_score_bop");
+        _cScoreBop = (rawBop == true || Std.string(rawBop) == "On" || Std.string(rawBop) == "true");
         
         var songHunter = KassetteHUDDatahunter.song;
         if (songHunter != null) {
@@ -527,7 +530,7 @@ class TinyNightAccuracy extends KassetteHUDElement {
         cachedFont = KssetteFontManager.instance != null ? KssetteFontManager.instance.getHudFont() : "VCR OSD Mono";
         if (cachedFont == null || cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
 
-        if (uiText != null) {
+        if (uiText != null && uiText.exists) {
             uiText.visible = true; 
             if (uiText.font != cachedFont) uiText.font = cachedFont;
         }
@@ -568,17 +571,17 @@ class TinyNightAccuracy extends KassetteHUDElement {
         }
 
         for (i in 0...judgeLabels.length) {
-            if (judgeLabels[i] != null) {
+            if (judgeLabels[i] != null && judgeLabels[i].exists) {
                 judgeLabels[i].visible = _cJudgesVisible;
                 if (judgeLabels[i].font != cachedFont) judgeLabels[i].font = cachedFont;
             }
-            if (judgeValues[i] != null) {
+            if (judgeValues[i] != null && judgeValues[i].exists) {
                 judgeValues[i].visible = _cJudgesVisible;
                 if (judgeValues[i].font != cachedFont) judgeValues[i].font = cachedFont;
             }
         }
         
-        if (judgeHeaderText != null) {
+        if (judgeHeaderText != null && judgeHeaderText.exists) {
             judgeHeaderText.visible = _cJudgesVisible;
             if (judgeHeaderText.font != cachedFont) judgeHeaderText.font = cachedFont;
         }
@@ -594,7 +597,7 @@ class TinyNightAccuracy extends KassetteHUDElement {
      * and info panel position. Also lays out the judgement counter panel.
      */
     public function updatePositions() {
-        if (uiText == null) return;
+        if (uiText == null || !uiText.exists) return;
         
         var blockX:Float = 10.0;
         var blockW:Float = 260.0;
@@ -611,9 +614,9 @@ class TinyNightAccuracy extends KassetteHUDElement {
         
         var stackTopY:Float = downscroll ? 10.0 : (FlxG.height - reservedH - 10.0);
         
-        if (timeText != null && timeText.size != 20) timeText.size = 20;
-        if (infoText != null && infoText.size != 20) infoText.size = 20;
-        if (uiText != null && uiText.size != 20) uiText.size = 20;
+        if (timeText != null && timeText.exists && timeText.size != 20) timeText.size = 20;
+        if (infoText != null && infoText.exists && infoText.size != 20) infoText.size = 20;
+        if (uiText != null && uiText.exists && uiText.size != 20) uiText.size = 20;
 
         if (timeText != null) {
             // timeText is now positioned next to the judge counter

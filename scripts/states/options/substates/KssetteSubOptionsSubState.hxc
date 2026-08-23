@@ -78,6 +78,8 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
     var lastFontVisibleEnd:Int = -1;
     var fontTargetScrollY:Float = 0;
     var fontMaxScroll:Float = 0;
+    var fontDragLastY:Float = -1;
+    public var wasMenuJustClosed:Bool = false;
     var fontActiveFile:String = "";
 
     var sndScroll:Dynamic;
@@ -86,6 +88,7 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
     
     var holdTimer:Float = 0.0;
     var panelOnLeft:Bool = false;
+    var subActionLocked:String = "none";
 
     public function new(parent:Dynamic) {
         super();
@@ -211,22 +214,33 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
             opSel_Group = null;
         }
         isOpMenuOpen = false;
+        subActionLocked = "none";
+        wasMenuJustClosed = true;
     }
 
     function handleOpacityInput(elapsed:Float) {
         var tX:Float = FlxG.mouse.screenX;
         var tY:Float = FlxG.mouse.screenY;
         var tJustPressed = false;
+        var swipeU = SwipeUtil.swipeUp;
+        var swipeD = SwipeUtil.swipeDown;
+        var swipeL = SwipeUtil.swipeLeft;
+        var swipeR = SwipeUtil.swipeRight;
         
         if (FlxG.onMobile) {
             tJustPressed = TouchUtil.justPressed;
-            if (TouchUtil.touch != null) { tX = TouchUtil.touch.screenX; tY = TouchUtil.touch.screenY; }
         } else {
             tJustPressed = FlxG.mouse.justPressed;
         }
 
-        var oldValue = opSel_Value;
+        if (FlxG.onMobile && TouchUtil.justPressed) subActionLocked = "none";
         
+        if (FlxG.onMobile && subActionLocked != "scroll" && (swipeL || swipeR)) {
+            subActionLocked = "side";
+            closeOpacitySelector();
+            return;
+        }
+
         if (tJustPressed) {
             if (tX >= opSel_Up.x - 40 && tX <= opSel_Up.x + opSel_Up.width + 40 &&
                 tY >= opSel_Up.y - 40 && tY <= opSel_Up.y + opSel_Up.height + 40) {
@@ -245,22 +259,23 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
             if (sndScroll != null) FlxG.sound.play(sndScroll, 0.5);
         }
 
-        var swipeU = SwipeUtil.swipeUp;
-        var swipeD = SwipeUtil.swipeDown;
-
-        if (controls.UI_UP_P || swipeU) {
+        if (controls.UI_UP_P || (FlxG.onMobile && subActionLocked != "side" && swipeU && holdTimer <= 0)) {
+            if (FlxG.onMobile) subActionLocked = "scroll";
             opSel_Value += 5;
+            if (FlxG.onMobile) holdTimer = 0.1;
             if (sndScroll != null) FlxG.sound.play(sndScroll, 0.5);
         }
-        if (controls.UI_DOWN_P || swipeD) {
+        if (controls.UI_DOWN_P || (FlxG.onMobile && subActionLocked != "side" && swipeD && holdTimer <= 0)) {
+            if (FlxG.onMobile) subActionLocked = "scroll";
             opSel_Value -= 5;
+            if (FlxG.onMobile) holdTimer = 0.1;
             if (sndScroll != null) FlxG.sound.play(sndScroll, 0.5);
         }
 
         if (opSel_Value > 100) opSel_Value = 100;
         if (opSel_Value < 5) opSel_Value = 5;
         
-        if (oldValue != opSel_Value) updateOpacityUI();
+        if (opSel_Value != (opSel_Value > 100 ? 100 : opSel_Value < 5 ? 5 : opSel_Value)) updateOpacityUI();
 
         if (controls.ACCEPT_P || (FlxG.onMobile && FlxG.keys.justPressed.ESCAPE)) {
             saveOpacitySelection();
@@ -329,12 +344,18 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
             volSel_Group = null;
         }
         isVolMenuOpen = false;
+        subActionLocked = "none";
+        wasMenuJustClosed = true;
     }
 
     function handleVolumeInput(elapsed:Float) {
         var tX:Float = FlxG.mouse.screenX;
         var tY:Float = FlxG.mouse.screenY;
         var tJustPressed = false;
+        var swipeU = SwipeUtil.swipeUp;
+        var swipeD = SwipeUtil.swipeDown;
+        var swipeL = SwipeUtil.swipeLeft;
+        var swipeR = SwipeUtil.swipeRight;
         
         if (FlxG.onMobile) {
             tJustPressed = TouchUtil.justPressed;
@@ -343,6 +364,14 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
             tJustPressed = FlxG.mouse.justPressed;
         }
         
+        if (FlxG.onMobile && TouchUtil.justPressed) subActionLocked = "none";
+        
+        if (FlxG.onMobile && subActionLocked != "scroll" && (swipeL || swipeR)) {
+            subActionLocked = "side";
+            closeVolumeSelector();
+            return;
+        }
+
         var oldVol = volSel_Value;
 
         if (tJustPressed) {
@@ -360,14 +389,17 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
             volSel_Value += Std.int(FlxG.mouse.wheel * 5);
         }
 
-        var swipeU = SwipeUtil.swipeUp;
-        var swipeD = SwipeUtil.swipeDown;
-
-        if (controls.UI_UP_P || swipeU) {
+        if (controls.UI_UP_P || (FlxG.onMobile && subActionLocked != "side" && swipeU && holdTimer <= 0)) {
+            if (FlxG.onMobile) subActionLocked = "scroll";
             volSel_Value += 5;
+            if (FlxG.onMobile) holdTimer = 0.1;
+            if (sndScroll != null) FlxG.sound.play(sndScroll, 0.5);
         }
-        if (controls.UI_DOWN_P || swipeD) {
+        if (controls.UI_DOWN_P || (FlxG.onMobile && subActionLocked != "side" && swipeD && holdTimer <= 0)) {
+            if (FlxG.onMobile) subActionLocked = "scroll";
             volSel_Value -= 5;
+            if (FlxG.onMobile) holdTimer = 0.1;
+            if (sndScroll != null) FlxG.sound.play(sndScroll, 0.5);
         }
 
         if (volSel_Value > 100) volSel_Value = 100;
@@ -482,12 +514,18 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
             tSel_Group = null;
         }
         isTimeMenuOpen = false;
+        subActionLocked = "none";
+        wasMenuJustClosed = true;
     }
 
     function handleTimeInput(elapsed:Float) {
         var tX:Float = FlxG.mouse.screenX;
         var tY:Float = FlxG.mouse.screenY;
         var tJustPressed = false;
+        var swipeU = SwipeUtil.swipeUp;
+        var swipeD = SwipeUtil.swipeDown;
+        var swipeL = SwipeUtil.swipeLeft;
+        var swipeR = SwipeUtil.swipeRight;
         
         if (FlxG.onMobile) {
             tJustPressed = TouchUtil.justPressed;
@@ -496,11 +534,21 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
             tJustPressed = FlxG.mouse.justPressed;
         }
 
+        if (FlxG.onMobile && TouchUtil.justPressed) subActionLocked = "none";
+
         var oldHour = tSel_Hour;
         var oldMin = tSel_Min;
         var oldIsMin = tSel_IsMin;
 
         if (tJustPressed) {
+            if (tX >= tSel_TxtHour.x && tX <= tSel_TxtHour.x + tSel_TxtHour.width &&
+                tY >= tSel_TxtHour.y && tY <= tSel_TxtHour.y + tSel_TxtHour.height) {
+                tSel_IsMin = false;
+            } else if (tX >= tSel_TxtMin.x && tX <= tSel_TxtMin.x + tSel_TxtMin.width &&
+                       tY >= tSel_TxtMin.y && tY <= tSel_TxtMin.y + tSel_TxtMin.height) {
+                tSel_IsMin = true;
+            }
+
             if (tX >= tSel_UpHour.x - 40 && tX <= tSel_UpHour.x + tSel_UpHour.width + 40 &&
                 tY >= tSel_UpHour.y - 40 && tY <= tSel_UpHour.y + tSel_UpHour.height + 40) {
                 tSel_IsMin = false; tSel_Hour++; holdTimer = 0.1;
@@ -529,26 +577,32 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
             if (sndScroll != null) FlxG.sound.play(sndScroll, 0.5);
         }
 
-        var swipeL = SwipeUtil.swipeLeft;
-        var swipeR = SwipeUtil.swipeRight;
         var swipeU = SwipeUtil.swipeUp;
         var swipeD = SwipeUtil.swipeDown;
 
-        if (controls.UI_LEFT_P || swipeL) {
+        if (controls.UI_LEFT_P || (FlxG.onMobile && subActionLocked != "scroll" && swipeL && holdTimer <= 0)) {
+            if (FlxG.onMobile) subActionLocked = "side";
             tSel_IsMin = !tSel_IsMin;
+            if (FlxG.onMobile) holdTimer = 0.2;
             if (sndScroll != null) FlxG.sound.play(sndScroll, 0.5);
         }
-        if (controls.UI_RIGHT_P || swipeR) {
+        if (controls.UI_RIGHT_P || (FlxG.onMobile && subActionLocked != "scroll" && swipeR && holdTimer <= 0)) {
+            if (FlxG.onMobile) subActionLocked = "side";
             tSel_IsMin = !tSel_IsMin;
+            if (FlxG.onMobile) holdTimer = 0.2;
             if (sndScroll != null) FlxG.sound.play(sndScroll, 0.5);
         }
 
-        if (controls.UI_UP_P || swipeU) {
+        if (controls.UI_UP_P || (FlxG.onMobile && subActionLocked != "side" && swipeU && holdTimer <= 0)) {
+            if (FlxG.onMobile) subActionLocked = "scroll";
             if (!tSel_IsMin) tSel_Hour++; else tSel_Min++;
+            if (FlxG.onMobile) holdTimer = 0.1;
             if (sndScroll != null) FlxG.sound.play(sndScroll, 0.5);
         }
-        if (controls.UI_DOWN_P || swipeD) {
+        if (controls.UI_DOWN_P || (FlxG.onMobile && subActionLocked != "side" && swipeD && holdTimer <= 0)) {
+            if (FlxG.onMobile) subActionLocked = "scroll";
             if (!tSel_IsMin) tSel_Hour--; else tSel_Min--;
+            if (FlxG.onMobile) holdTimer = 0.1;
             if (sndScroll != null) FlxG.sound.play(sndScroll, 0.5);
         }
 
@@ -714,6 +768,8 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
         if (parent.descBg != null) parent.descBg.visible = !parent.panelHidden;
         if (parent.descTextDisplay != null) parent.descTextDisplay.visible = !parent.panelHidden;
         if (parent.descValueText != null) parent.descValueText.visible = !parent.panelHidden;
+        
+        wasMenuJustClosed = true;
     }
 
     public function selectCurrentFont() {
@@ -766,7 +822,7 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
         }
     }
 
-    function changeFontSelection(change:Int = 0) {
+    function changeFontSelection(change:Int = 0, updateScroll:Bool = true) {
         var prevIndex = fontSelectedIndex;
         fontSelectedIndex += change;
         if (fontSelectedIndex < 0) fontSelectedIndex = fontItems.length - 1;
@@ -787,7 +843,7 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
             HapticUtil.vibrate(0, 0.01, 0.15, 0.1);
         }
 
-        if (fontItems.length > 0) {
+        if (updateScroll && fontItems.length > 0) {
             var targetY = fontItems[fontSelectedIndex].y - halfScreenH + 60;
             fontTargetScrollY = Math.max(0, Math.min(fontMaxScroll, targetY));
         }
@@ -857,40 +913,115 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
     }
 
     function handleFontInput(elapsed:Float) {
-        var tJustPressed = false;
+        if (FlxG.onMobile && TouchUtil.justPressed) {
+            subActionLocked = "none";
+        }
+
         var swipeU = SwipeUtil.swipeUp;
         var swipeD = SwipeUtil.swipeDown;
         var swipeL = SwipeUtil.swipeLeft;
         var swipeR = SwipeUtil.swipeRight;
         
+        var acceptPressed = controls.ACCEPT_P;
+        
         if (FlxG.onMobile) {
-            tJustPressed = TouchUtil.justPressed;
+            if (subActionLocked != "scroll" && (swipeL || swipeR)) {
+                subActionLocked = "side";
+                closeFontSelector();
+                return;
+            }
+
+            var tPressed = TouchUtil.touch != null;
+            if (tPressed) {
+                var curY = TouchUtil.touch.screenY;
+                if (fontDragLastY != -1) {
+                    var d = curY - fontDragLastY;
+                    if (Math.abs(d) > 2) {
+                        subActionLocked = "scroll";
+                        fontTargetScrollY -= d;
+                        if (fontTargetScrollY < 0) fontTargetScrollY = 0;
+                        if (fontTargetScrollY > fontMaxScroll) fontTargetScrollY = fontMaxScroll;
+                    }
+                }
+                fontDragLastY = curY;
+            } else {
+                fontDragLastY = -1;
+            }
+
+            if (subActionLocked == "none") {
+                var startIdx = fontVisibleStart < 0 ? 0 : fontVisibleStart;
+                var endIdx = fontVisibleEnd < 0 ? fontItems.length - 1 : fontVisibleEnd;
+                if (endIdx >= fontItems.length) endIdx = fontItems.length - 1;
+                
+                for (i in startIdx...(endIdx + 1)) {
+                    var item = fontItems[i];
+                    if (item != null && item.bg != null && TouchUtil.justReleased && TouchUtil.overlaps(item.bg)) {
+                        if (i == fontSelectedIndex) {
+                            acceptPressed = true;
+                        } else {
+                            changeFontSelection(i - fontSelectedIndex, false);
+                        }
+                        break;
+                    }
+                }
+            }
         } else {
-            tJustPressed = FlxG.mouse.justPressed;
+            var mPressed = FlxG.mouse.pressed;
+            if (mPressed) {
+                var curY = FlxG.mouse.screenY;
+                if (fontDragLastY != -1) {
+                    var d = curY - fontDragLastY;
+                    if (Math.abs(d) > 2) {
+                        fontTargetScrollY -= d;
+                        if (fontTargetScrollY < 0) fontTargetScrollY = 0;
+                        if (fontTargetScrollY > fontMaxScroll) fontTargetScrollY = fontMaxScroll;
+                    }
+                }
+                fontDragLastY = curY;
+            } else {
+                fontDragLastY = -1;
+            }
+
+            var startIdx = fontVisibleStart < 0 ? 0 : fontVisibleStart;
+            var endIdx = fontVisibleEnd < 0 ? fontItems.length - 1 : fontVisibleEnd;
+            if (endIdx >= fontItems.length) endIdx = fontItems.length - 1;
+            
+            for (i in startIdx...(endIdx + 1)) {
+                var item = fontItems[i];
+                if (item != null && item.bg != null && FlxG.mouse.justReleased && FlxG.mouse.overlaps(item.bg)) {
+                    if (i == fontSelectedIndex) {
+                        acceptPressed = true;
+                    } else {
+                        changeFontSelection(i - fontSelectedIndex, false);
+                    }
+                    break;
+                }
+            }
         }
 
-        if (controls.UI_UP_P || swipeD) {
+        if (controls.UI_UP_P) {
             changeFontSelection(-1);
             holdTimer = 0.5;
         }
-        if (controls.UI_DOWN_P || swipeU) {
+        if (controls.UI_DOWN_P) {
             changeFontSelection(1);
             holdTimer = 0.5;
         }
         
         if (FlxG.mouse != null && FlxG.mouse.wheel != 0) {
-            changeFontSelection(-FlxG.mouse.wheel);
+            fontTargetScrollY -= FlxG.mouse.wheel * 60;
+            if (fontTargetScrollY < 0) fontTargetScrollY = 0;
+            if (fontTargetScrollY > fontMaxScroll) fontTargetScrollY = fontMaxScroll;
         }
         
         if (controls.UI_UP || controls.UI_DOWN) {
-            holdTimer -= elapsed;
             if (holdTimer <= 0) {
                 changeFontSelection(controls.UI_UP ? -1 : 1);
                 holdTimer = 0.05;
             }
         }
 
-        if (controls.ACCEPT_P || (FlxG.onMobile && tJustPressed && SwipeUtil.swipeDistance < 10)) {
+        if (acceptPressed) {
             selectCurrentFont();
         }
         
@@ -900,6 +1031,7 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
     }
 
     override public function update(elapsed:Float):Void {
+        wasMenuJustClosed = false;
         super.update(elapsed);
         
         var sw = screenW;
@@ -915,19 +1047,19 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
         if (isOpMenuOpen) { 
             moveGroup(opSel_Group, targetFontX, elapsed, 12);
             if (holdTimer > 0) holdTimer -= elapsed;
-            if (holdTimer <= 0) handleOpacityInput(elapsed); 
+            handleOpacityInput(elapsed); 
             return; 
         }
         if (isVolMenuOpen) { 
             moveGroup(volSel_Group, targetFontX, elapsed, 12);
             if (holdTimer > 0) holdTimer -= elapsed;
-            if (holdTimer <= 0) handleVolumeInput(elapsed); 
+            handleVolumeInput(elapsed); 
             return; 
         }
         if (isTimeMenuOpen) { 
             moveGroup(tSel_Group, targetFontX, elapsed, 12);
             if (holdTimer > 0) holdTimer -= elapsed;
-            if (holdTimer <= 0) handleTimeInput(elapsed); 
+            handleTimeInput(elapsed); 
             return; 
         }
         if (isFontMenuOpen) { 
@@ -939,7 +1071,7 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
                 updateFontItemVisibility(fontItemsGroup.y, screenH);
             }
             if (holdTimer > 0) holdTimer -= elapsed;
-            if (holdTimer <= 0) handleFontInput(elapsed); 
+            handleFontInput(elapsed); 
             return; 
         }
     }
