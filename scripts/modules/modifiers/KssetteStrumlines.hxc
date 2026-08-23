@@ -319,9 +319,6 @@ class KssetteStrumlines extends KHUDModifier {
                 }
             }
 
-            if (oppStrum.visible && cachedOppOpacity < 1.0) {
-                oppStrum.alpha = cachedOppOpacity;
-            }
         }
 
 
@@ -364,10 +361,11 @@ class KssetteStrumlines extends KHUDModifier {
         var applyArrowLogic = cachedIsArrows;
         var isModActive = (cachedMode == "On" || cachedMode == "P Style" || cachedMode == "Hidden Notes" || cachedMode == "Glass" || cachedMode == "Like Mobile");
 
-        if (!isModActive && !applyArrowLogic) return;
-
         var note = event.note;
-        var isOppNote = !note.noteData.getMustHitNote();
+        var isOppNote = false;
+        if (note != null && note.noteData != null) {
+            isOppNote = !note.noteData.getMustHitNote();
+        }
 
         if (note != null && isOppNote && cachedOppStrum != null) {
             var opp = cachedOppStrum;
@@ -380,10 +378,25 @@ class KssetteStrumlines extends KHUDModifier {
                     note.holdNoteSprite.alpha = 0;
                     note.holdNoteSprite.visible = false;
                 }
-                
-                // removed x=-5000 method
                 return;
+            } else if (cachedMode == "P Style") {
+                note.alpha = 0.6 * cachedOppOpacity;
+                if (note.holdNoteSprite != null) note.holdNoteSprite.alpha = 0.6 * cachedOppOpacity;
+            } else if (cachedMode == "Glass") {
+                if (note.alpha != 0.25) note.alpha = 0.25;
+                if (note.color != 0xFF666666) note.color = 0xFF666666;
+                if (note.holdNoteSprite != null) {
+                    note.holdNoteSprite.alpha = 0.25;
+                    note.holdNoteSprite.color = 0xFF666666;
+                }
+            } else {
+                note.alpha = cachedOppOpacity;
+                if (note.holdNoteSprite != null) {
+                    note.holdNoteSprite.alpha = 0.8 * cachedOppOpacity;
+                }
             }
+
+            if (!isModActive && !applyArrowLogic) return;
 
             var receptors = opp.strumlineNotes.members;
             if (receptors == null || note.direction < 0 || note.direction >= receptors.length) return;
@@ -396,20 +409,11 @@ class KssetteStrumlines extends KHUDModifier {
                     
                     if (note.holdNoteSprite != null) {
                         note.holdNoteSprite.x = targetReceptor.x + (targetReceptor.width * 0.5) - (note.holdNoteSprite.width * 0.5);
-                        note.holdNoteSprite.alpha = 0.6;
                     }
                 }
-                note.alpha = 0.6;
                 return;
             } 
             else if (cachedMode == "Glass") {
-                if (note.alpha != 0.25) note.alpha = 0.25;
-                if (note.color != 0xFF666666) note.color = 0xFF666666;
-                
-                if (note.holdNoteSprite != null) {
-                    note.holdNoteSprite.alpha = 0.25;
-                    note.holdNoteSprite.color = 0xFF666666;
-                }
                 return;
             }
             
@@ -436,7 +440,6 @@ class KssetteStrumlines extends KHUDModifier {
                         note.offset.y -= pixel ? 4 : 15;
                     }
                 }
-                note.alpha = cachedOppOpacity;
 
                 if (targetReceptor != null) {
                     var receptorW = targetReceptor.frameWidth * targetReceptor.scale.x;
@@ -455,7 +458,6 @@ class KssetteStrumlines extends KHUDModifier {
                         
                         holdNote.x = targetReceptor.x + (targetReceptor.width * 0.5) - (holdNote.graphicWidth * 0.5);
                         holdNote.updateClipping();
-                        holdNote.alpha = 0.8 * cachedOppOpacity;
                     }
                 }
             }
@@ -540,6 +542,22 @@ class KssetteStrumlines extends KHUDModifier {
                 for (note in oNotes) if (note != null && note.exists && note.x < minX) minX = note.x;
                 if (minX != Math.POSITIVE_INFINITY)
                     oppStrum.background.x = minX - padding;
+            }
+        }
+
+        if (cachedOppStrum != null) {
+            cachedOppStrum.alpha = cachedOppOpacity;
+            
+            var currentReceptors = cachedOppStrum.strumlineNotes.members;
+            if (currentReceptors != null) {
+                for (receptor in currentReceptors) {
+                    if (receptor != null) {
+                        if (cachedMode == "Glass") receptor.alpha = 0.7;
+                        else if (cachedMode == "P Style") receptor.alpha = 0.6 * cachedOppOpacity;
+                        else if (cachedMode == "Hidden Notes" || cachedMode == "Like Mobile") receptor.alpha = 0.0;
+                        else receptor.alpha = cachedOppOpacity;
+                    }
+                }
             }
         }
 
@@ -642,10 +660,6 @@ class KssetteStrumlines extends KHUDModifier {
                 receptors[1].x = targetLeftX + Strumline.NOTE_SPACING;
                 receptors[3].x = targetRightX;
                 receptors[2].x = targetRightX - Strumline.NOTE_SPACING;
-                
-                for (receptor in receptors) {
-                    if (receptor != null) receptor.alpha = 0.6 * cachedOppOpacity;
-                }
                 hasShifted = true;
             } 
             else if ((cachedMode == "On" || cachedMode == "Like Mobile") && receptors != null && receptors.length > 0) {
@@ -670,7 +684,6 @@ class KssetteStrumlines extends KHUDModifier {
                         var defaultScale:Float = pixel ? 6.0 : 0.7;
                         receptor.scale.set(defaultScale * sizeRatio, defaultScale * sizeRatio);
                         receptor.updateHitbox();
-                        receptor.alpha = cachedOppOpacity;
                     }
                 }
 
@@ -721,11 +734,7 @@ class KssetteStrumlines extends KHUDModifier {
             }
         }
 
-        // Receptors already receive the correct alpha when they are positioned.
-        // This block is kept only to handle the edge case where the strumline is
-        // rebuilt after a song retry without going through onCountdownStart.
-
-        if (cachedOppStrum == null) return;
+        // Receptor opacity moved up above the early return.
 
         splashUpdateTimer += event.elapsed;
         if (splashUpdateTimer >= 0.033) {

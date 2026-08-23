@@ -241,6 +241,8 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
             return;
         }
 
+        var oldOp = opSel_Value;
+
         if (tJustPressed) {
             if (tX >= opSel_Up.x - 40 && tX <= opSel_Up.x + opSel_Up.width + 40 &&
                 tY >= opSel_Up.y - 40 && tY <= opSel_Up.y + opSel_Up.height + 40) {
@@ -259,13 +261,13 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
             if (sndScroll != null) FlxG.sound.play(sndScroll, 0.5);
         }
 
-        if (controls.UI_UP_P || (FlxG.onMobile && subActionLocked != "side" && swipeU && holdTimer <= 0)) {
+        if (controls.UI_UP_P || controls.UI_RIGHT_P || (FlxG.onMobile && subActionLocked != "side" && swipeU && holdTimer <= 0)) {
             if (FlxG.onMobile) subActionLocked = "scroll";
             opSel_Value += 5;
             if (FlxG.onMobile) holdTimer = 0.1;
             if (sndScroll != null) FlxG.sound.play(sndScroll, 0.5);
         }
-        if (controls.UI_DOWN_P || (FlxG.onMobile && subActionLocked != "side" && swipeD && holdTimer <= 0)) {
+        if (controls.UI_DOWN_P || controls.UI_LEFT_P || (FlxG.onMobile && subActionLocked != "side" && swipeD && holdTimer <= 0)) {
             if (FlxG.onMobile) subActionLocked = "scroll";
             opSel_Value -= 5;
             if (FlxG.onMobile) holdTimer = 0.1;
@@ -275,7 +277,10 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
         if (opSel_Value > 100) opSel_Value = 100;
         if (opSel_Value < 5) opSel_Value = 5;
         
-        if (opSel_Value != (opSel_Value > 100 ? 100 : opSel_Value < 5 ? 5 : opSel_Value)) updateOpacityUI();
+        if (oldOp != opSel_Value) {
+            updateOpacityUI();
+            HapticUtil.vibrate(0, 0.01, 0.15, 0.1);
+        }
 
         if (controls.ACCEPT_P || (FlxG.onMobile && FlxG.keys.justPressed.ESCAPE)) {
             saveOpacitySelection();
@@ -389,13 +394,13 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
             volSel_Value += Std.int(FlxG.mouse.wheel * 5);
         }
 
-        if (controls.UI_UP_P || (FlxG.onMobile && subActionLocked != "side" && swipeU && holdTimer <= 0)) {
+        if (controls.UI_UP_P || controls.UI_RIGHT_P || (FlxG.onMobile && subActionLocked != "side" && swipeU && holdTimer <= 0)) {
             if (FlxG.onMobile) subActionLocked = "scroll";
             volSel_Value += 5;
             if (FlxG.onMobile) holdTimer = 0.1;
             if (sndScroll != null) FlxG.sound.play(sndScroll, 0.5);
         }
-        if (controls.UI_DOWN_P || (FlxG.onMobile && subActionLocked != "side" && swipeD && holdTimer <= 0)) {
+        if (controls.UI_DOWN_P || controls.UI_LEFT_P || (FlxG.onMobile && subActionLocked != "side" && swipeD && holdTimer <= 0)) {
             if (FlxG.onMobile) subActionLocked = "scroll";
             volSel_Value -= 5;
             if (FlxG.onMobile) holdTimer = 0.1;

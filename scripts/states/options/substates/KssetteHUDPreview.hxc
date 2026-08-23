@@ -467,12 +467,24 @@ class KssetteHUDPreview extends ScriptedMusicBeatSubState {
         fake.zIndex = 9;
         fake.ID = dir;
         fake.health = isPlayer ? 1 : 0;
-        fake.alpha = 0.8;
+        var oppAlphaVal = 1.0;
+        if (!isPlayer && KssetteOptionsManager.instance != null) {
+            var rawOppOp = KssetteOptionsManager.instance.getKssValue("kssette_opponent_opacity");
+            if (rawOppOp != null) {
+                var valStr = StringTools.replace(Std.string(rawOppOp), "%", "");
+                var valNum = Std.parseFloat(valStr);
+                if (!Math.isNaN(valNum)) oppAlphaVal = valNum / 100.0;
+            }
+        }
+
+        fake.alpha = isPlayer ? 0.8 : oppAlphaVal;
         
         var ms = Std.string(KssetteOptionsManager.instance != null ? KssetteOptionsManager.instance.getKssValue("kssette_middlescroll") : null);
         if (!isPlayer && ms == "Glass") {
             fake.alpha = 0.25;
             fake.color = 0xFF666666;
+        } else if (!isPlayer && ms == "P Style") {
+            fake.alpha = 0.6 * oppAlphaVal;
         }
         
         if (!isPlayer && !canSpawnOpp) {
