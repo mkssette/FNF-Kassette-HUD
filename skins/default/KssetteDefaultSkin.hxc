@@ -8,7 +8,7 @@ class KssetteDefaultSkin extends KassetteHUDSkin {
         super({
             id: "default",
             name: "Default Skin",
-            author: "Kassette",
+            author: "Mikassette",
             description: "The default Kassette HUD skin."
         });
     }

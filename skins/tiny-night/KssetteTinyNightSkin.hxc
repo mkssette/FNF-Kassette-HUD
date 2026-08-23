@@ -8,7 +8,7 @@ class KssetteTinyNightSkin extends KassetteHUDSkin {
         super({
             id: "tiny-night",
             name: "Tiny-Night Skin",
-            author: "Fan (Ported)",
+            author: "Ari Love",
             description: "A compact, night-themed version of Kassette HUD based on a fan edit."
         });
 

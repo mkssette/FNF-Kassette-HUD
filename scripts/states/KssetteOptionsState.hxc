@@ -119,14 +119,9 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
     var uiX:Float = 0;
     var kssBackButton:Dynamic;
     var previewHitbox:FlxSprite;
-    var touchStart:Float = 0;
-    var touchStartX:Float = 0;
-    var isDragging:Bool = false;
-    var dragOffsetY:Float = 0.0;
-    var lastTouchY:Float = 0;
-    var touchVelocityY:Float = 0;
     var previewHoldTimer:Float = 0.0;
     var previewActionFired:Bool = false;
+    var touchActionLocked:String = "none";
     var itemsGroup:FlxSpriteGroup;
 
     var scrollTracker:FlxSprite;
@@ -134,6 +129,7 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 
     var subOptions:Dynamic;
     var hudPreview:Dynamic;
+    var _previewUpdateTimer:Float = 0.0;
 
     public var sndScroll:Dynamic;
     public var sndOn:Dynamic;
@@ -364,10 +360,17 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
         
         super.update(elapsed);
         
+        // Throttle preview module updates to ~10fps on mobile
         if (previewModules != null) {
-            for (mod in previewModules) {
-                if (mod != null) {
-                    mod.onUpdate(elapsed);
+            _previewUpdateTimer += elapsed;
+            var previewThreshold = FlxG.onMobile ? 0.1 : 0.033;
+            if (_previewUpdateTimer >= previewThreshold) {
+                var accum = _previewUpdateTimer;
+                _previewUpdateTimer = 0;
+                for (mod in previewModules) {
+                    if (mod != null) {
+                        mod.onUpdate(accum);
+                    }
                 }
             }
         }
@@ -438,15 +441,6 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
                 marqueeText2.y = marqueeBg.y + 6;
             }
         }
-
-        if (scrollTracker != null) {
-            curSelectedFloat = scrollTracker.y;
-        }
-
-        if (!isDragging) {
-            if (Math.abs(dragOffsetY) > 0.001) dragOffsetY = FlxMath.lerp(dragOffsetY, 0, elapsed * 15);
-            else dragOffsetY = 0;
-        }
         
         var targetXBase:Float = 0;
         var targetDescX:Float = 0;
@@ -490,7 +484,8 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
                 }
             }
         } else {
-            targetXBase = panelOnLeft ? -50 : (sw - smallCapsuleWidth + 40);
+            // panelWidth is approx 576. Center is 288. smallCapsuleWidth is 512. Half is 256. 288 - 256 = 32.
+            targetXBase = panelOnLeft ? 32 : (sw - smallCapsuleWidth - 32);
             targetDescX = panelOnLeft ? (sw - largeCapsuleWidth - 20) : 20;
             targetFadeX = panelOnLeft ? 0 : (sw - panelWidth + 1);
 
@@ -507,6 +502,10 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
             if (capsuleFadeBg.flipX != panelOnLeft) capsuleFadeBg.flipX = panelOnLeft;
         }
 
+        if (scrollTracker != null) {
+            curSelectedFloat = scrollTracker.y;
+        }
+
         var screenTop = -150.0;
         var screenBottom = sh + 150.0;
         var itemCount = optionItems.length;
@@ -517,7 +516,7 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
         }
 
         if (itemCount > 0) {
-            var approxSpan:Int = Std.int(Math.ceil((halfH + 240.0 + Math.abs(dragOffsetY)) / capsuleSpacing)) + 2;
+            var approxSpan:Int = Std.int(Math.ceil((halfH + 240.0) / capsuleSpacing)) + 2;
             visibleStart = Std.int(Math.floor(curSelectedFloat)) - approxSpan;
             visibleEnd = Std.int(Math.ceil(curSelectedFloat)) + approxSpan;
             if (visibleStart < 0) visibleStart = 0;
@@ -544,7 +543,7 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
                 var label = item.labelDisplay;
                 var value = item.textDisplay;
                 var diff = i - curSelectedFloat;
-                var targetY = halfH + (diff * capsuleSpacing) - 50 + dragOffsetY;
+                var targetY = halfH + (diff * capsuleSpacing) - 50;
                 var wasVisible = bg.visible;
                 var isVisible = (targetY > screenTop && targetY < screenBottom);
                 setOptionItemVisible(item, isVisible);
@@ -557,7 +556,6 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
                 var curveOffset = Math.abs(diff) * 45;
                 var targetX = panelOnLeft ? (targetXBase - curveOffset) : (targetXBase + curveOffset);
                 var isSel = i == selectedIndex;
-                if (!item.isHeader && isSel) targetX += panelOnLeft ? 40 : -40;
 
                 if (!wasVisible) {
                     bg.x = targetX;
@@ -591,8 +589,6 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
                             var rawVal = Save.instance.modOptions.get(item.key);
                             if (rawVal == null) rawVal = "Off";
                             value.text = formatShortValue(Std.string(rawVal));
-                        }
-                        if (value != null && value.text != "LCK") {
                             value.color = getValueColor(value.text, item);
                         }
                     }
@@ -1415,59 +1411,14 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
     }
 
     function handleInput(elapsed:Float) {
-        var isOverPreviewZone = false;
-        var pressed = false;
-        
-        if (previewHitbox != null && previewHitbox.exists) {
-            var mx:Float = -1;
-            var my:Float = -1;
-            
-            if (FlxG.onMobile) {
-                if (FlxG.touches != null && FlxG.touches.list != null && FlxG.touches.list.length > 0) {
-                    var t = FlxG.touches.list[0];
-                    if (t != null) {
-                        mx = t.screenX;
-                        my = t.screenY;
-                        pressed = t.pressed;
-                    }
-                }
-            } else {
-                if (FlxG.mouse != null) {
-                    mx = FlxG.mouse.screenX;
-                    my = FlxG.mouse.screenY;
-                    pressed = FlxG.mouse.pressed;
-                }
-            }
-            
-            if (mx >= previewHitbox.x && mx <= previewHitbox.x + previewHitbox.width && 
-                my >= previewHitbox.y && my <= previewHitbox.y + previewHitbox.height) {
-                isOverPreviewZone = true;
-            }
+        if (FlxG.onMobile && TouchUtil.justPressed) {
+            touchActionLocked = "none";
         }
 
-        if (isOverPreviewZone) {
-            if (pressed) {
-                previewHoldTimer += elapsed;
-                if (previewHoldTimer >= 0.5 && !previewActionFired) {
-                    previewActionFired = true;
-                    panelHidden = !panelHidden;
-                    if (sndScroll != null) FlxG.sound.play(sndScroll, 0.5);
-                }
-            } else {
-                previewHoldTimer = 0.0;
-                previewActionFired = false;
-            }
-        } else {
-            previewHoldTimer = 0.0;
-            previewActionFired = false;
-        }
-
-        if (FlxG.onMobile) {
-            if (SwipeUtil.swipeUp && !panelHidden) {
-                changeSelection(-1);
-            } else if (SwipeUtil.swipeDown && !panelHidden) {
-                changeSelection(1);
-            } else if ((SwipeUtil.swipeLeft || SwipeUtil.swipeRight) && !transitioningSide && !panelHidden && holdTimer <= 0) {
+        // --- Side Swipes (Left/Right) ---
+        if (FlxG.onMobile && (touchActionLocked == "none" || touchActionLocked == "side") && (SwipeUtil.swipeLeft || SwipeUtil.swipeRight)) {
+            if (!transitioningSide && holdTimer <= 0) {
+                touchActionLocked = "side";
                 transitioningSide = true;
                 transitionTimer = 0.0;
                 nextPanelOnLeft = !panelOnLeft;
@@ -1476,26 +1427,63 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
             }
         }
 
+        // --- Preview Zone Hold-to-Toggle ---
+        if (FlxG.onMobile && previewHitbox != null && previewHitbox.exists && TouchUtil.pressed && TouchUtil.touch != null) {
+            var tx = TouchUtil.touch.screenX;
+            var ty = TouchUtil.touch.screenY;
+            var touchInPreviewRect = (tx >= previewHitbox.x && tx <= previewHitbox.x + previewHitbox.width && ty >= previewHitbox.y && ty <= previewHitbox.y + previewHitbox.height);
+            
+            if (touchInPreviewRect && touchActionLocked == "none") {
+                if (FlxG.game.ticks - TouchUtil.touch.justPressedTimeInTicks >= 500 && !previewActionFired) {
+                    previewActionFired = true;
+                    touchActionLocked = "preview";
+                    panelHidden = !panelHidden;
+                    if (sndScroll != null) FlxG.sound.play(sndScroll, 0.5);
+                    HapticUtil.vibrate(0, 0.01, 0.25, 0.1);
+                }
+            }
+        }
+        if (!TouchUtil.pressed) {
+            previewActionFired = false;
+        }
+
         if (!FlxG.onMobile && FlxG.mouse != null && FlxG.mouse.wheel != 0 && !panelHidden) {
             changeSelection(Std.int(-FlxG.mouse.wheel));
         }
 
         if (!panelHidden && !transitioningSide) {
-            if (PlayerSettings.player1.controls.UI_UP_P) {
+            if (PlayerSettings.player1.controls.UI_UP_P || (FlxG.onMobile && (touchActionLocked == "none" || touchActionLocked == "scroll") && SwipeUtil.swipeUp)) {
+                if (FlxG.onMobile) touchActionLocked = "scroll";
                 changeSelection(-1);
                 holdTimer = 0.1;
             }
-            if (PlayerSettings.player1.controls.UI_DOWN_P) {
+            if (PlayerSettings.player1.controls.UI_DOWN_P || (FlxG.onMobile && (touchActionLocked == "none" || touchActionLocked == "scroll") && SwipeUtil.swipeDown)) {
+                if (FlxG.onMobile) touchActionLocked = "scroll";
                 changeSelection(1);
                 holdTimer = 0.1;
             }
             
             var acceptPressed = PlayerSettings.player1.controls.ACCEPT_P;
-            if (FlxG.onMobile) {
-                var selItem = optionItems[selectedIndex];
-                if (selItem != null && selItem.bg != null) {
-                    if (TouchUtil.pressAction(selItem.bg)) {
-                        acceptPressed = true;
+            
+            // --- Tap on Capsules (TouchUtil.pressAction) ---
+            if (FlxG.onMobile && !previewActionFired) {
+                var startIdx = visibleStart < 0 ? 0 : visibleStart;
+                var endIdx = visibleEnd < 0 ? optionItems.length - 1 : visibleEnd;
+                if (endIdx >= optionItems.length) endIdx = optionItems.length - 1;
+                for (i in startIdx...(endIdx + 1)) {
+                    var item = optionItems[i];
+                    if (item == null || item.bg == null || !item.bg.visible || item.isHeader) continue;
+                    
+                    if (TouchUtil.pressAction(item.bg, null, false)) {
+                        if (i == selectedIndex) {
+                            acceptPressed = true; // Activate selected capsule
+                        } else {
+                            // Navigate to unselected capsule
+                            selectedIndex = i;
+                            changeSelection(0);
+                            holdTimer = 0.2;
+                        }
+                        break;
                     }
                 }
             }
