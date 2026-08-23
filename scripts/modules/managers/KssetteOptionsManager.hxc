@@ -18,6 +18,9 @@ class KssetteOptionsManager extends Module {
     public static var instance:Dynamic = null;
     public var _kssCache:Map<String, Dynamic> = null;
     public var _definitionsCache:Map<String, Dynamic> = null;
+
+    public var forcedValues:Map<String, Dynamic>;
+    public var songLockedOptions:Array<String> = [];
     public var _kssCacheReady:Bool = false;
     public var _mobileLikePc:Bool = true;
     public var isMobileMode:Bool = false;
@@ -31,6 +34,8 @@ class KssetteOptionsManager extends Module {
         KssetteOptionsManager.instance = this;
         this.active = true;
         isMobileMode = FlxG.onMobile;
+        forcedValues = ["__dummy__" => null];
+        forcedValues.remove("__dummy__");
         loadOptionsJSON();
     }
 
@@ -167,6 +172,8 @@ class KssetteOptionsManager extends Module {
     }
 
     public function isOptionLocked(key:String):Bool {
+        if (songLockedOptions.contains(key)) return true;
+
         var skinManager = KassetteSkinManager.instance;
         if (skinManager != null) {
             var currentSkin = skinManager.getCurrentSkin();
@@ -197,6 +204,7 @@ class KssetteOptionsManager extends Module {
     }
 
     public function getKssValue(key:String):Dynamic { 
+        if (forcedValues.exists(key)) return forcedValues.get(key);
         if (!_kssCacheReady) refreshOptionCache();
         if (_kssCache != null && _kssCache.exists(key)) return _kssCache.get(key);
         return normalizeKssValue(key, Save.instance.modOptions.get(key));
@@ -215,6 +223,12 @@ class KssetteOptionsManager extends Module {
 
     public function getHudStyleId():String {
         return getKssValue("kssette_acc_mode");
+    }
+
+    public function clearSongOverrides():Void {
+        var keys = forcedValues.keys();
+        for (k in keys) forcedValues.remove(k);
+        songLockedOptions = [];
     }
 
     override public function onStateChangeEnd(event:StateChangeScriptEvent):Void {

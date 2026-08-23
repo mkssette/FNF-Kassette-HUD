@@ -1,1 +1,296 @@
-// DELETED
+package kassettehud.api;
+
+import funkin.modding.module.Module;
+import kassettehud.util.KssetteOptionsManager;
+import kassettehud.util.KassetteHUDDatahunter;
+import kassettehud.util.KssetteFontManager;
+import funkin.play.PlayState;
+
+class KssetteApi extends Module {
+	public static var instance:KssetteApi;
+
+	public function new() {
+		super("KssetteApi");
+		instance = this;
+	}
+
+	// Returns the name of the currently active skin (e.g. "default", "tiny-night").
+	// Example: ModuleHandler.getModule("KssetteApi").scriptCall("getActiveSkin", [])
+	public function getActiveSkin():String {
+		var optManager = KssetteOptionsManager.instance;
+		if (optManager == null)
+			return "default";
+		var skin:String = optManager.getKssValue("kssette_skin");
+		return skin == null ? "default" : skin;
+	}
+
+	// Indicates whether the main Kassette HUD is visible or not.
+	// Example: ModuleHandler.getModule("KssetteApi").scriptCall("isHUDVisible", [])
+	public function isHUDVisible():Bool {
+		var optManager = KssetteOptionsManager.instance;
+		if (optManager == null)
+			return true;
+		var val = optManager.getKssValue("kssette_show_hud");
+		return val == true || val == "true" || val == "On";
+	}
+
+	// Allows checking if the Kassette touch keyboard (if implemented) is enabled.
+	// MLPC uses this to avoid disabling kssette_mobile_keyboard.
+	// Example: ModuleHandler.getModule("KssetteApi").scriptCall("isMobileKeyboardEnabled", [])
+	public function isMobileKeyboardEnabled():Bool {
+		var optManager = KssetteOptionsManager.instance;
+		if (optManager == null)
+			return false;
+		var val = optManager.getKssValue("kssette_mobile_keyboard");
+		return val == true || val == "On" || val == "true";
+	}
+
+	// Hides the HUD completely. Ideal for cinematic events.
+	// Usage example from a script (HScript / Lua):
+	// ModuleHandler.getModule("KssetteApi").scriptCall("forceHideHUD", [])
+	public function forceHideHUD():Void {
+		forceOptionValue("kssette_show_hud", "Off");
+	}
+
+	// Reverts the forced hiding of the HUD, returning it to the user's setting.
+	// Usage example:
+	// ModuleHandler.getModule("KssetteApi").scriptCall("resetHideHUD", [])
+	public function resetHideHUD():Void {
+		resetOptionValue("kssette_show_hud");
+	}
+
+	// Forces the value of a Kassette HUD option regardless of the player's configuration.
+	// This setting is temporary for the current song.
+	// Example: Force accuracy mode to Off.
+	// ModuleHandler.getModule("KssetteApi").scriptCall("forceOptionValue", ["kssette_acc_mode", "Off"])
+	public function forceOptionValue(key:String, value:Dynamic):Void {
+		var optManager = KssetteOptionsManager.instance;
+		if (optManager != null) {
+			optManager.forcedValues.set(key, value);
+			optManager.invalidateCache();
+		}
+	}
+
+	// Reverts a forced setting to its original value from the user's configuration.
+	// Example:
+	// ModuleHandler.getModule("KssetteApi").scriptCall("resetOptionValue", ["kssette_acc_mode"])
+	public function resetOptionValue(key:String):Void {
+		var optManager = KssetteOptionsManager.instance;
+		if (optManager != null) {
+			optManager.forcedValues.remove(key);
+			optManager.invalidateCache();
+		}
+	}
+
+	// Locks an option so the player cannot change it (or it returns to its default value).
+	// Example:
+	// ModuleHandler.getModule("KssetteApi").scriptCall("lockOption", ["kssette_show_score"])
+	public function lockOption(key:String):Void {
+		var optManager = KssetteOptionsManager.instance;
+		if (optManager != null && !optManager.songLockedOptions.contains(key)) {
+			optManager.songLockedOptions.push(key);
+		}
+	}
+
+	// Unlocks a previously locked option in the same song.
+	// Example: ModuleHandler.getModule("KssetteApi").scriptCall("unlockOption", ["kssette_show_score"])
+	public function unlockOption(key:String):Void {
+		var optManager = KssetteOptionsManager.instance;
+		if (optManager != null) {
+			optManager.songLockedOptions.remove(key);
+		}
+	}
+
+	// Clears all forced option alterations and locks made by this or other scripts.
+	// Called automatically when exiting to the menu.
+	// Example: ModuleHandler.getModule("KssetteApi").scriptCall("clearAllOverrides", [])
+	public function clearAllOverrides():Void {
+		var optManager = KssetteOptionsManager.instance;
+		if (optManager != null) {
+			optManager.clearSongOverrides();
+			optManager.invalidateCache();
+		}
+	}
+
+	// Returns the current value of an option (taking forced values into account).
+	// Example:
+	// var scoreBop = ModuleHandler.getModule("KssetteApi").scriptCall("getKssValue", ["kssette_score_bop"])
+	public function getKssValue(key:String):Dynamic {
+		var optManager = KssetteOptionsManager.instance;
+		if (optManager == null) return null;
+		return optManager.getKssValue(key);
+	}
+
+
+	// ==========================================
+	// BRIDGE METHODS (For external mods compatibility)
+	// These methods allow other mods to easily read information from the game
+	// without having to write complex checks.
+	// ==========================================
+
+	// Returns the title of the current song.
+	// Example: ModuleHandler.getModule("KssetteApi").scriptCall("getSongTitle", [])
+	public function getSongTitle():String {
+		if (KassetteHUDDatahunter.song != null) return KassetteHUDDatahunter.song.getSongTitle();
+		return "Unknown";
+	}
+
+	// Returns the artist of the current song, reading from the chart metadata.
+	// Example: ModuleHandler.getModule("KssetteApi").scriptCall("getSongArtist", [])
+	public function getSongArtist():String {
+		if (KassetteHUDDatahunter.song != null) return KassetteHUDDatahunter.song.getSongArtist();
+		return "Unknown Artist";
+	}
+
+	// Returns the current difficulty as an uppercase string (e.g. "NORMAL", "HARD").
+	// Example: ModuleHandler.getModule("KssetteApi").scriptCall("getDifficulty", [])
+	public function getDifficulty():String {
+		if (KassetteHUDDatahunter.song != null) return KassetteHUDDatahunter.song.getDifficulty();
+		return "NORMAL";
+	}
+
+	// Returns the remaining time of the song formatted as a string (e.g. "1:23").
+	// Example: ModuleHandler.getModule("KssetteApi").scriptCall("getTimeRemaining", [])
+	public function getTimeRemaining():String {
+		if (KassetteHUDDatahunter.song != null) return KassetteHUDDatahunter.song.getTimeRemaining();
+		return "0:00";
+	}
+
+	// Returns the progress of the song as a float between 0.0 (start) and 1.0 (end).
+	// Example: ModuleHandler.getModule("KssetteApi").scriptCall("getSongProgress", [])
+	public function getSongProgress():Float {
+		if (KassetteHUDDatahunter.song != null) return KassetteHUDDatahunter.song.getSongProgress();
+		return 0.0;
+	}
+
+	// Calculates and returns the current accuracy percentage as a float (e.g. 98.5).
+	// Example: ModuleHandler.getModule("KssetteApi").scriptCall("getAccuracy", [])
+	public function getAccuracy(state:PlayState = null):Float {
+		if (KassetteHUDDatahunter.score != null) return KassetteHUDDatahunter.score.getAccuracy(state);
+		return 0.0;
+	}
+
+	// Calculates and returns the current rank letter (e.g. "S", "A", "B", "?").
+	// Example: ModuleHandler.getModule("KssetteApi").scriptCall("getRankID", [])
+	public function getRankID(state:PlayState = null):String {
+		if (KassetteHUDDatahunter.score != null) return KassetteHUDDatahunter.score.cachedRank;
+		return "?";
+	}
+
+	// Returns the current combo tier (e.g. "SFC", "GFC", "FC", "SDCB", "Clear").
+	// Example: ModuleHandler.getModule("KssetteApi").scriptCall("getComboTier", [])
+	public function getComboTier(state:PlayState = null):String {
+		if (KassetteHUDDatahunter.score != null) return KassetteHUDDatahunter.score.cachedTier;
+		return "N/A";
+	}
+
+	// Returns a message if Botplay is active (e.g. 'Watching "Song" with Botplay').
+	// Very useful for anti-cheat checks or HUD warnings.
+	// Example: ModuleHandler.getModule("KssetteApi").scriptCall("getModeMessage", [])
+	public function getModeMessage():String {
+		if (KassetteHUDDatahunter.song != null) return KassetteHUDDatahunter.song.getModeMessage();
+		return "";
+	}
+
+	// Returns true if downscroll is active (either from user preferences or forced by mobile mode).
+	// Example: ModuleHandler.getModule("KssetteApi").scriptCall("getDownscroll", [])
+	public function getDownscroll():Bool {
+		if (KassetteHUDDatahunter.song != null) return KassetteHUDDatahunter.song.getDownscroll();
+		return false;
+	}
+
+	// Returns true if downscroll is being forced to ON (usually for mobile).
+	// Example: ModuleHandler.getModule("KssetteApi").scriptCall("isForcedDownscroll", [])
+	public function isForcedDownscroll():Bool {
+		var optManager = KssetteOptionsManager.instance;
+		if (optManager == null) return false;
+		return optManager.isForcedDownscroll();
+	}
+
+	// Returns true if the game is running on mobile but behaving like a PC (no forced touch changes).
+	// Example: ModuleHandler.getModule("KssetteApi").scriptCall("isMobileLikePC", [])
+	public function isMobileLikePC():Bool {
+		var optManager = KssetteOptionsManager.instance;
+		if (optManager == null) return true;
+		return optManager.isMobileLikePC();
+	}
+
+	// ==========================================
+	// ADDITIONAL DATAHUNTER METHODS
+	// ==========================================
+
+	// Returns true if the song is currently in a "break" (long pause between notes).
+	// Example: ModuleHandler.getModule("KssetteApi").scriptCall("isBreakMode", [])
+	public function isBreakMode():Bool {
+		if (KassetteHUDDatahunter.breakData != null && KassetteHUDDatahunter.breakData.currentBreakData != null) {
+			return KassetteHUDDatahunter.breakData.currentBreakData.active;
+		}
+		return false;
+	}
+
+	// Returns the raw break data object {active, progress, timeLeft}.
+	// Example: ModuleHandler.getModule("KssetteApi").scriptCall("getBreakData", [])
+	public function getBreakData():Dynamic {
+		if (KassetteHUDDatahunter.breakData != null) {
+			return KassetteHUDDatahunter.breakData.currentBreakData;
+		}
+		return { active: false, progress: 0.0, timeLeft: 0.0 };
+	}
+
+	// Extracts the dominant color from a character's icon.
+	// Example: ModuleHandler.getModule("KssetteApi").scriptCall("extractIconColor", [iconSpr, true, "bf"])
+	public function extractIconColor(icon:Dynamic, isPlayer:Bool = false, iconId:String = null):Int {
+		if (KassetteHUDDatahunter.icon != null) {
+			return KassetteHUDDatahunter.icon.extractIconColor(icon, isPlayer, iconId);
+		}
+		return isPlayer ? 0xFF66FF33 : 0xFFFF0000;
+	}
+
+	// Returns a map of available custom fonts.
+	// Example: ModuleHandler.getModule("KssetteApi").scriptCall("getAvailableFonts", [])
+	public function getAvailableFonts():Map<String, String> {
+		if (KassetteHUDDatahunter.asset != null) {
+			return KassetteHUDDatahunter.asset.getAvailableFonts();
+		}
+		return ["VCR OSD Mono" => "vcr.ttf"];
+	}
+
+	// Resolves the file path of a custom font based on its key.
+	// Example: ModuleHandler.getModule("KssetteApi").scriptCall("resolveCustomFont", ["vcr.ttf"])
+	public function resolveCustomFont(fontKey:String):String {
+		if (KassetteHUDDatahunter.asset != null) {
+			return KassetteHUDDatahunter.asset.resolveCustomFont(fontKey);
+		}
+		return "VCR OSD Mono";
+	}
+
+	// Returns the current HUD font.
+	// Example: ModuleHandler.getModule("KssetteApi").scriptCall("getHudFont", [])
+	public function getHudFont():String {
+		var fontManager = KssetteFontManager.instance;
+		if (fontManager != null) {
+			return fontManager.getHudFont();
+		}
+		return "VCR OSD Mono";
+	}
+	
+	// Returns a custom font path or default.
+	// Example: ModuleHandler.getModule("KssetteApi").scriptCall("getCustomFont", [])
+	public function getCustomFont():String {
+		var fontManager = KssetteFontManager.instance;
+		if (fontManager != null && fontManager.cachedCustomFontPath != null && fontManager.cachedCustomFontPath != "") {
+			return fontManager.cachedCustomFontPath;
+		}
+		return "VCR OSD Mono";
+	}
+
+	// Returns a custom pixel font path or default.
+	// Example: ModuleHandler.getModule("KssetteApi").scriptCall("getCustomPixelFont", [])
+	public function getCustomPixelFont():String {
+		var fontManager = KssetteFontManager.instance;
+		if (fontManager != null && fontManager.cachedCustomPixelFontPath != null && fontManager.cachedCustomPixelFontPath != "") {
+			return fontManager.cachedCustomPixelFontPath;
+		}
+		return "VCR OSD Mono";
+	}
+}
