@@ -78,7 +78,7 @@ class IconColorDatahunter extends KassetteHUDDatahunter {
         }
     }
 
-    public function getIconColor(iconId:String, defaultColor:Int):Int {
+    public function getIconColor(iconId:String, defaultColor:Int, isPlayer:Bool = false):Int {
         if (iconId != null && iconId != "" && iconId != "generic_p1" && iconId != "generic_p2") {
             if (ReflectUtil.hasField(iconColorCache, iconId)) {
                 return ReflectUtil.field(iconColorCache, iconId);
@@ -105,6 +105,7 @@ class IconColorDatahunter extends KassetteHUDDatahunter {
     }
 
     public function extractIconColor(icon:Dynamic, isPlayer:Bool = false, iconId:String = null):Int {
+
         var isCacheable = (iconId != null && iconId != "" && iconId != "generic_p1" && iconId != "generic_p2");
         var fallbackColor:Int = isPlayer ? 0xFF66FF33 : 0xFFFF0000;
 
@@ -181,5 +182,20 @@ class IconColorDatahunter extends KassetteHUDDatahunter {
         }
 
         return finalColor;
+    }
+
+    public function applyHealthBarColors(bar:Dynamic, isSolo:Bool, p1Color:Int, p2Color:Int):Void {
+        if (bar == null) return;
+
+        if (isSolo) {
+            bar.createFilledBar(0xFF000000, p1Color);
+        } else {
+            var directionStr = Std.string(bar.fillDirection);
+            if (directionStr == "LEFT_TO_RIGHT") {
+                bar.createFilledBar(p1Color, p2Color);
+            } else {
+                bar.createFilledBar(p2Color, p1Color);
+            }
+        }
     }
 }

@@ -59,6 +59,8 @@ import Std;
 import Math;
 
 class TinyNightAccuracy extends KassetteHUDElement {
+    public static var lastUiBottomY:Float = 0;
+
     /** Text separator used between score, accuracy, rank, etc. */
     var separator:String = " / ";
     
@@ -618,21 +620,29 @@ class TinyNightAccuracy extends KassetteHUDElement {
         if (infoText != null && infoText.exists && infoText.size != 20) infoText.size = 20;
         if (uiText != null && uiText.exists && uiText.size != 20) uiText.size = 20;
 
-        if (timeText != null) {
-            // timeText is now positioned next to the judge counter
-        }
-        
+        var currentY:Float = stackTopY + lineH;
+
         if (infoText != null) {
-            infoText.setPosition(blockX, stackTopY + lineH);
             infoText.fieldWidth = blockW;
             infoText.alignment = "left";
+            if (infoText.visible) {
+                infoText.setPosition(blockX, currentY);
+                if (infoText.text != "") currentY += infoText.height + 4;
+            }
         }
         
-        uiText.setPosition(blockX, stackTopY + lineH + gapToUi);
-        uiText.fieldWidth = barBlockW;
-        uiText.alignment = "center";
+        if (uiText != null) {
+            uiText.fieldWidth = barBlockW;
+            uiText.alignment = "center";
+            if (uiText.visible) {
+                uiText.setPosition(blockX, currentY);
+                if (uiText.text != "") currentY += uiText.height + 4;
+            }
+        }
         
-        if (uiText.zIndex < 900) {
+        TinyNightAccuracy.lastUiBottomY = currentY;
+
+        if (uiText != null && uiText.zIndex < 900) {
             uiText.zIndex = 1000;
         }
         
@@ -662,13 +672,17 @@ class TinyNightAccuracy extends KassetteHUDElement {
         if (jPos == "Right") sx = FlxG.width - tw - jMarginRight;
         if (jPos == "Top Right") { sx = FlxG.width - tw - jMarginRight; sY = 100; }
         
+        var headerHeight:Float = 26;
+        if (judgeHeaderText != null && judgeHeaderText.visible && judgeHeaderText.height > headerHeight) headerHeight = judgeHeaderText.height;
+        if (timeText != null && timeText.visible && timeText.height > headerHeight) headerHeight = timeText.height;
+
         if (judgeHeaderText != null) {
-            judgeHeaderText.setPosition(sx, sY - 26);
+            judgeHeaderText.setPosition(sx, sY - headerHeight);
             judgeHeaderText.fieldWidth = tw;
             judgeHeaderText.alignment = "left";
         }
         if (timeText != null) {
-            timeText.setPosition(sx, sY - 26);
+            timeText.setPosition(sx, sY - headerHeight);
             timeText.fieldWidth = tw;
             timeText.alignment = "right";
         }

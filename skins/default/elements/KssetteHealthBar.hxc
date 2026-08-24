@@ -296,9 +296,6 @@ class KssetteHealthBar extends KassetteHUDElement {
         }
 
         if (getSetting("kssette_colored_healthbar") == true) {
-            // Disable Gammod's health bar override so our colors take priority.
-            var _gammodPlay = ModuleHandler.getModule("GammodPlayModule");
-            _gammodPlay?.scriptSet("healthBarOverride", false);
             
             if (p1 != null && p2 != null && hb != null) {
                 // Only resample colors when the active icons change.
@@ -309,31 +306,30 @@ class KssetteHealthBar extends KassetteHUDElement {
                     _p1Color = iconHunter != null ? iconHunter.extractIconColor(p1, true, curP1) : 0xFF66FF33;
                     _p2Color = iconHunter != null ? iconHunter.extractIconColor(p2, false, curP2) : 0xFFFF0000;
                     
-                    // Apply colors: solo = black to p1, opposite = p1 on left, normal = p2 on left.
-                    if (isSolo) {
-                        hb.createFilledBar(FlxColor.BLACK, _p1Color);
-                    } else if (gammodPlayerSide == "OPPOSITE") {
-                        hb.createFilledBar(_p1Color, _p2Color);
+                    // Apply colors centrally via Datahunter
+                    if (iconHunter != null) {
+                        iconHunter.applyHealthBarColors(hb, isSolo, _p1Color, _p2Color);
                     } else {
-                        hb.createFilledBar(_p2Color, _p1Color);
+                        if (isSolo) hb.createFilledBar(FlxColor.BLACK, _p1Color);
+                        else hb.createFilledBar(_p2Color, _p1Color);
                     }
                     hb.updateBar();
                 }
             }
         } else if (_lastP1Id != "") {
             // The feature was disabled — restore default green/red colors.
-            var _gammodPlay = ModuleHandler.getModule("GammodPlayModule");
-            _gammodPlay?.scriptSet("healthBarOverride", true);
 
             _lastP1Id = "";
             _lastP2Id = "";
             if (hb != null) {
-                if (isSolo) {
-                    hb.createFilledBar(FlxColor.BLACK, 0xFF66FF33);
-                } else if (gammodPlayerSide == "OPPOSITE") {
-                    hb.createFilledBar(0xFF66FF33, 0xFFFF0000);
+                var defP1 = iconHunter != null ? iconHunter.getIconColor(null, 0xFF66FF33, true) : 0xFF66FF33;
+                var defP2 = iconHunter != null ? iconHunter.getIconColor(null, 0xFFFF0000, false) : 0xFFFF0000;
+                
+                if (iconHunter != null) {
+                    iconHunter.applyHealthBarColors(hb, isSolo, defP1, defP2);
                 } else {
-                    hb.createFilledBar(0xFFFF0000, 0xFF66FF33);
+                    if (isSolo) hb.createFilledBar(FlxColor.BLACK, defP1);
+                    else hb.createFilledBar(defP2, defP1);
                 }
                 hb.updateBar();
             }

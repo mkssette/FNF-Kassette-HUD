@@ -7,6 +7,7 @@ import flixel.FlxCamera;
 import funkin.Paths;
 import funkin.Preferences;
 import funkin.modding.module.ModuleHandler;
+import kassettehud.util.TinyNightAccuracy;
 
 class TinyNightHealthBar extends KassetteHUDElement {
     var previewHealthBarBG:FlxSprite;
@@ -52,7 +53,12 @@ class TinyNightHealthBar extends KassetteHUDElement {
         previewHealthBarBG.setGraphicSize(Std.int(previewHealthBarBG.frameWidth * barShrinkRatio), Std.int(previewHealthBarBG.frameHeight));
         previewHealthBarBG.updateHitbox();
         previewHealthBarBG.x = blockX;
-        previewHealthBarBG.y = stackTopY + lineH + gapToUi + rowH + gap1;
+        
+        var fallbackY:Float = stackTopY + lineH + gapToUi + rowH + gap1;
+        var targetY:Float = fallbackY;
+        if (TinyNightAccuracy.lastUiBottomY > 0) targetY = Math.max(fallbackY, TinyNightAccuracy.lastUiBottomY + 8);
+        
+        previewHealthBarBG.y = targetY;
         previewHealthBarBG.scrollFactor.set(0, 0);
         safeAdd(previewHealthBarBG, cam);
 
@@ -84,7 +90,7 @@ class TinyNightHealthBar extends KassetteHUDElement {
         previewIconP1.setGraphicSize(Std.int(previewIconP1.frameWidth * 0.7), Std.int(previewIconP1.frameHeight * 0.7));
         previewIconP1.updateHitbox();
         previewIconP1.x = blockX + barBlockW - previewIconP1.width;
-        previewIconP1.y = stackTopY + lineH + gapToUi + rowH + gap1 + gap2 + 10;
+        previewIconP1.y = targetY + gap2 + 10;
         previewIconP1.flipX = true;
         previewIconP1.scrollFactor.set(0, 0);
         safeAdd(previewIconP1, cam);
@@ -98,7 +104,7 @@ class TinyNightHealthBar extends KassetteHUDElement {
         previewIconP2.setGraphicSize(Std.int(previewIconP2.frameWidth * 0.7), Std.int(previewIconP2.frameHeight * 0.7));
         previewIconP2.updateHitbox();
         previewIconP2.x = blockX;
-        previewIconP2.y = stackTopY + lineH + gapToUi + rowH + gap1 + gap2 + 10;
+        previewIconP2.y = targetY + gap2 + 10;
         previewIconP2.scrollFactor.set(0, 0);
         safeAdd(previewIconP2, cam);
         
@@ -189,7 +195,12 @@ class TinyNightHealthBar extends KassetteHUDElement {
                     bg.updateHitbox();
                 }
                 bg.x = blockX;
-                bg.y = stackTopY + lineH + gapToUi + rowH + gap1;
+                
+                var fallbackY:Float = stackTopY + lineH + gapToUi + rowH + gap1;
+                var targetY:Float = fallbackY;
+                if (TinyNightAccuracy.lastUiBottomY > 0) targetY = Math.max(fallbackY, TinyNightAccuracy.lastUiBottomY + 8);
+                
+                bg.y = targetY;
                 bg.updateHitbox();
                 
                 barX = bg.x;
@@ -210,9 +221,6 @@ class TinyNightHealthBar extends KassetteHUDElement {
             var curP2 = state.iconP2 != null ? Std.string(state.iconP2.characterId) : "";
             
             var gammodHunter = KassetteHUDDatahunter.gammod;
-            if (gammodHunter != null) {
-                gammodHunter.setHealthBarOverride(false);
-            }
             
             if (curP1 != _lastP1Id || curP2 != _lastP2Id) {
                 _lastP1Id = curP1;
@@ -223,12 +231,12 @@ class TinyNightHealthBar extends KassetteHUDElement {
                 
                 var optManager = KssetteOptionsManager.instance;
                 var coloredHB = optManager != null && optManager.getKssValue("kssette_colored_healthbar") == true;
+                var iconHunter = KassetteHUDDatahunter.icon;
                 
                 if (coloredHB) {
-                    var iconHunter = KassetteHUDDatahunter.icon;
                     if (iconHunter != null) {
-                        _p1Color = iconHunter.getIconColor(curP1, 0xFF66FF33);
-                        _p2Color = iconHunter.getIconColor(curP2, 0xFFFF0000);
+                        _p1Color = iconHunter.getIconColor(curP1, 0xFF66FF33, true);
+                        _p2Color = iconHunter.getIconColor(curP2, 0xFFFF0000, false);
                     }
                 }
                 
@@ -239,12 +247,11 @@ class TinyNightHealthBar extends KassetteHUDElement {
                 var gammodPlayerSide = gammodHunter != null ? gammodHunter.gammodPlayerSide : "NORMAL";
                 
                 if (bar != null) {
-                    if (isSolo) {
-                        bar.createFilledBar(0xFF000000, _p1Color);
-                    } else if (gammodPlayerSide == "OPPOSITE") {
-                        bar.createFilledBar(_p1Color, _p2Color);
+                    if (iconHunter != null) {
+                        iconHunter.applyHealthBarColors(bar, isSolo, _p1Color, _p2Color);
                     } else {
-                        bar.createFilledBar(_p2Color, _p1Color);
+                        if (isSolo) bar.createFilledBar(0xFF000000, _p1Color);
+                        else bar.createFilledBar(_p2Color, _p1Color);
                     }
                     bar.updateBar();
                 }

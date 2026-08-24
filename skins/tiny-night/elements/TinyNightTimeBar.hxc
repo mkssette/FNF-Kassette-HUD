@@ -11,190 +11,221 @@ import funkin.play.PauseSubState;
 import kassettehud.util.KassetteHUDElement;
 import kassettehud.util.KssetteOptionsManager;
 import kassettehud.util.KassetteHUDDatahunter;
+import kassettehud.util.TinyNightAccuracy;
 
 class TinyNightTimeBar extends KassetteHUDElement {
-    public var timeBar:FlxSprite;
-    public var timeBarBG:FlxSprite;
-    var cachedActive:Bool = false;
-    var songLengthMs:Float = 0.0;
-    var updateTimer:Float = 0.0;
-    public var previewCam:FlxCamera = null;
+	public var timeBar:FlxSprite;
+	public var timeBarBG:FlxSprite;
 
-    public function new() {
-        super("TinyNightTimeBar");
-        this.name = "TinyNightTimeBar";
-    }
+	var cachedActive:Bool = false;
+	var songLengthMs:Float = 0.0;
+	var updateTimer:Float = 0.0;
 
-    function isOn(val:Dynamic):Bool {
-        if (val == true) return true;
-        var s = Std.string(val);
-        return s == "On" || s == "on" || s == "true";
-    }
+	public var previewCam:FlxCamera = null;
 
-    function makeBar(y:Float, h:Int, color:Int, z:Int, cam:FlxCamera):FlxSprite {
-        var bar = new FlxSprite(0, y).makeGraphic(FlxG.width, h, color);
-        bar.origin.set(0, 0);
-        bar.scrollFactor.set(0, 0);
-        bar.zIndex = z;
-        safeAdd(bar, cam);
-        return bar;
-    }
+	public function new() {
+		super("TinyNightTimeBar");
+		this.name = "TinyNightTimeBar";
+	}
 
-    public function cleanupUI() {
-        songLengthMs = 0.0;
-        updateTimer = 0.0;
-        safeDestroy(timeBar);
-        safeDestroy(timeBarBG);
-        timeBar = null;
-        timeBarBG = null;
-    }
+	function isOn(val:Dynamic):Bool {
+		if (val == true)
+			return true;
+		var s = Std.string(val);
+		return s == "On" || s == "on" || s == "true";
+	}
 
-    public function setupUI(cam:FlxCamera) {
-        cleanupUI();
-        var zIdx:Int = 15;
-        timeBarBG = makeBar(0, 15, 0xFF000000, zIdx, cam);
-        timeBar = makeBar(2, 11, 0xFFFFFFFF, zIdx + 1, cam);
-        FlxG.state.refresh();
-    }
+	function makeBar(y:Float, h:Int, color:Int, z:Int, cam:FlxCamera):FlxSprite {
+		var bar = new FlxSprite(0, y).makeGraphic(FlxG.width, h, color);
+		bar.origin.set(0, 0);
+		bar.scrollFactor.set(0, 0);
+		bar.zIndex = z;
+		safeAdd(bar, cam);
+		return bar;
+	}
 
-    public function updatePositions() {
-        if (timeBarBG == null || !timeBarBG.exists || timeBar == null || !timeBar.exists) return;
+	public function cleanupUI() {
+		songLengthMs = 0.0;
+		updateTimer = 0.0;
+		safeDestroy(timeBar);
+		safeDestroy(timeBarBG);
+		timeBar = null;
+		timeBarBG = null;
+	}
 
-        var barShrinkRatio = 0.266;
-        var targetW = Std.int(360 * barShrinkRatio);
+	public function setupUI(cam:FlxCamera) {
+		cleanupUI();
+		var zIdx:Int = 3000;
+		timeBarBG = makeBar(0, 15, 0xFF000000, zIdx, cam);
+		timeBar = makeBar(2, 11, 0xFFFFFFFF, zIdx + 1, cam);
+		FlxG.state.refresh();
+	}
 
-        if (timeBarBG.frameWidth != targetW) {
-            timeBarBG.makeGraphic(targetW, Std.int(15), 0xFF000000);
-            timeBar.makeGraphic(targetW, Std.int(11), 0xFFFFFFFF);
-        }
+	public function updatePositions() {
+		if (timeBarBG == null || !timeBarBG.exists || timeBar == null || !timeBar.exists)
+			return;
 
-        if (timeBarBG.origin != null) {
-            timeBarBG.origin.x = 0;
-            timeBarBG.origin.y = 0;
-        }
-        if (timeBar.origin != null) {
-            timeBar.origin.x = 0;
-            timeBar.origin.y = 0;
-        }
+		var barShrinkRatio = 0.266;
+		var targetW = Std.int(360 * barShrinkRatio);
 
-        var blockX:Float = 10.0;
-        var cachedX:Float = (FlxG.width - timeBarBG.width) / 2;
-        
-        var optManager = KssetteOptionsManager.instance;
-        var tPos:String = "Top";
-        if (optManager != null) {
-            tPos = Std.string(optManager.getKssValue("kssette_timebar_pos"));
-        }
-        
-        if (tPos.indexOf("Left") != -1) {
-            cachedX = blockX;
-        } else if (tPos.indexOf("Right") != -1) {
-            cachedX = FlxG.width - timeBarBG.width - blockX;
-        } else if (PlayState.instance != null && PlayState.instance.healthBarBG != null) {
-            cachedX = PlayState.instance.healthBarBG.x + (PlayState.instance.healthBarBG.width - timeBarBG.width) / 2;
-        }
-        var cachedY:Float = 0;
-        if (PlayState.instance != null && PlayState.instance.healthBarBG != null) {
-            cachedY = PlayState.instance.healthBarBG.y - timeBarBG.height - 4;
-        } else {
-            var songHunter = KassetteHUDDatahunter.song;
-            var downscroll = false;
-            if (songHunter != null) downscroll = songHunter.getDownscroll();
-            else downscroll = Preferences.downscroll;
-            var stackTopY:Float = downscroll ? 10.0 : (FlxG.height - 210.0 - 10.0);
-            var healthBarY = stackTopY + 26.0 + 34.0 + 26.0 + 8.0;
-            cachedY = healthBarY - timeBarBG.height - 4;
-        }
+		if (timeBarBG.frameWidth != targetW) {
+			timeBarBG.makeGraphic(targetW, Std.int(15), 0xFF000000);
+			timeBar.makeGraphic(targetW, Std.int(11), 0xFFFFFFFF);
+		}
 
-        timeBarBG.x = cachedX;
-        timeBarBG.y = cachedY;
-        
-        timeBar.x = cachedX;
-        timeBar.y = cachedY + 2;
-    }
+		if (timeBarBG.origin != null) {
+			timeBarBG.origin.x = 0;
+			timeBarBG.origin.y = 0;
+		}
+		if (timeBar.origin != null) {
+			timeBar.origin.x = 0;
+			timeBar.origin.y = 0;
+		}
 
-    public function buildPreview(cam:FlxCamera) {
-        isPreview = true;
-        previewCam = cam;
-        setupUI(cam);
-        updatePreview();
-    }
+		var blockX:Float = 10.0;
+		var cachedX:Float = (FlxG.width - timeBarBG.width) / 2;
 
-    public function updatePreview() {
-        if (!isPreview) return;
-        var optManager = KssetteOptionsManager.instance;
-        cachedActive = true; 
-        if (optManager != null) {
-            cachedActive = isOn(optManager.getKssValue("kssette_show_timebar"));
-        }
-        updatePositions();
-        if (timeBarBG != null && timeBarBG.exists) timeBarBG.visible = cachedActive;
-        if (timeBar != null && timeBar.exists) {
-            timeBar.visible = cachedActive;
-            if (timeBar.scale != null) {
-                timeBar.scale.x = 0.5;
-                timeBar.scale.y = 1.0;
-            }
-        }
-    }
+		var optManager = KssetteOptionsManager.instance;
+		var tPos:String = "Top";
+		if (optManager != null) {
+			tPos = Std.string(optManager.getKssValue("kssette_timebar_pos"));
+		}
 
-    override public function onCountdownStart(event:Dynamic) {
-        isPreview = false;
-        var optManager = KssetteOptionsManager.instance;
-        cachedActive = true;
-        if (optManager != null) cachedActive = isOn(optManager.getKssValue("kssette_show_timebar"));
+		if (tPos.indexOf("Left") != -1) {
+			cachedX = blockX;
+		} else if (tPos.indexOf("Right") != -1) {
+			cachedX = FlxG.width - timeBarBG.width - blockX;
+		} else if (PlayState.instance != null && PlayState.instance.healthBarBG != null) {
+			cachedX = PlayState.instance.healthBarBG.x + (PlayState.instance.healthBarBG.width - timeBarBG.width) / 2;
+		}
+		var cachedY:Float = 0;
+		if (PlayState.instance != null && PlayState.instance.healthBarBG != null) {
+			cachedY = PlayState.instance.healthBarBG.y - timeBarBG.height - 4;
+		} else {
+			var songHunter = KassetteHUDDatahunter.song;
+			var downscroll = false;
+			if (songHunter != null)
+				downscroll = songHunter.getDownscroll();
+			else
+				downscroll = Preferences.downscroll;
+			var stackTopY:Float = downscroll ? 10.0 : (FlxG.height - 210.0 - 10.0);
 
-        var state = PlayState.instance;
-        songLengthMs = 0.0;
-        updateTimer = 0.0;
-        if (state != null && state.camHUD != null) {
-            setupUI(state.camHUD);
-            songLengthMs = state.currentSongLengthMs;
-            updatePositions();
+			var healthBarY = stackTopY + 26.0 + 34.0 + 26.0 + 8.0;
+			if (TinyNightAccuracy.lastUiBottomY > 0)
+				healthBarY = TinyNightAccuracy.lastUiBottomY + 8;
 
-            if (timeBarBG != null) timeBarBG.visible = cachedActive;
-            if (timeBar != null) {
-                timeBar.visible = cachedActive;
-                timeBar.scale.x = 0; 
-                timeBar.scale.y = 1.0;
-            }
-        }
-    }
+			cachedY = healthBarY - timeBarBG.height - 4;
+		}
 
-    override public function onUpdate(event:Dynamic) {
-        var elapsed:Float = (Std.isOfType(event, Float)) ? event : (event != null ? event.elapsed : 0);
-        if (isPreview) {
-            updatePreview();
-            return;
-        }
+		timeBarBG.x = cachedX;
+		timeBarBG.y = cachedY;
 
-        var state = PlayState.instance;
-        if (!cachedActive || timeBar == null || !timeBar.exists || state == null || state.conductorInUse == null) return;
+		timeBar.x = cachedX;
+		timeBar.y = cachedY + 2;
+	}
 
-        if (songLengthMs <= 0.0) {
-            songLengthMs = state.currentSongLengthMs;
-        }    
-        if (songLengthMs <= 0) return;
+	public function buildPreview(cam:FlxCamera) {
+		isPreview = true;
+		previewCam = cam;
+		setupUI(cam);
+		updatePreview();
+	}
 
-        updateTimer += elapsed;
-        if (updateTimer < 0.008) return;
-        updateTimer = 0.0;
-        
-        var progress:Float = state.conductorInUse.songPosition / songLengthMs;
-        if (progress < 0) progress = 0;
-        else if (progress > 1) progress = 1;
+	public function updatePreview() {
+		if (!isPreview)
+			return;
+		var optManager = KssetteOptionsManager.instance;
+		cachedActive = true;
+		if (optManager != null) {
+			cachedActive = isOn(optManager.getKssValue("kssette_show_timebar"));
+		}
+		updatePositions();
+		if (timeBarBG != null && timeBarBG.exists)
+			timeBarBG.visible = cachedActive;
+		if (timeBar != null && timeBar.exists) {
+			timeBar.visible = cachedActive;
+			if (timeBar.scale != null) {
+				timeBar.scale.x = 0.5;
+				timeBar.scale.y = 1.0;
+			}
+		}
+	}
 
-        timeBar.scale.x = progress; 
-        timeBar.scale.y = 1.0; 
-    }
-    
-    override public function destroy() {
-        if (timeBar != null) timeBar.destroy();
-        if (timeBarBG != null) timeBarBG.destroy();
-        
-        timeBar = null;
-        timeBarBG = null;
+	override public function onCountdownStart(event:Dynamic) {
+		isPreview = false;
+		var optManager = KssetteOptionsManager.instance;
+		cachedActive = true;
+		if (optManager != null)
+			cachedActive = isOn(optManager.getKssValue("kssette_show_timebar"));
 
-        super.destroy();
-    }
+		var state = PlayState.instance;
+		songLengthMs = 0.0;
+		updateTimer = 0.0;
+		if (state != null && state.camHUD != null) {
+			setupUI(state.camHUD);
+			songLengthMs = state.currentSongLengthMs;
+			// Wait until onSongStart to position and show the bar
+			if (timeBarBG != null)
+				timeBarBG.visible = false;
+			if (timeBar != null) {
+				timeBar.visible = false;
+				timeBar.scale.x = 0;
+				timeBar.scale.y = 1.0;
+			}
+		}
+	}
+
+	override public function onSongStart(event:Dynamic) {
+		if (isPreview)
+			return;
+		updatePositions();
+		if (timeBarBG != null)
+			timeBarBG.visible = cachedActive;
+		if (timeBar != null)
+			timeBar.visible = cachedActive;
+	}
+
+	override public function onUpdate(event:Dynamic) {
+		var elapsed:Float = (Std.isOfType(event, Float)) ? event : (event != null ? event.elapsed : 0);
+		if (isPreview) {
+			updatePreview();
+			return;
+		}
+
+		var state = PlayState.instance;
+		if (!cachedActive || timeBar == null || !timeBar.exists || state == null || state.conductorInUse == null)
+			return;
+
+		if (songLengthMs <= 0.0) {
+			songLengthMs = state.currentSongLengthMs;
+		}
+		if (songLengthMs <= 0)
+			return;
+
+		updateTimer += elapsed;
+		if (updateTimer < 0.008)
+			return;
+		updateTimer = 0.0;
+
+		var progress:Float = state.conductorInUse.songPosition / songLengthMs;
+		if (progress < 0)
+			progress = 0;
+		else if (progress > 1)
+			progress = 1;
+
+		timeBar.scale.x = progress;
+		timeBar.scale.y = 1.0;
+	}
+
+	override public function destroy() {
+		if (timeBar != null)
+			timeBar.destroy();
+		if (timeBarBG != null)
+			timeBarBG.destroy();
+
+		timeBar = null;
+		timeBarBG = null;
+
+		super.destroy();
+	}
 }
