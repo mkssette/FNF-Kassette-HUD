@@ -13,6 +13,7 @@ import Std;
 import funkin.Assets;
 import funkin.Paths;
 import funkin.util.SerializerUtil;
+import funkin.Preferences;
 
 class KssetteOptionsManager extends Module {
     public static var instance:Dynamic = null;
@@ -171,6 +172,39 @@ class KssetteOptionsManager extends Module {
         return null;
     }
 
+    public function evaluateCondition(cond:String):Bool {
+        if (cond == null) return false;
+        var parts = cond.split(" ");
+        if (parts.length >= 3) {
+            var condKey = parts[0];
+            var operator = parts[1];
+            var targetValue = parts.slice(2).join(" ");
+            
+            var actualValue = "";
+            if (condKey == "downscroll") {
+                var isDown = Preferences.downscroll;
+                if (isForcedDownscroll()) isDown = true;
+                actualValue = Std.string(isDown);
+            } else {
+                actualValue = Std.string(Save.instance.modOptions.get(condKey));
+            }
+            
+            if (operator == "==" && actualValue == targetValue) return true;
+            if (operator == "!=" && actualValue != targetValue) return true;
+        }
+        return false;
+    }
+
+    public function evaluateConditionList(conditions:Array<String>, requireAll:Bool = true):Bool {
+        if (conditions == null || conditions.length == 0) return true;
+        for (cond in conditions) {
+            var res = evaluateCondition(cond);
+            if (requireAll && !res) return false;
+            if (!requireAll && res) return true;
+        }
+        return requireAll;
+    }
+
     public function isOptionLocked(key:String):Bool {
         if (songLockedOptions.contains(key)) return true;
 
@@ -185,22 +219,8 @@ class KssetteOptionsManager extends Module {
         var opt = getOptionDefinition(key);
         if (opt == null || opt.locked == null) return false;
         
-        var conditions:Array<String> = opt.locked;
-        for (cond in conditions) {
-            if (cond == null) continue;
-            var parts = cond.split(" ");
-            if (parts.length >= 3) {
-                var condKey = parts[0];
-                var operator = parts[1];
-                var targetValue = parts.slice(2).join(" ");
-                
-                var actualValue = Std.string(Save.instance.modOptions.get(condKey));
-                
-                if (operator == "==" && actualValue == targetValue) return true;
-                if (operator == "!=" && actualValue != targetValue) return true;
-            }
-        }
-        return false;
+        // Locked evaluates to TRUE if ANY condition matches (OR logic)
+        return evaluateConditionList(opt.locked, false);
     }
 
     public function getKssValue(key:String):Dynamic { 

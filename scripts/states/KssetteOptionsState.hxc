@@ -284,6 +284,12 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 			}
 		}
 
+		for (mName in previewModuleNames) {
+			var mod:Dynamic = ModuleHandler.getModule(mName);
+			if (mod != null)
+				previewModules.push(mod);
+		}
+
 		trace("[KssetteOptionsState] cachePreviewModules() completed. previewModules length: " + previewModules.length);
 	}
 
@@ -317,6 +323,52 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 
 		if (hudPreview != null) {
 			hudPreview.updatePreview(0.0);
+		}
+
+		// CONDITIONAL OPTIONS LOGIC
+		for (item in optionItems) {
+			if (item == null)
+				continue;
+
+			var optDef = KssetteOptionsManager.instance.getOptionDefinition(item.key);
+			if (optDef != null && optDef.conditionalOptions != null) {
+				var newOptions:Array<String> = optDef.options;
+
+				var condOptionsList:Array<Dynamic> = optDef.conditionalOptions;
+				for (condGroup in condOptionsList) {
+					if (condGroup.condition != null && KssetteOptionsManager.instance.evaluateConditionList(condGroup.condition, true)) {
+						if (condGroup.options != null) {
+							newOptions = condGroup.options;
+							break;
+						}
+					}
+				}
+
+				if (item.options != null && item.options.length > 0 && newOptions != null && newOptions.length > 0) {
+					var oldLabel = item.options[0];
+					var newLabel = newOptions[0];
+
+					if (oldLabel != newLabel) {
+						item.options = newOptions.copy();
+						if (item.currentIndex == 0) {
+							Save.instance.modOptions.set(item.key, newLabel);
+							if (item.textDisplay != null) {
+								item.textDisplay.text = formatShortValue(newLabel);
+								var tColor = getValueColor(item.textDisplay.text, item);
+								if (item.textDisplay.color != tColor)
+									item.textDisplay.color = tColor;
+								item.framesUntilUpdate = 2;
+							}
+							if (descValueText != null && selectedIndex >= 0 && selectedIndex < optionItems.length && optionItems[selectedIndex] == item) {
+								descValueText.text = formatLongValue(newLabel);
+								var vColor = getValueColor(descValueText.text, item);
+								if (descValueText.color != vColor)
+									descValueText.color = vColor;
+							}
+						}
+					}
+				}
+			}
 		}
 
 		fixZIndex();
@@ -1135,6 +1187,11 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		var optManager = KssetteOptionsManager.instance;
 		if (optManager != null && optManager.optionsData != null && optManager.optionsData.categories != null) {
 			for (cat in optManager.optionsData.categories) {
+				if (cat.platform == "Mobile" && !FlxG.onMobile)
+					continue;
+				if (cat.platform == "PC" && !showPCOptions)
+					continue;
+
 				if (cat.name != null)
 					addCategory(cat);
 			}
@@ -1330,26 +1387,16 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 
 				var choices:Array<String> = opt.options;
 				var optColors:Array<String> = opt.colors;
-				if (key == "kssette_info_pos" && choices != null) {
-					var isDownscroll = Preferences.downscroll;
-					if (optManager.isForcedDownscroll())
-						isDownscroll = true;
-					var scorePosInit = Save.instance.modOptions.get("kssette_score_pos");
-					if (scorePosInit == null)
-						scorePosInit = "Vanilla";
-					var infoLabel = "";
-					if (isDownscroll) {
-						if (scorePosInit == "Inverted")
-							infoLabel = "Above Health Bar";
-						else
-							infoLabel = "Below Score";
-					} else {
-						if (scorePosInit == "Inverted")
-							infoLabel = "Below Health Bar";
-						else
-							infoLabel = "Above Arrows";
+				if (opt.conditionalOptions != null) {
+					var condOptionsList:Array<Dynamic> = opt.conditionalOptions;
+					for (condGroup in condOptionsList) {
+						if (condGroup.condition != null && optManager.evaluateConditionList(condGroup.condition, true)) {
+							if (condGroup.options != null) {
+								choices = condGroup.options;
+								break;
+							}
+						}
 					}
-					choices = [infoLabel, choices[1]];
 				}
 
 				if (opt.type == "choice" || opt.type == "enum") {
@@ -1381,6 +1428,7 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 			selectedIndex = 0;
 		curSelectedFloat = selectedIndex;
 		menuPage = 1;
+		lastVisibleStart = -1;
 
 		if (descBg != null)
 			descBg.y = screenH + 200;
@@ -1424,6 +1472,7 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		selectedIndex = selectedCategoryIndex;
 		curCategoryFloat = selectedIndex;
 		changeSelection(0);
+		lastVisibleStart = -1;
 
 		var startOffset = -(screenW + 200);
 		for (item in categoryItems) {
@@ -1443,12 +1492,19 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 	}
 
 	function optionIndex(options:Array<String>, curVal:String):Int {
-		if (curVal == "true")
-			curVal = "On Note Hit";
-		else if (curVal == "false")
+		if (curVal == "true") {
+			if (options.indexOf("On Note Hit") != -1)
+				curVal = "On Note Hit";
+			else
+				curVal = "On";
+		} else if (curVal == "false") {
 			curVal = "Off";
-		else if (curVal == "On")
-			curVal = "On Note Hit";
+		} else if (curVal == "On" || curVal == "ENABLED") {
+			if (options.indexOf("On Note Hit") != -1)
+				curVal = "On Note Hit";
+			else
+				curVal = "On";
+		}
 		var idx:Int = options.indexOf(curVal);
 		return idx < 0 ? 0 : idx;
 	}
@@ -1481,8 +1537,6 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 			valueText.wordWrap = false;
 			valueText.setFormat(menuFont, 32, 0xFF00FF00, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
 			valueText.antialiasing = false;
-			// Color gets set in update/init based on item
-			// valueText.color = getValueColor(valueText.text);
 			valueText.cameras = [optionCam];
 			add(valueText);
 		}
@@ -1515,10 +1569,14 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 
 	function createToggle(labelText:String, saveKey:String, options:Array<String>, descStr:String, ?customColors:Array<String>) {
 		var curVal:String = getSavedString(saveKey, "Off");
-		if (curVal == "On" && saveKey == "kssette_hitsound")
+		if (curVal == "On" && options.indexOf("On Note Hit") != -1)
 			curVal = "On Note Hit";
-		if (curVal == "true" && saveKey == "kssette_hitsound")
+		if (curVal == "true" && options.indexOf("On Note Hit") != -1)
 			curVal = "On Note Hit";
+		else if (curVal == "true")
+			curVal = "On";
+		else if (curVal == "false")
+			curVal = "Off";
 		var item = createOptionBase(labelText, saveKey, formatShortValue(curVal), descStr, true);
 		var menuInst = this;
 		item.options = options;

@@ -480,6 +480,18 @@ var triviaArray:Array<String> = [
     public function updatePreview() {
         if (!isPreview) return;
         
+        if (KssetteFontManager.instance != null) cachedFont = KssetteFontManager.instance.getHudFont();
+        if (cachedFont == null || cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
+        
+        animType = Std.string(getSetting("kssette_subtitles_anim"));
+        if (animType == "null" || animType == "") animType = "Vanilla";
+        if (animType == "Karaoke") animType = "Fade"; 
+        
+        posType = Std.string(getSetting("kssette_subtitles_pos"));
+        if (posType == "null" || posType == "") posType = "Bottom";
+        
+        smartKaraoke = getSetting("kssette_smart_karaoke") == true;
+        
         targetPreviewTick = FlxG.game.ticks + 500;
         previewState = 0;
         lastRawText = "";
@@ -505,14 +517,16 @@ var triviaArray:Array<String> = [
         super.onCountdownStart(event);
         isPreview = false;
         
-
-        
         if (KssetteFontManager.instance != null) cachedFont = KssetteFontManager.instance.getHudFont();
         if (cachedFont == null || cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
+        
         animType = Std.string(getSetting("kssette_subtitles_anim"));
+        if (animType == "null" || animType == "") animType = "Vanilla";
         if (animType == "Karaoke") animType = "Fade"; 
         
         posType = Std.string(getSetting("kssette_subtitles_pos"));
+        if (posType == "null" || posType == "") posType = "Bottom";
+        
         smartKaraoke = getSetting("kssette_smart_karaoke") == true;
         
         var state = PlayState.instance;
@@ -551,8 +565,7 @@ var triviaArray:Array<String> = [
 
         if (subText == null) return;
         
-        var state = PlayState.instance;
-        if (state == null) return;
+        if (PlayState.instance == null && !isPreview) return;
 
         if (!subText.exists || !subText.active) {
             cleanUp();

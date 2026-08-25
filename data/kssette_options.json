@@ -39,26 +39,157 @@
   },
   "categories": [
     {
-      "name": "Gameplay & Modifiers",
+      "name": "Customization",
       "options": [
         {
-          "id": "kssette_mobile_keyboard",
-          "name": "PC/HITBOX MODE",
-          "description": "Enable if using a Hitbox or Keyboard on mobile. Unlocks PC settings.",
-          "type": "choice",
-          "options": ["On", "Off"],
-          "defaultValue": "Off",
-          "platform": "Mobile"
+          "id": "kssette_current_skin",
+          "name": "HUD SKIN",
+          "description": "Choose the visual skin for the HUD.",
+          "type": "skin",
+          "defaultValue": "default"
         },
         {
-          "id": "kssette_mobile_opp_notes",
-          "name": "SHOW OPPONENT NOTES ON ARROWS",
-          "description": "Forces the opponent's notes to appear and scroll in the background during mobile Arrows gameplay.",
+          "id": "kssette_show_score",
+          "name": "SCORE DISPLAY",
+          "description": "Show your current score.",
+          "type": "choice",
+          "options": ["On", "Off"],
+          "defaultValue": "On"
+        },
+        {
+          "id": "kssette_show_misses",
+          "name": "MISSES DISPLAY",
+          "description": "Show a counter for how many notes you've missed.",
           "type": "choice",
           "options": ["On", "Off"],
           "defaultValue": "On",
-          "platform": "Mobile"
+          "locked": ["kssette_judge_pos != Off"]
         },
+        {
+          "id": "kssette_show_rank",
+          "name": "RANK DISPLAY",
+          "description": "Show your current Rank (P, E, G) based on performance.",
+          "type": "choice",
+          "options": ["On", "Off"],
+          "defaultValue": "On"
+        },
+        {
+          "id": "kssette_show_tier",
+          "name": "COMBO TIER DISPLAY",
+          "description": "Show your Combo Status (SFC, GFC, FC, Clear).",
+          "type": "choice",
+          "options": ["On", "Off"],
+          "defaultValue": "On"
+        },
+        {
+          "id": "kssette_show_timebar",
+          "name": "TIME BAR",
+          "description": "Show a bar indicating progress.",
+          "type": "choice",
+          "options": ["On", "Off"],
+          "defaultValue": "On"
+        },
+        {
+          "id": "kssette_show_song_time",
+          "name": "SONG TIME TEXT",
+          "description": "Show a digital timer counting down the song.",
+          "type": "choice",
+          "options": ["On", "Off"],
+          "defaultValue": "On"
+        },
+        {
+          "id": "kssette_show_breakbar",
+          "name": "BREAK BAR",
+          "description": "Show a specific timer during long breaks in the song.",
+          "type": "choice",
+          "options": ["On", "Off"],
+          "defaultValue": "On"
+        },
+        {
+          "id": "kssette_show_song_title",
+          "name": "SONG TITLE DISPLAY",
+          "description": "Show the name of the song on the HUD.",
+          "type": "choice",
+          "options": ["On", "Off"],
+          "defaultValue": "On"
+        },
+        {
+          "id": "kssette_show_song_diff",
+          "name": "DIFFICULTY DISPLAY",
+          "description": "Show the difficulty level on the HUD.",
+          "type": "choice",
+          "options": ["On", "Off"],
+          "defaultValue": "On"
+        },
+        {
+          "id": "kssette_colored_healthbar",
+          "name": "COLORED HEALTH BAR",
+          "description": "Changes the health bar colors to match the character icons.",
+          "type": "choice",
+          "options": ["On", "Off"],
+          "defaultValue": "On"
+        },
+        {
+          "id": "kssette_breakbar_style",
+          "name": "BREAK BAR STYLE",
+          "description": "The visual style of the break bar.",
+          "type": "choice",
+          "options": ["Default", "Classic", "Pie"],
+          "defaultValue": "Default"
+        },
+        {
+          "id": "kssette_night_mode",
+          "name": "NIGHT MODE",
+          "description": "Dims the game screen to reduce eye strain.",
+          "type": "choice",
+          "options": ["Off", "On", "Auto"],
+          "defaultValue": "Off"
+        },
+        {
+          "id": "kssette_night_opacity",
+          "name": "NIGHT FILTER OPACITY",
+          "description": "How dark the night mode filter should be.",
+          "type": "opacity",
+          "defaultValue": "65%",
+          "locked": ["kssette_night_mode == Off"]
+        },
+        {
+          "id": "kssette_night_start",
+          "name": "NIGHT MODE AUTO START",
+          "description": "When set to Auto, night mode activates at this start time.",
+          "type": "time",
+          "defaultValue": "20:00",
+          "locked": ["kssette_night_mode != Auto"]
+        },
+        {
+          "id": "kssette_night_end",
+          "name": "NIGHT MODE AUTO END",
+          "description": "When set to Auto, night mode turns off at this end time.",
+          "type": "time",
+          "defaultValue": "06:00",
+          "locked": ["kssette_night_mode != Auto"]
+        },
+        {
+          "id": "kssette_smooth_display",
+          "name": "SMOOTH NUMBER ANIMATIONS",
+          "description": "Makes the score and accuracy numbers scroll smoothly.",
+          "type": "choice",
+          "options": ["On", "Off"],
+          "defaultValue": "On"
+        },
+        {
+          "id": "kssette_score_bop",
+          "name": "SCORE BOP ANIMATION",
+          "description": "Makes the score text bop when hitting notes.",
+          "type": "choice",
+          "options": ["Off", "On"],
+          "defaultValue": "Off"
+        }
+      ]
+    },
+    {
+      "name": "Gameplay",
+      "options": [
         {
           "id": "kssette_middlescroll",
           "name": "MIDDLESCROLL",
@@ -67,6 +198,62 @@
           "options": ["Off", "On", "P Style", "Glass", "Hidden Notes", "Like Mobile"],
           "defaultValue": "Off",
           "platform": "PC"
+        },
+        {
+          "id": "kssette_ghost_tapping",
+          "name": "GHOSTTAPPING",
+          "description": "Press keys anytime without penalty. You won't miss if there's no note.",
+          "type": "choice",
+          "options": ["On", "Off", "In Breaks"],
+          "defaultValue": "On"
+        },
+        {
+          "id": "kssette_ghost_sing",
+          "name": "GHOSTSING",
+          "description": "Your character will play singing animations when you press empty keys.",
+          "type": "choice",
+          "options": ["On", "Off"],
+          "defaultValue": "Off",
+          "locked": ["kssette_ghost_tapping == Off"]
+        },
+        {
+          "id": "kssette_resume_countdown",
+          "name": "RESUME COUNTDOWN",
+          "description": "Adds a 'Ready, Set, Go!' countdown when you unpause the game.",
+          "type": "choice",
+          "options": ["On", "Off"],
+          "defaultValue": "On"
+        },
+        {
+          "id": "kssette_acc_mode",
+          "name": "ACCURACY CALCULATION",
+          "description": "How accuracy is calculated. 'Ascending' starts at 0% and climbs up.",
+          "type": "choice",
+          "options": ["Classic", "Ascending", "Off"],
+          "defaultValue": "Classic"
+        },
+        {
+          "id": "kssette_hitsound",
+          "name": "HITSOUND MODE",
+          "description": "Plays a sound. On Note Hit triggers only when hitting notes, Anytime triggers on any tap.",
+          "type": "choice",
+          "options": ["Off", "On Note Hit", "Anytime"],
+          "defaultValue": "Off"
+        },
+        {
+          "id": "kssette_hitsound_volume",
+          "name": "HITSOUND VOLUME",
+          "description": "Adjust the volume of the hitsound.",
+          "type": "volume",
+          "defaultValue": "100%"
+        },
+        {
+          "id": "kssette_judge_pos",
+          "name": "JUDGEMENT COUNTER",
+          "description": "Shows a counter for Sicks, Goods, Bads, etc. Choose where to place it.",
+          "type": "choice",
+          "options": ["Off", "Left", "Right", "Top Left", "Top Right"],
+          "defaultValue": "Off"
         },
         {
           "id": "kssette_hide_opponent",
@@ -106,175 +293,6 @@
           ]
         },
         {
-          "id": "kssette_ghost_tapping",
-          "name": "GHOSTTAPPING",
-          "description": "Press keys anytime without penalty. You won't miss if there's no note.",
-          "type": "choice",
-          "options": ["On", "Off", "In Breaks"],
-          "defaultValue": "On",
-          "platform": "PC"
-        },
-        {
-          "id": "kssette_ghost_sing",
-          "name": "GHOSTSING",
-          "description": "Your character will play singing animations when you press empty keys.",
-          "type": "choice",
-          "options": ["On", "Off"],
-          "defaultValue": "Off",
-          "locked": ["kssette_ghost_tapping == Off"]
-        },
-        {
-          "id": "kssette_resume_countdown",
-          "name": "RESUME COUNTDOWN",
-          "description": "Adds a 'Ready, Set, Go!' countdown when you unpause the game.",
-          "type": "choice",
-          "options": ["On", "Off"],
-          "defaultValue": "On"
-        }
-      ]
-    },
-    {
-      "name": "HUD Elements",
-      "options": [
-        {
-          "id": "kssette_show_score",
-          "name": "SCORE DISPLAY",
-          "description": "Show your current score.",
-          "type": "choice",
-          "options": ["On", "Off"],
-          "defaultValue": "On"
-        },
-        {
-          "id": "kssette_show_misses",
-          "name": "MISSES DISPLAY",
-          "description": "Show a counter for how many notes you've missed.",
-          "type": "choice",
-          "options": ["On", "Off"],
-          "defaultValue": "On",
-          "locked": ["kssette_judge_pos != Off"]
-        },
-        {
-          "id": "kssette_show_rank",
-          "name": "RANK DISPLAY",
-          "description": "Show your current Rank (P, E, G) based on performance.",
-          "type": "choice",
-          "options": ["On", "Off"],
-          "defaultValue": "On"
-        },
-        {
-          "id": "kssette_show_tier",
-          "name": "COMBO TIER DISPLAY",
-          "description": "Show your Combo Status (SFC, GFC, FC, Clear).",
-          "type": "choice",
-          "options": ["On", "Off"],
-          "defaultValue": "On"
-        },
-        {
-          "id": "kssette_show_timebar",
-          "name": "SONG TIME BAR",
-          "description": "Show a bar indicating progress.",
-          "type": "choice",
-          "options": ["On", "Off"],
-          "defaultValue": "On"
-        },
-        {
-          "id": "kssette_show_song_time",
-          "name": "SONG TIME TEXT",
-          "description": "Show a digital timer counting down the song.",
-          "type": "choice",
-          "options": ["On", "Off"],
-          "defaultValue": "On"
-        },
-        {
-          "id": "kssette_show_breakbar",
-          "name": "BREAK BAR",
-          "description": "Show a specific timer during long breaks in the song.",
-          "type": "choice",
-          "options": ["On", "Off"],
-          "defaultValue": "On"
-        },
-        {
-          "id": "kssette_breakbar_style",
-          "name": "BREAK BAR STYLE",
-          "description": "The visual style of the break bar.",
-          "type": "choice",
-          "options": ["Default", "Classic", "Pie"],
-          "defaultValue": "Default"
-        },
-        {
-          "id": "kssette_judge_pos",
-          "name": "JUDGEMENT COUNTER",
-          "description": "Shows a counter for Sicks, Goods, Bads, etc. Choose where to place it.",
-          "type": "choice",
-          "options": ["Off", "Left", "Right", "Top Left", "Top Right"],
-          "defaultValue": "Off"
-        },
-        {
-          "id": "kssette_show_song_title",
-          "name": "SONG TITLE DISPLAY",
-          "description": "Show the name of the song on the HUD.",
-          "type": "choice",
-          "options": ["On", "Off"],
-          "defaultValue": "On"
-        },
-        {
-          "id": "kssette_show_song_diff",
-          "name": "DIFFICULTY DISPLAY",
-          "description": "Show the difficulty level on the HUD.",
-          "type": "choice",
-          "options": ["On", "Off"],
-          "defaultValue": "On"
-        },
-        {
-          "id": "kssette_colored_healthbar",
-          "name": "COLORED HEALTH BAR",
-          "description": "Changes the health bar colors to match the character icons.",
-          "type": "choice",
-          "options": ["On", "Off"],
-          "defaultValue": "On"
-        },
-        {
-          "id": "kssette_acc_mode",
-          "name": "ACCURACY CALCULATION",
-          "description": "How accuracy is calculated. 'Ascending' starts at 0% and climbs up.",
-          "type": "choice",
-          "options": ["Classic", "Ascending", "Off"],
-          "defaultValue": "Classic"
-        },
-        {
-          "id": "kssette_score_bop",
-          "name": "SCORE BOP ANIMATION",
-          "description": "Makes the score text bop when hitting notes.",
-          "type": "choice",
-          "options": ["Off", "On"],
-          "defaultValue": "Off"
-        }
-      ]
-    },
-    {
-      "name": "Audio Options",
-      "options": [
-        {
-          "id": "kssette_hitsound",
-          "name": "HITSOUND MODE",
-          "description": "Plays a sound. On Note Hit triggers only when hitting notes, Anytime triggers on any tap.",
-          "type": "choice",
-          "options": ["Off", "On Note Hit", "Anytime"],
-          "defaultValue": "Off"
-        },
-        {
-          "id": "kssette_hitsound_volume",
-          "name": "HITSOUND VOLUME",
-          "description": "Adjust the volume of the hitsound.",
-          "type": "volume",
-          "defaultValue": "100%"
-        }
-      ]
-    },
-    {
-      "name": "Layout & Positions",
-      "options": [
-        {
           "id": "kssette_opponent_pos",
           "name": "OPPONENT POS",
           "description": "Where to put the opponent's notes when Middle Scroll is ON.",
@@ -283,7 +301,49 @@
           "defaultValue": "Left",
           "platform": "PC",
           "locked": ["kssette_middlescroll == Off"]
+        }
+      ]
+    },
+    {
+      "name": "PC Settings",
+      "platform": "PC",
+      "options": [
+        {
+          "id": "kssette_discord_rpc_menu",
+          "name": "CUSTOM DISCORD RPC",
+          "description": "Customize your Discord Rich Presence layout to show your live stats to your friends.",
+          "type": "discord_rpc",
+          "platform": "PC"
+        }
+      ]
+    },
+    {
+      "name": "Mobile Settings",
+      "platform": "Mobile",
+      "options": [
+        {
+          "id": "kssette_mobile_keyboard",
+          "name": "PC/HITBOX MODE",
+          "description": "Enable if using a Hitbox or Keyboard on mobile. Unlocks PC settings.",
+          "type": "choice",
+          "options": ["On", "Off"],
+          "defaultValue": "Off",
+          "platform": "Mobile"
         },
+        {
+          "id": "kssette_mobile_opp_notes",
+          "name": "SHOW OPPONENT NOTES ON ARROWS",
+          "description": "Forces the opponent's notes to appear and scroll in the background during mobile Arrows gameplay.",
+          "type": "choice",
+          "options": ["On", "Off"],
+          "defaultValue": "On",
+          "platform": "Mobile"
+        }
+      ]
+    },
+    {
+      "name": "Positions",
+      "options": [
         {
           "id": "kssette_timebar_pos",
           "name": "TIME BAR POSITION",
@@ -323,76 +383,25 @@
           "description": "Where to show the Song Name and Difficulty.",
           "type": "choice",
           "options": ["Above Arrows", "Bottom Left"],
+          "conditionalOptions": [
+            {
+              "condition": ["downscroll == true", "kssette_score_pos == Inverted"],
+              "options": ["Above Health Bar", "Bottom Left"]
+            },
+            {
+              "condition": ["downscroll == true", "kssette_score_pos != Inverted"],
+              "options": ["Below Score", "Bottom Left"]
+            },
+            {
+              "condition": ["downscroll == false", "kssette_score_pos == Inverted"],
+              "options": ["Below Health Bar", "Bottom Left"]
+            },
+            {
+              "condition": ["downscroll == false", "kssette_score_pos != Inverted"],
+              "options": ["Above Arrows", "Bottom Left"]
+            }
+          ],
           "defaultValue": "Above Arrows"
-        }
-      ]
-    },
-    {
-      "name": "Visual Effects",
-      "options": [
-        {
-          "id": "kssette_current_skin",
-          "name": "HUD SKIN",
-          "description": "Choose the visual skin for the HUD.",
-          "type": "skin",
-          "defaultValue": "default"
-        },
-        {
-          "id": "kssette_smooth_display",
-          "name": "SMOOTH NUMBER ANIMATIONS",
-          "description": "Makes the score and accuracy numbers scroll smoothly.",
-          "type": "choice",
-          "options": ["On", "Off"],
-          "defaultValue": "On"
-        },
-        {
-          "id": "kssette_night_mode",
-          "name": "NIGHT MODE FILTER",
-          "description": "Dims the game screen to reduce eye strain.",
-          "type": "choice",
-          "options": ["Off", "On", "Auto"],
-          "defaultValue": "Off"
-        },
-        {
-          "id": "kssette_night_opacity",
-          "name": "NIGHT FILTER OPACITY",
-          "description": "How dark the night mode filter should be.",
-          "type": "opacity",
-          "defaultValue": "65%",
-          "locked": ["kssette_night_mode == Off"]
-        },
-        {
-          "id": "kssette_night_start",
-          "name": "NIGHT MODE AUTO START",
-          "description": "When set to Auto, night mode activates at this start time.",
-          "type": "time",
-          "defaultValue": "20:00",
-          "locked": ["kssette_night_mode != Auto"]
-        },
-        {
-          "id": "kssette_night_end",
-          "name": "NIGHT MODE AUTO END",
-          "description": "When set to Auto, night mode turns off at this end time.",
-          "type": "time",
-          "defaultValue": "06:00",
-          "locked": ["kssette_night_mode != Auto"]
-        },
-        {
-          "id": "kssette_intro_text",
-          "name": "SONG INTRO TEXT",
-          "description": "Displays the song title and artist when the song starts.",
-          "type": "choice",
-          "options": ["Classic", "Racer", "Clap", "Off"],
-          "defaultValue": "On"
-        },
-        {
-          "id": "kssette_intro_album",
-          "name": "SONG ALBUM COVER",
-          "description": "Displays the song's album cover art alongside the intro text.",
-          "type": "choice",
-          "options": ["On", "Off"],
-          "defaultValue": "On",
-          "locked": ["kssette_intro_text == Off", "kssette_intro_text == false"]
         },
         {
           "id": "kssette_intro_pos",
@@ -402,11 +411,19 @@
           "options": ["Center", "Left", "Right"],
           "defaultValue": "Center",
           "locked": ["kssette_intro_text == Off", "kssette_intro_text == false", "kssette_intro_text == Clap"]
+        },
+        {
+          "id": "kssette_subtitles_pos",
+          "name": "SUBTITLES POSITION",
+          "description": "Where to display subtitles.",
+          "type": "choice",
+          "options": ["Bottom", "Top"],
+          "defaultValue": "Bottom"
         }
       ]
     },
     {
-      "name": "Subtitles & Fonts",
+      "name": "Letters",
       "options": [
         {
           "id": "kssette_custom_font",
@@ -437,12 +454,21 @@
           "defaultValue": "vcr.ttf"
         },
         {
-          "id": "kssette_subtitles_pos",
-          "name": "SUBTITLES POSITION",
-          "description": "Where to display subtitles.",
+          "id": "kssette_intro_text",
+          "name": "SONG INTRO TEXT",
+          "description": "Displays the song title and artist when the song starts.",
           "type": "choice",
-          "options": ["Bottom", "Top"],
-          "defaultValue": "Bottom"
+          "options": ["Classic", "Racer", "Clap", "Off"],
+          "defaultValue": "On"
+        },
+        {
+          "id": "kssette_intro_album",
+          "name": "SONG ALBUM COVER",
+          "description": "Displays the song's album cover art alongside the intro text.",
+          "type": "choice",
+          "options": ["On", "Off"],
+          "defaultValue": "On",
+          "locked": ["kssette_intro_text == Off", "kssette_intro_text == false"]
         },
         {
           "id": "kssette_subtitles_anim",
@@ -459,18 +485,6 @@
           "type": "choice",
           "options": ["On", "Off"],
           "defaultValue": "Off"
-        }
-      ]
-    },
-    {
-      "name": "Discord RPC",
-      "options": [
-        {
-          "id": "kssette_discord_rpc_menu",
-          "name": "CUSTOM DISCORD RPC",
-          "description": "Customize your Discord Rich Presence layout to show your live stats to your friends.",
-          "type": "discord_rpc",
-          "platform": "PC"
         }
       ]
     }

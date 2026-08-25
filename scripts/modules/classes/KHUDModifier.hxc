@@ -8,6 +8,7 @@ import funkin.modding.module.Module;
 import kassettehud.util.KssetteOptionsManager;
 
 class KHUDModifier extends Module {
+    public static var instances:Array<Dynamic> = [];
     public var name:String = "Modifier";
     public var isPreview:Bool = false;
 
@@ -16,6 +17,7 @@ class KHUDModifier extends Module {
 
     public function new(name:String) {
         super(name);
+        KHUDModifier.instances.push(this);
         this.active = true;
         this.playState = PlayState.instance;
         this.isMobile = KssetteOptionsManager.instance != null ? KssetteOptionsManager.instance.isMobileMode : FlxG.onMobile;

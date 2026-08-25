@@ -120,9 +120,11 @@ class KssetteNight extends KHUDModifier {
      */
     function getMode():String {
         var rawMode = getSetting("kssette_night_mode");
-        if (rawMode == "true"  || rawMode == "On")  return "On";
-        if (rawMode == "false" || rawMode == "Off") return "Off";
-        return rawMode;
+        if (rawMode == null || rawMode == "null") return "Off";
+        var strMode = Std.string(rawMode);
+        if (strMode == "true"  || strMode == "On")  return "On";
+        if (strMode == "false" || strMode == "Off") return "Off";
+        return strMode;
     }
 
     /**
@@ -288,9 +290,15 @@ class KssetteNight extends KHUDModifier {
      *   3. Smoothly interpolating alpha towards targetAlpha (4x speed, clamped to ~120Hz).
      */
     override public function onUpdate(event:Dynamic) {
-        var elapsed:Float = (Std.isOfType(event, Float)) ? event : (event != null ? event.elapsed : 0);
+        var dt:Float = 0.016;
+        if (Std.isOfType(event, Float)) {
+            dt = event;
+        } else if (event != null && event.elapsed != null) {
+            dt = event.elapsed;
+        } else {
+            dt = FlxG.elapsed;
+        }
 
-        
         // If the game started while preview was active, rebuild for gameplay.
         if (isPlayStateActive() && isPreview) {
             isPreview = false;
@@ -300,15 +308,13 @@ class KssetteNight extends KHUDModifier {
 
         if (!isPreview && !isPlayStateActive()) return;
 
-        var elapsed = (event != null) ? event.elapsed : FlxG.elapsed;
-
-        updateTimer += elapsed;
+        updateTimer += dt;
         if (updateTimer < 0.008) return;
-        elapsed = updateTimer;
+        var step:Float = updateTimer;
         updateTimer = 0.0;
 
         // Re-evaluate the night time window once per second.
-        timeCheckTimer += elapsed;
+        timeCheckTimer += step;
         if (timeCheckTimer >= 1.0) {
             timeCheckTimer = 0.0;
             applyCalculatedState(evaluateState());
@@ -317,7 +323,7 @@ class KssetteNight extends KHUDModifier {
         // Smoothly interpolate the overlay's alpha towards the target.
         if (overlayGame != null && overlayGame.exists && overlayGame.visible) {
             if (Math.abs(overlayGame.alpha - targetAlpha) > 0.001) {
-                overlayGame.alpha += (targetAlpha - overlayGame.alpha) * (elapsed * 4.0);
+                overlayGame.alpha += (targetAlpha - overlayGame.alpha) * (step * 4.0);
             } else {
                 overlayGame.alpha = targetAlpha;
             }
