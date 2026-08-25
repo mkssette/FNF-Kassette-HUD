@@ -1,0 +1,449 @@
+import funkin.ui.ScriptedMusicBeatSubState;
+import funkin.PlayerSettings;
+import flixel.FlxG;
+import flixel.FlxCamera;
+import flixel.FlxSprite;
+import flixel.text.FlxText;
+import flixel.text.FlxTextBorderStyle;
+import flixel.group.FlxSpriteGroup;
+import funkin.save.Save;
+import funkin.audio.FunkinSound;
+import funkin.Paths;
+import flixel.util.FlxColor;
+import flixel.math.FlxMath;
+import funkin.Preferences;
+import Math;
+import Std;
+import StringTools;
+import funkin.util.TouchUtil;
+import funkin.util.SwipeUtil;
+import funkin.util.HapticUtil;
+import funkin.modding.module.ModuleHandler;
+import kassettehud.util.KassetteHUDElement;
+import kassettehud.util.KssetteOptionsManager;
+import kassettehud.util.KassetteHUDDatahunter;
+
+class KssetteFontSubState extends ScriptedMusicBeatSubState {
+    public var parent:Dynamic;
+    
+    var panelWidth:Float;
+    var screenW:Float;
+    var screenH:Float;
+    var halfScreenH:Float;
+    var optionCam:FlxCamera;
+    var menuFont:String;
+    var isFontMenuOpen:Bool = false;
+    var fontItems:Array<Dynamic> = [];
+    var fontBgGroup:FlxSpriteGroup;
+    var fontItemsGroup:FlxSpriteGroup;
+    var fontSelectedIndex:Int = 0;
+    var fontLastSelectedIndex:Int = -1;
+    var currentFontSaveKey:String = "";
+    var currentFontTextRef:FlxText = null;
+    var fontVisibleStart:Int = -1;
+    var fontVisibleEnd:Int = -1;
+    var lastFontVisibleStart:Int = -1;
+    var lastFontVisibleEnd:Int = -1;
+    var curFontSelectedFloat:Float = 0;
+    var fontDragLastY:Float = -1;
+    var fontDragStartY:Float = -1;
+    public var wasMenuJustClosed:Bool = false;
+    var openTimer:Float = 0.0;
+    var selectCooldown:Float = 0.0;
+    var fontActiveFile:String = "";
+
+    var sndScroll:Dynamic;
+    var sndOn:Dynamic;
+    var sndHit:Dynamic;
+    
+    var holdTimer:Float = 0.0;
+    var panelOnLeft:Bool = false;
+    var subActionLocked:String = "none";
+
+    public function new(parent:Dynamic) {
+        super();
+        this.parent = parent;
+        this.persistentUpdate = true;
+        this.persistentDraw = true;
+    }
+
+    public function initSubstate():Void {
+        var pState:Dynamic = FlxG.state;
+        this.parent = pState;
+        
+        this.panelWidth = pState.panelWidth;
+        this.screenW = pState.screenW;
+        this.screenH = pState.screenH;
+        this.halfScreenH = pState.halfScreenH;
+        this.optionCam = FlxG.cameras.list[FlxG.cameras.list.length - 1];
+        
+        var hudCam = FlxG.cameras.list[FlxG.cameras.list.length - 2];
+        this.cameras = [FlxG.camera, hudCam, this.optionCam];
+        
+        this.menuFont = Paths.font("5by7.ttf");
+        this.sndScroll = Paths.sound('ui/khud_scroll');
+        this.sndOn = Paths.sound('ui/khud_on');
+        this.sndHit = Paths.sound("play/hitsound");
+        this.panelOnLeft = pState.panelOnLeft;
+    }
+
+    function moveGroup(group:FlxSpriteGroup, targetX:Float, elapsed:Float, speed:Float) {
+        if (group == null) return;
+        if (Math.abs(group.x - targetX) < 0.1) {
+            group.x = targetX;
+            return;
+        }
+        var newX = FlxMath.lerp(group.x, targetX, elapsed * speed);
+        group.x = newX;
+    }
+
+    function makeOverlayText(group:FlxSpriteGroup, x:Float, y:Float, w:Float, text:String, size:Int, color:Int, align:String, border:Bool = false):FlxText {
+        var txt = new FlxText(x, y, w, text, size);
+        if (border) txt.setFormat(menuFont, size, color, align, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        else txt.setFormat(menuFont, size, color, align);
+        txt.scrollFactor.set(0, 0);
+        txt.antialiasing = false;
+        group.add(txt);
+        return txt;
+    }
+
+    public function openFontSelector(saveKey:String, textRef:FlxText) {
+        fontBgGroup = new FlxSpriteGroup(0, 0);
+        fontBgGroup.x = panelOnLeft ? -panelWidth : screenW;
+        fontBgGroup.cameras = [optionCam];
+        add(fontBgGroup);
+
+        var bgWidth:Int = 470;
+        var bg = new FlxSprite(panelOnLeft ? 0 : (panelWidth - bgWidth), 0).makeGraphic(bgWidth, Std.int(screenH), 0xFF000000);
+        bg.alpha = 0.6;
+        bg.scrollFactor.set(0, 0);
+        fontBgGroup.add(bg);
+
+        var fTitle = new FlxText(10, 10, panelWidth - 20, "SELECT FONT (ESC TO CANCEL)", 32);
+        fTitle.setFormat(menuFont, 32, FlxColor.YELLOW, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        fTitle.antialiasing = false;
+        fTitle.scrollFactor.set(0, 0);
+        fontBgGroup.add(fTitle);
+
+        fontItemsGroup = new FlxSpriteGroup(0, 0);
+        fontItemsGroup.x = panelOnLeft ? -panelWidth : screenW;
+        fontItemsGroup.cameras = [optionCam];
+        add(fontItemsGroup);
+
+        var curSavedFont:String = "vcr.ttf";
+        var fetchedVal = Save.instance.modOptions.get(saveKey);
+        if (fetchedVal != null) curSavedFont = Std.string(fetchedVal);
+        fontActiveFile = curSavedFont;
+        currentFontSaveKey = saveKey;
+
+        var assetHunter:Dynamic = KassetteHUDDatahunter.asset;
+        var famDataList:Array<Dynamic> = (assetHunter != null) ? assetHunter.preloadedFamiliesData : [];
+
+        var fontIndex = 0;
+        for (famData in famDataList) {
+            var fam = famData.name;
+            var variants:Array<Dynamic> = famData.variants;
+            
+            for (v in variants) {
+                var displayName = v.family;
+                if (v.variant != "Regular" && v.variant != "Default") displayName += " " + v.variant;
+
+                var boxHeight:Float = 60;
+                var fTxt = new FlxText(30, 0, panelWidth - 60, displayName, 24);
+                fTxt.setFormat(v.path, 22, FlxColor.WHITE, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+                fTxt.y = (boxHeight - fTxt.height) / 2;
+
+                var itemW:Float = 450;
+                var itemBg = new FlxSprite(0, 0).makeGraphic(Std.int(itemW), Std.int(boxHeight - 4), FlxColor.WHITE);
+                itemBg.alpha = 0.15;
+                
+                fontItemsGroup.add(itemBg);
+                fontItemsGroup.add(fTxt);
+
+                fontItems.push({
+                    bg: itemBg,
+                    text: fTxt,
+                    fileName: v.file,
+                    y: 0,
+                    height: boxHeight,
+                    index: fontIndex
+                });
+                
+                if (v.file == curSavedFont) {
+                    fontSelectedIndex = fontIndex;
+                    curFontSelectedFloat = fontIndex;
+                }
+                
+                fontIndex++;
+            }
+        }
+
+        isFontMenuOpen = true;
+        openTimer = 0.2;
+        selectCooldown = 0.0;
+        // Offset slightly so the lerp runs on frame 1, triggering layout of all items
+        curFontSelectedFloat = fontSelectedIndex + 0.01;
+        subActionLocked = "none";
+        changeFontSelection(0);
+    }
+
+    public function closeFontSelector() {
+        if (fontBgGroup != null) {
+            remove(fontBgGroup);
+            fontBgGroup.destroy();
+            fontBgGroup = null;
+        }
+        if (fontItemsGroup != null) {
+            remove(fontItemsGroup);
+            fontItemsGroup.destroy();
+            fontItemsGroup = null;
+        }
+        fontItems = [];
+        isFontMenuOpen = false;
+        fontVisibleStart = -1;
+        fontVisibleEnd = -1;
+        lastFontVisibleStart = -1;
+        lastFontVisibleEnd = -1;
+        
+        if (parent.descBg != null) parent.descBg.visible = !parent.panelHidden;
+        if (parent.descTextDisplay != null) parent.descTextDisplay.visible = !parent.panelHidden;
+        if (parent.descValueText != null) parent.descValueText.visible = !parent.panelHidden;
+        
+        wasMenuJustClosed = true;
+    }
+
+    public function selectCurrentFont() {
+        if (fontItems.length > 0 && fontSelectedIndex >= 0 && fontSelectedIndex < fontItems.length) {
+            var selFile = fontItems[fontSelectedIndex].fileName;
+            Save.instance.modOptions.set(currentFontSaveKey, selFile);
+            if (parent.optionItems != null) {
+                for (i in 0...parent.optionItems.length) {
+                    var it = parent.optionItems[i];
+                    if (it != null) it.lockedState = null;
+                }
+            }
+            Save.instance.flush();
+            fontActiveFile = selFile;
+            
+            if (parent.descTextDisplay != null && parent.optionItems.length > 0 && parent.selectedIndex >= 0) {
+                var selItem = parent.optionItems[parent.selectedIndex];
+                parent.descTextDisplay.text = selItem.desc;
+                if (parent.descValueText != null) {
+                    parent.descValueText.text = parent.formatLongValue(selFile);
+                    var targetColor = parent.getValueColor(parent.descValueText.text);
+                    if (parent.descValueText.color != targetColor) parent.descValueText.color = targetColor;
+                    parent.descValueSlideTimer = 0.0;
+                }
+                
+                if (selItem.textDisplay != null) {
+                    selItem.textDisplay.text = parent.formatShortValue(selFile);
+                    var tColor = parent.getValueColor(selItem.textDisplay.text);
+                    if (selItem.textDisplay.color != tColor) selItem.textDisplay.color = tColor;
+                }
+                parent.descSlideVerticalTimer = 0.0;
+            }
+
+            if (sndOn != null) FlxG.sound.play(sndOn, 0.6);
+            HapticUtil.vibrate(0, 0.01, 0.3, 0.1);
+            
+            parent.updatePreviews();
+        }
+        closeFontSelector();
+    }
+
+
+    function applyFontItemState(idx:Int):Void {
+        if (idx < 0 || idx >= fontItems.length) return;
+        var item = fontItems[idx];
+        var targetAlpha = (idx == fontSelectedIndex) ? 0.4 : 0.15;
+        if (item.bg != null && item.bg.alpha != targetAlpha) item.bg.alpha = targetAlpha;
+        if (item.text != null) {
+            var targetColor = (item.fileName == fontActiveFile) ? FlxColor.YELLOW : FlxColor.WHITE;
+            if (item.text.color != targetColor) item.text.color = targetColor;
+        }
+    }
+
+    function changeFontSelection(change:Int = 0, updateScroll:Bool = true) {
+        var prevIndex = fontSelectedIndex;
+        fontSelectedIndex += change;
+        if (fontSelectedIndex < 0) fontSelectedIndex = fontItems.length - 1;
+        if (fontSelectedIndex >= fontItems.length) fontSelectedIndex = 0;
+
+        if (change == 0 || fontLastSelectedIndex < 0) {
+            for (i in 0...fontItems.length) {
+                applyFontItemState(i);
+            }
+        } else {
+            applyFontItemState(prevIndex);
+            applyFontItemState(fontSelectedIndex);
+        }
+        fontLastSelectedIndex = fontSelectedIndex;
+
+        if (change != 0) {
+            if (sndScroll != null) FlxG.sound.play(sndScroll, 0.5);
+            HapticUtil.vibrate(0, 0.01, 0.15, 0.1);
+        }
+    }
+
+    function setFontItemVisible(item:Dynamic, visible:Bool):Void {
+        if (item == null || item.bg == null) return;
+        if (item.bg.visible != visible) item.bg.visible = visible;
+        if (item.text != null && item.text.visible != visible) item.text.visible = visible;
+    }
+
+    function updateFontItemVisibility(screenHeight:Float) {
+        if (fontItems == null || fontItems.length == 0) return;
+        
+        var count = fontItems.length;
+        var startIdx = 0;
+        
+        while (startIdx < count) {
+            var curItem = fontItems[startIdx];
+            if (curItem.bg.y + curItem.height >= 0) break;
+            setFontItemVisible(curItem, false);
+            startIdx++;
+        }
+
+        var endIdx = startIdx;
+        while (endIdx < count) {
+            var curItem = fontItems[endIdx];
+            if (curItem.bg.y > screenHeight) break;
+            setFontItemVisible(curItem, true);
+            endIdx++;
+        }
+
+        while (endIdx < count) {
+            setFontItemVisible(fontItems[endIdx], false);
+            endIdx++;
+        }
+        
+        fontVisibleStart = startIdx;
+        fontVisibleEnd = endIdx - 1;
+    }
+
+    function handleFontInput(elapsed:Float) {
+        if (!isFontMenuOpen) return;
+        if (openTimer > 0) {
+            openTimer -= elapsed;
+            return;
+        }
+        var controls = PlayerSettings.player1.controls;
+
+        var swipeU = SwipeUtil.swipeUp;
+        var swipeD = SwipeUtil.swipeDown;
+        var swipeL = SwipeUtil.swipeLeft;
+        var swipeR = SwipeUtil.swipeRight;
+
+        // Keyboard / d-pad scroll
+        if (controls.UI_UP_P || (swipeU && holdTimer <= 0)) {
+            changeFontSelection(-1);
+            holdTimer = 0.3;
+            selectCooldown = 0.4;
+        }
+        if (controls.UI_DOWN_P || (swipeD && holdTimer <= 0)) {
+            changeFontSelection(1);
+            holdTimer = 0.3;
+            selectCooldown = 0.4;
+        }
+
+        if (controls.UI_UP || controls.UI_DOWN) {
+            if (holdTimer <= 0) {
+                changeFontSelection(controls.UI_UP ? -1 : 1);
+                holdTimer = 0.05;
+            }
+        }
+
+        if (FlxG.mouse != null && FlxG.mouse.wheel != 0) {
+            changeFontSelection(Std.int(-FlxG.mouse.wheel));
+        }
+
+        if (selectCooldown > 0) selectCooldown -= elapsed;
+
+        // Tap to select - use justReleased so it only fires when finger lifts, not on press
+        var tJustPressed = FlxG.onMobile ? TouchUtil.justReleased : FlxG.mouse.justReleased;
+        if (tJustPressed && openTimer <= 0 && selectCooldown <= 0) {
+            var startIdx = fontVisibleStart < 0 ? 0 : fontVisibleStart;
+            var endIdx = fontVisibleEnd < 0 ? fontItems.length - 1 : fontVisibleEnd;
+            if (endIdx >= fontItems.length) endIdx = fontItems.length - 1;
+
+            for (i in startIdx...(endIdx + 1)) {
+                var item = fontItems[i];
+                if (item != null && item.bg != null) {
+                    var overlaps = FlxG.onMobile ? TouchUtil.overlaps(item.bg) : FlxG.mouse.overlaps(item.bg);
+                    if (overlaps) {
+                        if (i == fontSelectedIndex) {
+                            selectCurrentFont();
+                        } else {
+                            changeFontSelection(i - fontSelectedIndex);
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (holdTimer > 0) holdTimer -= elapsed;
+
+        // Close only on back/escape - NOT on swipes to avoid closing during vertical scroll
+        if (FlxG.keys.justPressed.ESCAPE || controls.BACK) {
+            closeFontSelector();
+        }
+    }
+
+    override public function update(elapsed:Float):Void {
+        wasMenuJustClosed = false;
+        super.update(elapsed);
+        
+        var sw = screenW;
+        var sh = screenH;
+        
+        if (parent != null) {
+            this.panelOnLeft = parent.panelOnLeft;
+            this.panelWidth = parent.panelWidth;
+        }
+        
+        var targetFontX = panelOnLeft ? 0 : (sw - panelWidth);
+        if (isFontMenuOpen) { 
+            moveGroup(fontBgGroup, targetFontX, elapsed, 12);
+            if (fontItemsGroup != null) {
+                moveGroup(fontItemsGroup, targetFontX, elapsed, 12);
+                
+                var prevFloat = curFontSelectedFloat;
+                curFontSelectedFloat = FlxMath.lerp(curFontSelectedFloat, fontSelectedIndex, elapsed * 12);
+                if (Math.abs(curFontSelectedFloat - fontSelectedIndex) < 0.01) {
+                    curFontSelectedFloat = fontSelectedIndex;
+                }
+                var needsUpdate = (curFontSelectedFloat != prevFloat);
+
+                if (needsUpdate) {
+                    for (i in 0...fontItems.length) {
+                        var item = fontItems[i];
+                        if (item != null && item.bg != null && item.text != null) {
+                            var diff = i - curFontSelectedFloat;
+                            var itemTargetY = halfScreenH + (diff * 110) - (item.height / 2);
+
+                            var itemW:Float = 450;
+                            var targetScaleX = 0.75 + (0.25 * Math.max(0, 1.0 - Math.abs(diff)));
+                            
+                            item.bg.origin.set(panelOnLeft ? 0 : item.bg.width, item.bg.height / 2);
+                            item.bg.scale.x = targetScaleX;
+                            
+                            var targetXBase = panelOnLeft ? fontItemsGroup.x : (fontItemsGroup.x + panelWidth - itemW);
+                            var actualLeftEdge = panelOnLeft ? targetXBase : (targetXBase + (itemW * (1.0 - targetScaleX)));
+                            
+                            item.bg.x = targetXBase;
+                            item.text.x = actualLeftEdge + 30;
+                            item.bg.y = itemTargetY;
+                            item.text.y = itemTargetY + (item.height - item.text.height) / 2;
+                        }
+                    }
+                }
+                
+                updateFontItemVisibility(screenH);
+            }
+            if (holdTimer > 0) holdTimer -= elapsed;
+            handleFontInput(elapsed); 
+            return; 
+        }
+    }
+}

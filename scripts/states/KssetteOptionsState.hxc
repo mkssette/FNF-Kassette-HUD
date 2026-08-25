@@ -163,6 +163,7 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 	var scrollTween:FlxTween;
 
 	var subOptions:Dynamic;
+	var fontSubOptions:Dynamic;
 	var hudPreview:Dynamic;
 	var _previewUpdateTimer:Float = 0.0;
 
@@ -231,6 +232,11 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		subOptions.initSubstate();
 		this.subOptions = subOptions;
 		this.add(subOptions);
+
+		var fontSubOptions:Dynamic = ScriptedMusicBeatSubState.init("KssetteFontSubState", [this]);
+		fontSubOptions.initSubstate();
+		this.fontSubOptions = fontSubOptions;
+		this.add(fontSubOptions);
 
 		var hudPreview:Dynamic = ScriptedMusicBeatSubState.init("KssetteHUDPreview");
 		hudPreview.buildPreview(hudCam);
@@ -460,7 +466,7 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 
 		var wasSubMenuOpen = false;
 		if (subOptions != null) {
-			wasSubMenuOpen = subOptions.isFontMenuOpen || subOptions.isTimeMenuOpen || subOptions.isOpMenuOpen || subOptions.isVolMenuOpen;
+			wasSubMenuOpen = fontSubOptions.isFontMenuOpen || subOptions.isTimeMenuOpen || subOptions.isOpMenuOpen || subOptions.isVolMenuOpen;
 		}
 
 		super.update(elapsed);
@@ -480,7 +486,7 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 			}
 		}
 
-		var fontOpen = subOptions != null && subOptions.isFontMenuOpen;
+		var fontOpen = fontSubOptions != null && fontSubOptions.isFontMenuOpen;
 		var timeOpen = subOptions != null && subOptions.isTimeMenuOpen;
 		var opOpen = subOptions != null && subOptions.isOpMenuOpen;
 		var volOpen = subOptions != null && subOptions.isVolMenuOpen;
@@ -934,8 +940,8 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		}
 		var wasSubMenuOpen = false;
 		if (subOptions != null) {
-			wasSubMenuOpen = subOptions.isVolMenuOpen || subOptions.isTimeMenuOpen || subOptions.isOpMenuOpen || subOptions.isFontMenuOpen
-				|| subOptions.wasMenuJustClosed;
+			wasSubMenuOpen = subOptions.isVolMenuOpen || subOptions.isTimeMenuOpen || subOptions.isOpMenuOpen || fontSubOptions.isFontMenuOpen
+				|| subOptions.wasMenuJustClosed || fontSubOptions.wasMenuJustClosed;
 		}
 		if (this.subState != null) {
 			wasSubMenuOpen = true;
@@ -1243,13 +1249,13 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 
 		if (FlxG.onMobile) {
 			kssBackButton = new FunkinBackButton(15, 15, 0xFFFFFFFF, function() {
-				var fontOpen = subOptions != null && subOptions.isFontMenuOpen;
+				var fontOpen = fontSubOptions != null && fontSubOptions.isFontMenuOpen;
 				var timeOpen = subOptions != null && subOptions.isTimeMenuOpen;
 				var opOpen = subOptions != null && subOptions.isOpMenuOpen;
 				var volOpen = subOptions != null && subOptions.isVolMenuOpen;
 				if (fontOpen || timeOpen || opOpen || volOpen) {
 					if (fontOpen)
-						subOptions.selectCurrentFont();
+						fontSubOptions.selectCurrentFont();
 					if (timeOpen)
 						subOptions.saveTimeSelection();
 					if (opOpen)
@@ -1257,7 +1263,13 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 					if (volOpen)
 						subOptions.saveVolumeSelection();
 				} else {
-					exitMenu();
+					if (menuPage == 1) {
+						closeCategory();
+						if (sndCancel != null)
+							FlxG.sound.play(sndCancel);
+					} else {
+						exitMenu();
+					}
 				}
 			}, 0.7);
 			kssBackButton.scrollFactor.set(0, 0);
@@ -1693,7 +1705,7 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		item.fire = function(self:Dynamic) {
 			menuInst.primeOptionFire(self);
 			if (menuInst.subOptions != null)
-				menuInst.subOptions.openFontSelector(self.key, null);
+				menuInst.fontSubOptions.openFontSelector(self.key, null);
 		};
 		optionItems.push(item);
 	}
