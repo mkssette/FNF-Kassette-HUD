@@ -92,7 +92,7 @@ class KassetteHUDSkin extends Module {
         if (!active) return;
         ensureElements();
         for (el in elements) {
-            try { el.isPreview = false; } catch(e:Dynamic) {}
+            if (el != null) el.isPreview = false;
             el.onCountdownStart(event);
         }
     }

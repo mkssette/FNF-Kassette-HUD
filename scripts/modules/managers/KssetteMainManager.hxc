@@ -57,7 +57,7 @@ class KssetteMainManager extends Module {
         var optManager = KssetteOptionsManager.instance;
         var isMobPC = false;
         if (optManager != null) {
-            try { isMobPC = optManager.isMobileLikePC(); } catch(e:Dynamic) {}
+            isMobPC = optManager.isMobileLikePC();
         }
         
         var platform = isMobileMode ? (isMobPC ? "Mobile+KB" : "Mobile") : "PC";

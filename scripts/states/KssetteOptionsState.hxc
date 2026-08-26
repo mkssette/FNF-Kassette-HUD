@@ -46,6 +46,7 @@ import funkin.mobile.ui.FunkinBackButton;
 import kassettehud.util.KassetteSkinManager;
 
 class KssetteOptionsState extends ScriptedMusicBeatState {
+    var lowDetailMenu:Bool = false;
 	var previewModuleNames:Array<String> = [
 		"KssetteNight",
 		"KssetteAccuracy",
@@ -174,6 +175,8 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 	public var sndHit:Dynamic;
 
 	public function new() {
+        var rawLowDetail = KssetteOptionsManager.instance.getKssValue("kssette_low_detail_menu");
+        lowDetailMenu = (rawLowDetail == true || Std.string(rawLowDetail) == "On" || Std.string(rawLowDetail) == "true");
 		super();
 	}
 
@@ -304,8 +307,10 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 			cachePreviewModules();
 		for (mod in previewModules) {
 			if (mod != null) {
-				mod.isPreview = true;
-				mod.buildPreview(hudCam);
+				try {
+					mod.isPreview = true;
+					mod.buildPreview(hudCam);
+				} catch(e:Dynamic) {}
 			}
 		}
 	}
@@ -323,7 +328,9 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 			cachePreviewModules();
 		for (mod in previewModules) {
 			if (mod != null) {
-				mod.updatePreview();
+				try {
+					mod.updatePreview();
+				} catch(e:Dynamic) {}
 			}
 		}
 
@@ -475,12 +482,13 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		if (previewModules != null) {
 			_previewUpdateTimer += elapsed;
 			var previewThreshold = FlxG.onMobile ? 0.1 : 0.033;
+			if (lowDetailMenu) previewThreshold = 0.5;
 			if (_previewUpdateTimer >= previewThreshold) {
 				var accum = _previewUpdateTimer;
 				_previewUpdateTimer = 0;
 				for (mod in previewModules) {
 					if (mod != null) {
-						mod.onUpdate(accum);
+						try { mod.onUpdate(accum); } catch(e:Dynamic) {}
 					}
 				}
 			}
@@ -533,7 +541,7 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		if (kssBackButton != null) {
 			kssBackButton.visible = !panelHidden;
 			var targetBackX = panelOnLeft ? (sw - kssBackButton.width - 15) : 15;
-			kssBackButton.x = FlxMath.lerp(kssBackButton.x, targetBackX, elapsed * 12);
+			kssBackButton.x = FlxMath.lerp(kssBackButton.x, targetBackX, (lowDetailMenu ? 1.0 : elapsed * 12));
 		}
 
 		if (FlxG.keys.justPressed.TAB) {
@@ -549,18 +557,30 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		var targetMarqueeY:Float = panelHidden ? -50 : 0;
 		if (marqueeBg != null) {
 			if (Math.abs(marqueeBg.y - targetMarqueeY) > 0.1)
-				marqueeBg.y = FlxMath.lerp(marqueeBg.y, targetMarqueeY, elapsed * 12);
+				marqueeBg.y = FlxMath.lerp(marqueeBg.y, targetMarqueeY, (lowDetailMenu ? 1.0 : elapsed * 12));
 			else
 				marqueeBg.y = targetMarqueeY;
 		}
 
 		if (marqueeText1 != null && marqueeText2 != null) {
+			marqueeText1.visible = true;
+			marqueeText2.visible = true;
+			if (marqueeBg != null) marqueeBg.visible = true;
+			
 			marqueeOffset -= marqueeSpeed * elapsed;
 			if (marqueeOffset <= -marqueeText1.width) {
 				marqueeOffset += marqueeText1.width;
 			}
-			marqueeText1.x = marqueeOffset;
-			marqueeText2.x = marqueeOffset + marqueeText1.width;
+			
+			if (lowDetailMenu) {
+				var steppedOffset = Math.floor(marqueeOffset / 40.0) * 40.0;
+				marqueeText1.x = steppedOffset;
+				marqueeText2.x = steppedOffset + marqueeText1.width;
+			} else {
+				marqueeText1.x = marqueeOffset;
+				marqueeText2.x = marqueeOffset + marqueeText1.width;
+			}
+			
 			if (marqueeBg != null) {
 				marqueeText1.y = marqueeBg.y + 6;
 				marqueeText2.y = marqueeBg.y + 6;
@@ -582,6 +602,7 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 
 		if (transitioningSide) {
 			transitionTimer += elapsed;
+			if (lowDetailMenu) transitionTimer = 999.0;
 			targetXBase = activePanelOnLeft ? -smallCapsuleWidth - 200 : sw + 200;
 			targetDescX = activePanelOnLeft ? sw + 200 : -largeCapsuleWidth - 200;
 			targetFadeX = activePanelOnLeft ? -panelWidth - 200 : sw + 200;
@@ -633,7 +654,7 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 
 		if (capsuleFadeBg != null) {
 			if (Math.abs(capsuleFadeBg.x - targetFadeX) > 0.1)
-				capsuleFadeBg.x = FlxMath.lerp(capsuleFadeBg.x, targetFadeX, elapsed * 12);
+				capsuleFadeBg.x = FlxMath.lerp(capsuleFadeBg.x, targetFadeX, (lowDetailMenu ? 1.0 : elapsed * 12));
 			else
 				capsuleFadeBg.x = targetFadeX;
 			if (capsuleFadeBg.flipX != activePanelOnLeft)
@@ -650,6 +671,7 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 
 		if (pageTransitioning) {
 			pageTransitionTimer += elapsed;
+			if (lowDetailMenu) pageTransitionTimer = 999.0;
 			if (pageTransitionTimer >= 0.35 && !pageTransitionOutDone) {
 				pageTransitionOutDone = true;
 				if (pageTransitionDirection == 1) {
@@ -753,11 +775,11 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 					bg.y = targetY;
 				} else {
 					if (Math.abs(bg.x - targetX) > 0.1)
-						bg.x = FlxMath.lerp(bg.x, targetX, elapsed * 12);
+						bg.x = FlxMath.lerp(bg.x, targetX, (lowDetailMenu ? 1.0 : elapsed * 12));
 					else
 						bg.x = targetX;
 					if (Math.abs(bg.y - targetY) > 0.1)
-						bg.y = FlxMath.lerp(bg.y, targetY, elapsed * 12);
+						bg.y = FlxMath.lerp(bg.y, targetY, (lowDetailMenu ? 1.0 : elapsed * 12));
 					else
 						bg.y = targetY;
 				}
@@ -918,11 +940,11 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 
 		if (descBg != null) {
 			if (Math.abs(descBg.x - targetDescX) > 0.1)
-				descBg.x = FlxMath.lerp(descBg.x, targetDescX, elapsed * 12);
+				descBg.x = FlxMath.lerp(descBg.x, targetDescX, (lowDetailMenu ? 1.0 : elapsed * 12));
 			else
 				descBg.x = targetDescX;
 			if (Math.abs(descBg.y - targetDescY) > 0.1)
-				descBg.y = FlxMath.lerp(descBg.y, targetDescY, elapsed * 12);
+				descBg.y = FlxMath.lerp(descBg.y, targetDescY, (lowDetailMenu ? 1.0 : elapsed * 12));
 			else
 				descBg.y = targetDescY;
 			if (descTextDisplay != null) {
@@ -1191,6 +1213,8 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		var showPCOptions = !FlxG.onMobile || isMobilePC;
 
 		var optManager = KssetteOptionsManager.instance;
+		var currentSkinId = KassetteSkinManager.instance != null && KassetteSkinManager.instance.getCurrentSkin() != null ? KassetteSkinManager.instance.getCurrentSkin().skinId : "default";
+
 		if (optManager != null && optManager.optionsData != null && optManager.optionsData.categories != null) {
 			for (cat in optManager.optionsData.categories) {
 				if (cat.platform == "Mobile" && !FlxG.onMobile)
@@ -1198,7 +1222,22 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 				if (cat.platform == "PC" && !showPCOptions)
 					continue;
 
-				if (cat.name != null)
+				var validOptionsCount = 0;
+				if (cat.options != null) {
+					for (opt in cat.options) {
+						if (opt.platform == "Mobile" && !FlxG.onMobile) continue;
+						if (opt.platform == "PC" && !showPCOptions) continue;
+						if (opt.id == "kssette_discord_rpc_menu" && FlxG.onMobile) continue;
+						
+						var supportedSkin = opt.skin;
+						if (supportedSkin != null && supportedSkin != "global" && supportedSkin != currentSkinId)
+							continue;
+							
+						validOptionsCount++;
+					}
+				}
+
+				if (validOptionsCount > 0 && cat.name != null)
 					addCategory(cat);
 			}
 		}
@@ -1320,14 +1359,14 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 			bg.updateHitbox();
 		}
 		bg.cameras = [optionCam];
-		add(bg);
+		itemsGroup.add(bg);
 
 		var label = new FlxText(categoryLabelOffsetX, categoryLabelOffsetY, 0, cat.name.toUpperCase(), 36);
 		label.wordWrap = false;
 		label.setFormat(menuFont, 36, FlxColor.WHITE, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
 		label.antialiasing = false;
 		label.cameras = [optionCam];
-		add(label);
+		itemsGroup.add(label);
 
 		categoryItems.push({
 			bg: bg,
@@ -1387,6 +1426,8 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 				if (opt.platform == "Mobile" && !FlxG.onMobile)
 					continue;
 				if (opt.platform == "PC" && !showPCOptions)
+					continue;
+				if (opt.id == "kssette_discord_rpc_menu" && FlxG.onMobile)
 					continue;
 
 				var supportedSkin = opt.skin;
@@ -1534,23 +1575,23 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 			bg.updateHitbox();
 		}
 		bg.cameras = [optionCam];
-		add(bg);
+		itemsGroup.add(bg);
 
 		var label = new FlxText(labelOffsetX, labelOffsetY, 0, labelText, 32);
 		label.wordWrap = false;
 		label.setFormat(menuFont, 32, FlxColor.WHITE, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
 		label.antialiasing = false;
 		label.cameras = [optionCam];
-		add(label);
+		itemsGroup.add(label);
 
 		var valueText:FlxText = null;
 		if (hasValue) {
 			valueText = new FlxText(0, valueOffsetY, 0, value, 32);
 			valueText.wordWrap = false;
-			valueText.setFormat(menuFont, 32, 0xFF00FF00, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+			valueText.setFormat(menuFont, 32, getValueColor(value), "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
 			valueText.antialiasing = false;
 			valueText.cameras = [optionCam];
-			add(valueText);
+			itemsGroup.add(valueText);
 		}
 
 		return {
@@ -1639,7 +1680,7 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 			Save.instance.flush();
 			menuInst.updatePreviews();
 
-			if (self.key == "kssette_mobile_keyboard") {
+			if (self.key == "kssette_mobile_keyboard" || self.key == "kssette_low_detail_menu") {
 				FlxG.switchState(ScriptedMusicBeatState.init("KssetteOptionsState"));
 			}
 		};
@@ -1729,6 +1770,10 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 	function updateTextSlide(txt:FlxText, maxWidth:Float, timer:Float) {
 		if (txt == null)
 			return;
+			
+		if (lowDetailMenu) {
+			timer = Math.floor(timer * 4.0) / 4.0;
+		}
 		if (txt.offset == null)
 			txt.offset = new FlxPoint(0, 0);
 
@@ -1946,7 +1991,7 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 
 		if (scrollTween != null)
 			scrollTween.cancel();
-		scrollTween = FlxTween.tween(scrollTracker, {y: activeIndex}, 0.5, {ease: FlxEase.expoOut});
+		scrollTween = FlxTween.tween(scrollTracker, {y: activeIndex}, lowDetailMenu ? 0.01 : 0.5, {ease: FlxEase.expoOut});
 	}
 
 	function handleInput(elapsed:Float) {

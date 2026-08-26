@@ -24,6 +24,7 @@ import kassettehud.util.KssetteOptionsManager;
 import kassettehud.util.KassetteHUDDatahunter;
 
 class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
+    var lowDetailMenu:Bool = false;
     public var parent:Dynamic;
     
     var panelWidth:Float;
@@ -73,6 +74,8 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
     var subActionLocked:String = "none";
 
     public function new(parent:Dynamic) {
+        var rawLowDetail = KssetteOptionsManager.instance.getKssValue("kssette_low_detail_menu");
+        lowDetailMenu = (rawLowDetail == true || Std.string(rawLowDetail) == "On" || Std.string(rawLowDetail) == "true");
         super();
         this.parent = parent;
         this.persistentUpdate = true;
@@ -96,7 +99,7 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
         this.sndScroll = Paths.sound('ui/khud_scroll');
         this.sndOn = Paths.sound('ui/khud_on');
         this.sndHit = Paths.sound("play/hitsound");
-        this.panelOnLeft = pState.panelOnLeft;
+        this.panelOnLeft = false; // Force to right side
 
     }
 
@@ -106,7 +109,7 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
             group.x = targetX;
             return;
         }
-        var newX = FlxMath.lerp(group.x, targetX, elapsed * speed);
+        var newX = FlxMath.lerp(group.x, targetX, (lowDetailMenu ? 1.0 : elapsed * speed));
         group.x = newX;
     }
 
@@ -690,7 +693,7 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
         var sh = screenH;
         
         if (parent != null) {
-            this.panelOnLeft = parent.panelOnLeft;
+            this.panelOnLeft = false; // Force to right side
             this.panelWidth = parent.panelWidth;
         }
         

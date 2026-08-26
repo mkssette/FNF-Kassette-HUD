@@ -113,7 +113,7 @@ class KssetteSkyCompat extends Module {
                 if (state.opponentStrumline != null) {
                     var bg2:Dynamic = state.opponentStrumline?.background;
                     if (bg2 != null) {
-                        try { state.opponentStrumline.remove(bg2, true); } catch(e:Dynamic) {}
+                        if (state != null) state.opponentStrumline.remove(bg2, true);
                         bg2.zIndex = 10;
                         bg2.cameras = [state.camHUD];
                         state.add(bg2);
@@ -126,7 +126,7 @@ class KssetteSkyCompat extends Module {
             skyHUDModule.popupBackdrop.zIndex = 11;
             skyHUDModule.ratingPopup.zIndex = 12;
             skyHUDModule.comboTxt.zIndex = 12;
-            try { state.refresh(); } catch(e:Dynamic) {}
+            if (state != null) state.refresh();
         }
     }
 

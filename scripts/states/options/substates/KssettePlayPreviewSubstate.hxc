@@ -14,10 +14,13 @@ import funkin.graphics.FunkinCamera;
 import flixel.FlxG;
 import flixel.util.FlxColor;
 import flixel.math.FlxMath;
+import funkin.graphics.FunkinSprite;
+import funkin.Paths;
 import funkin.modding.module.ModuleHandler;
 import kassettehud.util.KassetteHUDElement;
 import Std;
 import Reflect;
+import kassettehud.util.KssetteOptionsManager;
 
 class KssettePlayPreviewSubstate extends ScriptedMusicBeatSubState {
     public var stageCam:FunkinCamera;
@@ -27,7 +30,11 @@ class KssettePlayPreviewSubstate extends ScriptedMusicBeatSubState {
     public var gf:BaseCharacter;
 
 
+    var lowDetailMenu:Bool = false;
+
     public function new() {
+        var rawLowDetail = KssetteOptionsManager.instance.getKssValue("kssette_low_detail_menu");
+        lowDetailMenu = (rawLowDetail == true || Std.string(rawLowDetail) == "On" || Std.string(rawLowDetail) == "true");
         super();
         this.persistentUpdate = true;
         this.persistentDraw = true;
@@ -47,16 +54,27 @@ class KssettePlayPreviewSubstate extends ScriptedMusicBeatSubState {
 
         var initEvent:ScriptEvent = new ScriptEvent("onCreate");
 
-        stage = new Stage("mainStage");
-        stage.onCreate(initEvent);
-        stage.cameras = [stageCam];
-        add(stage);
+        if (!lowDetailMenu) {
+            stage = new Stage("mainStage");
+            stage.onCreate(initEvent);
+            stage.cameras = [stageCam];
+            add(stage);
 
-        gf = spawnCharacter("gf", initEvent);
-        dad = spawnCharacter("dad", initEvent);
-        bf = spawnCharacter("bf", initEvent);
+            gf = spawnCharacter("gf", initEvent);
+            dad = spawnCharacter("dad", initEvent);
+            bf = spawnCharacter("bf", initEvent);
+        } else {
+            var bg:FunkinSprite = new FunkinSprite(0, 0);
+            bg.loadTexture("ui/menuKssette");
+            bg.scrollFactor.set(0, 0);
+            bg.cameras = [stageCam];
+            bg.setGraphicSize(Std.int(FlxG.width / stageCam.zoom), Std.int(FlxG.height / stageCam.zoom));
+            bg.updateHitbox();
+            bg.screenCenter();
+            add(bg);
+        }
 
-        var sData = stage._data;
+        var sData = stage != null ? stage._data : null;
         var placeChar = function(char:BaseCharacter, cData:Dynamic, isPlayer:Bool) {
             if (char == null) return;
             char.resetCharacter(true);
@@ -131,40 +149,15 @@ class KssettePlayPreviewSubstate extends ScriptedMusicBeatSubState {
         }
     }
 
-    function spawnCharacter(id:String, initEvent:ScriptEvent):BaseCharacter {
-        var char:BaseCharacter = null;
-        var rType:String = "";
-
-        var entry = CharacterDataParser.parseCharacterData(id);
-        if (entry != null) {
-            var rawType = Reflect.getProperty(entry, "renderType");
-            if (rawType != null) rType = Std.string(rawType).toLowerCase();
-        }
-
-        if (rType == "") {
-            var types = ["sparrow", "animateatlas", "multisparrow", "multianimateatlas", "packer"];
-            for (type in types) {
-                if (type == "animateatlas") char = new AnimateAtlasCharacter(id);
-                else if (type == "sparrow") char = new SparrowCharacter(id);
-                else if (type == "multsparrow") char = new MultiSparrowCharacter(id);
-                else if (type == "multianimateatlas") char = new MultiAnimateAtlasCharacter(id);
-                else if (type == "packer") char = new PackerCharacter(id);
-
-                if (char != null) {
-                    char.onCreate(initEvent);
-                    return char;
-                }
-            }
-            return null;
-        }
-
-        if (rType == "animateatlas") char = new AnimateAtlasCharacter(id);
-        else if (rType == "multsparrow") char = new MultiSparrowCharacter(id);
-        else if (rType == "multianimateatlas") char = new MultiAnimateAtlasCharacter(id);
-        else if (rType == "packer") char = new PackerCharacter(id);
-        else char = new SparrowCharacter(id);
+    function spawnCharacter(charId:String, initEvent:ScriptEvent):BaseCharacter {
+        var oldScript = CharacterDataParser.characterScriptedClass.get(charId);
+        if (oldScript != null) CharacterDataParser.characterScriptedClass.remove(charId);
         
-        char.onCreate(initEvent);
+        var char = CharacterDataParser.fetchCharacter(charId);
+        
+        if (oldScript != null) CharacterDataParser.characterScriptedClass.set(charId, oldScript);
+        
+        if (char != null) char.onCreate(initEvent);
         return char;
     }
 }

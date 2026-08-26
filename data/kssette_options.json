@@ -170,14 +170,6 @@
           "locked": ["kssette_night_mode != Auto"]
         },
         {
-          "id": "kssette_smooth_display",
-          "name": "SMOOTH NUMBER ANIMATIONS",
-          "description": "Makes the score and accuracy numbers scroll smoothly.",
-          "type": "choice",
-          "options": ["On", "Off"],
-          "defaultValue": "On"
-        },
-        {
           "id": "kssette_score_bop",
           "name": "SCORE BOP ANIMATION",
           "description": "Makes the score text bop when hitting notes.",
@@ -485,6 +477,27 @@
           "type": "choice",
           "options": ["On", "Off"],
           "defaultValue": "Off"
+        }
+      ]
+    },
+    {
+      "name": "Performance",
+      "options": [
+        {
+          "id": "kssette_low_detail_menu",
+          "name": "LOW DETAIL OPTIONS MENU",
+          "description": "Disables menu animations and tweens for better performance on low-end devices.",
+          "type": "choice",
+          "options": ["Off", "On"],
+          "defaultValue": "Off"
+        },
+        {
+          "id": "kssette_smooth_display",
+          "name": "SMOOTH NUMBER ANIMATIONS",
+          "description": "Makes the score and accuracy numbers scroll smoothly.",
+          "type": "choice",
+          "options": ["On", "Off"],
+          "defaultValue": "On"
         }
       ]
     }

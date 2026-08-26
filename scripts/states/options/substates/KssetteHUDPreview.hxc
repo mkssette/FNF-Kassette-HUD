@@ -43,7 +43,7 @@ class KssetteHUDPreview extends ScriptedMusicBeatSubState {
 
     var fakeNotes:Array<FlxSprite> = [];
     var noteTimer:Float = 0.0;
-    var targetNoteDelay:Float = 2.0;
+    var targetNoteDelay:Float = 0.1;
     var ghostTimer:Float = 0.0;
     var elapsedTime:Float = 0.0;
     var targetGhostDelay:Float = 3.0;
@@ -144,9 +144,7 @@ class KssetteHUDPreview extends ScriptedMusicBeatSubState {
 
         isArrowsScheme = false;
         if (isMob && !isMobPC) {
-            try {
-                if (Std.string(Preferences.controlsScheme) == "Arrows") isArrowsScheme = true;
-            } catch(e:Dynamic) {}
+            if (Std.string(Preferences.controlsScheme) == "Arrows") isArrowsScheme = true;
             if (!isArrowsScheme) {
                 try {
                     if (Save.instance?.mobileOptions?.controlsScheme != null) {
@@ -170,7 +168,7 @@ class KssetteHUDPreview extends ScriptedMusicBeatSubState {
         var coloredHB = KssetteOptionsManager.instance != null && KssetteOptionsManager.instance.getKssValue("kssette_colored_healthbar") == true;
 
         var strumYOffset = 50.0;
-        try { strumYOffset = Constants.STRUMLINE_Y_OFFSET; } catch(e:Dynamic) {}
+        strumYOffset = Constants.STRUMLINE_Y_OFFSET;
 
         var targetY = downscroll ? FlxG.height - 150.0 : strumYOffset;
         var startY = downscroll ? targetY + 300.0 : targetY - 300.0;
@@ -232,7 +230,7 @@ class KssetteHUDPreview extends ScriptedMusicBeatSubState {
         if (isArrowsScheme) {
             playerStrumPreview.x = 0;
             var pNotes:Array<Dynamic> = null;
-            try { pNotes = playerStrumPreview.strumlineNotes.members; } catch(e:Dynamic) {}
+            pNotes = playerStrumPreview.strumlineNotes.members;
             
             if (pNotes != null) {
                 var hintW = 146.0;
@@ -252,11 +250,11 @@ class KssetteHUDPreview extends ScriptedMusicBeatSubState {
             if (opponentStrumPreview != null && opponentStrumPreview.exists) {
                 opponentStrumPreview.x = 0; 
                 var oppReceptors:Array<Dynamic> = null;
-                try { oppReceptors = opponentStrumPreview.strumlineNotes.members; } catch(e:Dynamic) {}
+                oppReceptors = opponentStrumPreview.strumlineNotes.members;
                 
                 if (oppReceptors != null && oppReceptors.length >= 4) {
                     var defScale:Float = 0.7;
-                    try { defScale = noteStyle.getStrumlineScale(); } catch(e:Dynamic) {}
+                    if (cachedNoteStyle != null) defScale = cachedNoteStyle.getStrumlineScale();
                     var noteSpace = 112.0;
                     var sizeRatio = 0.55; 
                     var targetSpacing = noteSpace * sizeRatio;
@@ -291,11 +289,11 @@ class KssetteHUDPreview extends ScriptedMusicBeatSubState {
                     opponentStrumPreview.x = sxOff + cutoutSize;
                     
                     var oppReceptors:Array<Dynamic> = null;
-                    try { oppReceptors = opponentStrumPreview.strumlineNotes.members; } catch(e:Dynamic) {}
+                    oppReceptors = opponentStrumPreview.strumlineNotes.members;
                     
                     if (oppReceptors != null && oppReceptors.length >= 4) {
                         var defScale:Float = 0.7;
-                        try { defScale = noteStyle.getStrumlineScale(); } catch(e:Dynamic) {}
+                        if (cachedNoteStyle != null) defScale = cachedNoteStyle.getStrumlineScale();
                         
                         var noteSpace = 112.0;
                         for (i in 0...4) {
@@ -313,11 +311,11 @@ class KssetteHUDPreview extends ScriptedMusicBeatSubState {
                     opponentStrumPreview.x = 0; 
                     
                     var oppReceptors:Array<Dynamic> = null;
-                    try { oppReceptors = opponentStrumPreview.strumlineNotes.members; } catch(e:Dynamic) {}
+                    oppReceptors = opponentStrumPreview.strumlineNotes.members;
                     
                     if (oppReceptors != null && oppReceptors.length >= 4) {
                         var defScale:Float = 0.7;
-                        try { defScale = noteStyle.getStrumlineScale(); } catch(e:Dynamic) {}
+                        if (cachedNoteStyle != null) defScale = cachedNoteStyle.getStrumlineScale();
 
                         var noteSpace = 112.0;
                         var nw = (oppReceptors[0] != null && oppReceptors[0].exists) ? oppReceptors[0].width : noteSpace;
@@ -439,7 +437,7 @@ class KssetteHUDPreview extends ScriptedMusicBeatSubState {
         
         var strum = isPlayer ? playerStrumPreview : opponentStrumPreview;
         var pNotes = null;
-        try { pNotes = strum.strumlineNotes.members; } catch(e:Dynamic) {}
+        pNotes = strum.strumlineNotes.members;
         if (pNotes == null || pNotes.length < 4) return;
         
         var dir = Std.random(4);
@@ -498,44 +496,34 @@ class KssetteHUDPreview extends ScriptedMusicBeatSubState {
         var dirStr = ["singLEFT", "singDOWN", "singUP", "singRIGHT"][dir];
         FlxTween.tween(fake, {y: targetY}, fallTime, {ease: FlxEase.linear, onComplete: function(t) {
             if (strum != null && strum.exists && fake.visible) {
-                try {
-                    strum.playConfirm(dir);
-                    new FlxTimer().start(0.15, function(tmr) {
-                        if (strum != null && strum.exists) strum.playStatic(dir);
-                    });
-                } catch(e:Dynamic) {}
+                strum.playConfirm(dir);
+                new FlxTimer().start(0.15, function(tmr) {
+                    if (strum != null && strum.exists) strum.playStatic(dir);
+                });
             }
             
-            try {
-                var char = isPlayerNote ? KassetteHUDElement.preview_bf : KassetteHUDElement.preview_dad;
-                if (char != null) {
-                    try {
-                        char.playAnimation(dirStr, true);
-                        KassetteHUDElement.preview_scoreBopTrigger = true;
-                        KassetteHUDElement.preview_simulatedAcc += 25.0;
-                        if (KassetteHUDElement.preview_simulatedAcc > 100.0) KassetteHUDElement.preview_simulatedAcc = 100.0;
-                    } catch(e:Dynamic) {}
-                }
-                else {
-                    dadIdleTimer = 0.6;
-                    try {
-                        KassetteHUDElement.preview_simulatedAcc = 0.0;
-                    } catch(e:Dynamic) {}
-                }
-                
-                if (char != null) {
-                    var strum = isPlayerNote ? playerStrumPreview : opponentStrumPreview;
-                    if (strum != null && strum.exists) {
-                        try {
-                            var rec = strum.strumlineNotes.members[dir];
-                            if (rec != null && rec.exists) {
-                                rec.playConfirm();
-                                rec.confirmHoldTimer = 0.0;
-                            }
-                        } catch(e:Dynamic) {}
+            var char = isPlayerNote ? KassetteHUDElement.preview_bf : KassetteHUDElement.preview_dad;
+            if (char != null) {
+                char.playAnimation(dirStr, true);
+                KassetteHUDElement.preview_scoreBopTrigger = true;
+                KassetteHUDElement.preview_simulatedAcc += 25.0;
+                if (KassetteHUDElement.preview_simulatedAcc > 100.0) KassetteHUDElement.preview_simulatedAcc = 100.0;
+            }
+            else {
+                dadIdleTimer = 0.6;
+                KassetteHUDElement.preview_simulatedAcc = 0.0;
+            }
+            
+            if (char != null) {
+                var strum = isPlayerNote ? playerStrumPreview : opponentStrumPreview;
+                if (strum != null && strum.exists) {
+                    var rec = strum.strumlineNotes.members[dir];
+                    if (rec != null && rec.exists) {
+                        rec.playConfirm();
+                        rec.confirmHoldTimer = 0.0;
                     }
                 }
-            } catch(e:Dynamic) {}
+            }
             
             if (fakeNotes.indexOf(fake) != -1) fakeNotes.remove(fake);
             killObj(fake);
@@ -554,13 +542,11 @@ class KssetteHUDPreview extends ScriptedMusicBeatSubState {
         var ghostSing = Std.string(optManager != null ? optManager.getKssValue("kssette_ghost_sing") : null);
         
         if (playerStrumPreview != null && playerStrumPreview.exists) {
-            try {
-                var rec = playerStrumPreview.strumlineNotes.members[dir];
-                if (rec != null && rec.exists) {
-                    rec.playPress();
-                    rec.confirmHoldTimer = 0.0;
-                }
-            } catch(e:Dynamic) {}
+            var rec = playerStrumPreview.strumlineNotes.members[dir];
+            if (rec != null && rec.exists) {
+                rec.playPress();
+                rec.confirmHoldTimer = 0.0;
+            }
         }
         
         var isMiss = false;
@@ -580,18 +566,12 @@ class KssetteHUDPreview extends ScriptedMusicBeatSubState {
         var dirStr = ["singLEFT", "singDOWN", "singUP", "singRIGHT"][dir];
         if (isMiss) {
             bfIdleTimer = 0.6;
-            try {
-                KassetteHUDElement.preview_simulatedAcc = 0.0;
-            } catch(e:Dynamic) {}
-            try {
-                char.playAnimation(dirStr, true);
-            } catch(e:Dynamic) {}
+            KassetteHUDElement.preview_simulatedAcc = 0.0;
+            char.playAnimation(dirStr + "miss", true);
         } else {
             if (ghostSing == "On" || ghostSing == "true") {
                 bfIdleTimer = 0.6;
-                try {
-                    char.playAnimation(dirStr, true);
-                } catch(e:Dynamic) {}
+                char.playAnimation(dirStr, true);
             }
         }
     }
@@ -614,19 +594,19 @@ class KssetteHUDPreview extends ScriptedMusicBeatSubState {
         if (bfIdleTimer > 0) {
             bfIdleTimer -= elapsed;
             if (bfIdleTimer <= 0) {
-                try { if (KassetteHUDElement.preview_bf != null) KassetteHUDElement.preview_bf.dance(true); } catch(e:Dynamic) {}
+                if (KassetteHUDElement.preview_bf != null) KassetteHUDElement.preview_bf.dance(true);
             }
         }
         if (dadIdleTimer > 0) {
             dadIdleTimer -= elapsed;
             if (dadIdleTimer <= 0) {
-                try { if (KassetteHUDElement.preview_dad != null) KassetteHUDElement.preview_dad.dance(true); } catch(e:Dynamic) {}
+                if (KassetteHUDElement.preview_dad != null) KassetteHUDElement.preview_dad.dance(true);
             }
         } else {
             var c = Math.floor(elapsedTime / 4.0);
             if (c > dadDancesCount) {
                 dadDancesCount = c;
-                try { if (KassetteHUDElement.preview_dad != null) KassetteHUDElement.preview_dad.dance(true); } catch(e:Dynamic) {}
+                if (KassetteHUDElement.preview_dad != null) KassetteHUDElement.preview_dad.dance(true);
             }
         }
         
@@ -635,12 +615,27 @@ class KssetteHUDPreview extends ScriptedMusicBeatSubState {
             beatDuration = Conductor.instance.crochet / 1000.0;
         }
 
-        noteTimer += elapsed;
-        if (noteTimer > targetNoteDelay) {
-            noteTimer = 0;
-            var beatsToWait = 2 + Std.random(3); // Wait 2, 3, or 4 beats
-            targetNoteDelay = beatsToWait * beatDuration;
-            spawnFakeNote();
+        var rawLowDetail = KssetteOptionsManager.instance != null ? KssetteOptionsManager.instance.getKssValue("kssette_low_detail_menu") : false;
+        var lowDetailMenu = (rawLowDetail == true || Std.string(rawLowDetail) == "On" || Std.string(rawLowDetail) == "true");
+
+        if (!lowDetailMenu) {
+            noteTimer += elapsed;
+            if (noteTimer > targetNoteDelay) {
+                noteTimer = 0;
+                var beatsToWait = 2 + Std.random(3); // Wait 2, 3, or 4 beats
+                targetNoteDelay = beatsToWait * beatDuration;
+                spawnFakeNote();
+            }
+        } else {
+            noteTimer += elapsed;
+            if (noteTimer > targetNoteDelay) {
+                noteTimer = 0;
+                var beatsToWait = 2 + Std.random(3);
+                targetNoteDelay = beatsToWait * beatDuration;
+                KassetteHUDElement.preview_scoreBopTrigger = true;
+                KassetteHUDElement.preview_simulatedAcc += 25.0;
+                if (KassetteHUDElement.preview_simulatedAcc > 100.0) KassetteHUDElement.preview_simulatedAcc = 100.0;
+            }
         }
         
         if (true) {
@@ -651,12 +646,27 @@ class KssetteHUDPreview extends ScriptedMusicBeatSubState {
             KassetteHUDElement.preview_turnProgress = prog;
         }
         
-        ghostTimer += elapsed;
-        if (ghostTimer > targetGhostDelay) {
-            ghostTimer = 0;
-            var ghostBeatsToWait = 3 + Std.random(5); // Wait 3 to 7 beats
-            targetGhostDelay = ghostBeatsToWait * beatDuration;
-            spawnGhostTap();
+        if (!lowDetailMenu) {
+            ghostTimer += elapsed;
+            if (ghostTimer > targetGhostDelay) {
+                ghostTimer = 0;
+                var ghostBeatsToWait = 3 + Std.random(5); // Wait 3 to 7 beats
+                targetGhostDelay = ghostBeatsToWait * beatDuration;
+                spawnGhostTap();
+            }
+        } else {
+            ghostTimer += elapsed;
+            if (ghostTimer > targetGhostDelay) {
+                ghostTimer = 0;
+                var ghostBeatsToWait = 3 + Std.random(5);
+                targetGhostDelay = ghostBeatsToWait * beatDuration;
+                
+                var optManager = KssetteOptionsManager.instance;
+                var ghostTapping = Std.string(optManager != null ? optManager.getKssValue("kssette_ghost_tapping") : null);
+                if (ghostTapping == "Off" || ghostTapping == "false" || ghostTapping == "In Breaks") {
+                    KassetteHUDElement.preview_simulatedAcc = 0.0;
+                }
+            }
         }
         
         for (note in fakeNotes) {
@@ -664,13 +674,11 @@ class KssetteHUDPreview extends ScriptedMusicBeatSubState {
                 var isPlayer = note.health == 1;
                 var strum = isPlayer ? playerStrumPreview : opponentStrumPreview;
                 if (strum != null && strum.exists) {
-                    try {
-                        var rec = strum.strumlineNotes.members[note.ID];
-                        if (rec != null && rec.exists) {
-                            note.x = rec.x + (rec.width - note.width) / 2.0;
-                            note.alpha = strum.alpha * 0.8;
-                        }
-                    } catch(e:Dynamic) {}
+                    var rec = strum.strumlineNotes.members[note.ID];
+                    if (rec != null && rec.exists) {
+                        note.x = rec.x + (rec.width - note.width) / 2.0;
+                        note.alpha = strum.alpha * 0.8;
+                    }
                 }
             }
         }

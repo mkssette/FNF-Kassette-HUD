@@ -18,8 +18,10 @@ import funkin.util.HapticUtil;
 import funkin.modding.module.ModuleHandler;
 import kassettehud.util.KassetteSkinManager;
 import kassettehud.util.KassetteHUDSkin;
+import kassettehud.util.KssetteOptionsManager;
 
 class KssetteSkinSelectorSubState extends ScriptedMusicBeatSubState {
+    var lowDetailMenu:Bool = false;
     public var parent:Dynamic;
     
     var panelWidth:Float;
@@ -53,6 +55,8 @@ class KssetteSkinSelectorSubState extends ScriptedMusicBeatSubState {
     var isClosing:Bool = false;
 
     public function new() {
+        var rawLowDetail = KssetteOptionsManager.instance.getKssValue("kssette_low_detail_menu");
+        lowDetailMenu = (rawLowDetail == true || Std.string(rawLowDetail) == "On" || Std.string(rawLowDetail) == "true");
         super();
         this.persistentUpdate = true;
         this.persistentDraw = true;
@@ -77,6 +81,7 @@ class KssetteSkinSelectorSubState extends ScriptedMusicBeatSubState {
         this.menuFont = Paths.font("5by7.ttf");
         this.sndScroll = Paths.sound('ui/khud_scroll');
         this.sndOn = Paths.sound('ui/khud_on');
+        this.panelOnLeft = false;
 
         skinSelectedIndex = 0;
         skinTargetScrollY = 0;
@@ -174,7 +179,7 @@ class KssetteSkinSelectorSubState extends ScriptedMusicBeatSubState {
             group.x = targetX;
             return;
         }
-        var newX = FlxMath.lerp(group.x, targetX, elapsed * speed);
+        var newX = FlxMath.lerp(group.x, targetX, (lowDetailMenu ? 1.0 : elapsed * speed));
         group.x = newX;
     }
 
@@ -318,6 +323,11 @@ class KssetteSkinSelectorSubState extends ScriptedMusicBeatSubState {
         
         var sw = screenW;
         var sh = screenH;
+        
+        this.panelOnLeft = false;
+        if (parent != null) {
+            this.panelWidth = parent.panelWidth;
+        }
         
         var targetX = 0.0;
         if (isClosing) {

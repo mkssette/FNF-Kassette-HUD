@@ -257,7 +257,7 @@ class KssetteUpdateState extends ScriptedMusicBeatState {
     function confirmSelection() {
         if (curSelected == 0) {
             FunkinSound.playOnce(Paths.sound('confirmMenu'));
-            try { WindowUtil.openURL("https://gamebanana.com/mods/657203"); } catch(err:Dynamic) {}
+            if (WindowUtil != null) WindowUtil.openURL("https://gamebanana.com/mods/657203");
             FlxG.switchState(new MainMenuState());
         } else {
             FunkinSound.playOnce(Paths.sound('cancelMenu'));

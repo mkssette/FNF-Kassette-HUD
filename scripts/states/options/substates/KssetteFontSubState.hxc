@@ -24,6 +24,7 @@ import kassettehud.util.KssetteOptionsManager;
 import kassettehud.util.KassetteHUDDatahunter;
 
 class KssetteFontSubState extends ScriptedMusicBeatSubState {
+    var lowDetailMenu:Bool = false;
     public var parent:Dynamic;
     
     var panelWidth:Float;
@@ -36,6 +37,7 @@ class KssetteFontSubState extends ScriptedMusicBeatSubState {
     var fontItems:Array<Dynamic> = [];
     var fontBgGroup:FlxSpriteGroup;
     var fontItemsGroup:FlxSpriteGroup;
+    var fontHeaderGroup:FlxSpriteGroup;
     var fontSelectedIndex:Int = 0;
     var fontLastSelectedIndex:Int = -1;
     var currentFontSaveKey:String = "";
@@ -61,6 +63,8 @@ class KssetteFontSubState extends ScriptedMusicBeatSubState {
     var subActionLocked:String = "none";
 
     public function new(parent:Dynamic) {
+        var rawLowDetail = KssetteOptionsManager.instance.getKssValue("kssette_low_detail_menu");
+        lowDetailMenu = (rawLowDetail == true || Std.string(rawLowDetail) == "On" || Std.string(rawLowDetail) == "true");
         super();
         this.parent = parent;
         this.persistentUpdate = true;
@@ -84,7 +88,7 @@ class KssetteFontSubState extends ScriptedMusicBeatSubState {
         this.sndScroll = Paths.sound('ui/khud_scroll');
         this.sndOn = Paths.sound('ui/khud_on');
         this.sndHit = Paths.sound("play/hitsound");
-        this.panelOnLeft = pState.panelOnLeft;
+        this.panelOnLeft = false; // Force to right side
     }
 
     function moveGroup(group:FlxSpriteGroup, targetX:Float, elapsed:Float, speed:Float) {
@@ -93,7 +97,7 @@ class KssetteFontSubState extends ScriptedMusicBeatSubState {
             group.x = targetX;
             return;
         }
-        var newX = FlxMath.lerp(group.x, targetX, elapsed * speed);
+        var newX = FlxMath.lerp(group.x, targetX, (lowDetailMenu ? 1.0 : elapsed * speed));
         group.x = newX;
     }
 
@@ -114,16 +118,11 @@ class KssetteFontSubState extends ScriptedMusicBeatSubState {
         add(fontBgGroup);
 
         var bgWidth:Int = 470;
-        var bg = new FlxSprite(panelOnLeft ? 0 : (panelWidth - bgWidth), 0).makeGraphic(bgWidth, Std.int(screenH), 0xFF000000);
+        var panelOffset:Float = panelOnLeft ? 0 : (panelWidth - bgWidth);
+        var bg = new FlxSprite(panelOffset, 0).makeGraphic(bgWidth, Std.int(screenH), 0xFF000000);
         bg.alpha = 0.6;
         bg.scrollFactor.set(0, 0);
         fontBgGroup.add(bg);
-
-        var fTitle = new FlxText(10, 10, panelWidth - 20, "SELECT FONT (ESC TO CANCEL)", 32);
-        fTitle.setFormat(menuFont, 32, FlxColor.YELLOW, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
-        fTitle.antialiasing = false;
-        fTitle.scrollFactor.set(0, 0);
-        fontBgGroup.add(fTitle);
 
         fontItemsGroup = new FlxSpriteGroup(0, 0);
         fontItemsGroup.x = panelOnLeft ? -panelWidth : screenW;
@@ -178,10 +177,55 @@ class KssetteFontSubState extends ScriptedMusicBeatSubState {
             }
         }
 
+        // Header & Fade Overlay on top of itemsGroup
+        fontHeaderGroup = new FlxSpriteGroup(0, 0);
+        fontHeaderGroup.x = panelOnLeft ? -panelWidth : screenW;
+        fontHeaderGroup.cameras = [optionCam];
+        add(fontHeaderGroup);
+
+        // Header background bar covering top 45px
+        var headerBg = new FlxSprite(panelOffset, 0).makeGraphic(bgWidth, 45, 0xFF000000);
+        headerBg.alpha = 0.95;
+        headerBg.scrollFactor.set(0, 0);
+        fontHeaderGroup.add(headerBg);
+
+        // Top fade gradient below header
+        var topFade = new FlxSprite(panelOffset, 45);
+        topFade.makeGraphic(bgWidth, 40, 0x00000000);
+        for (gy in 0...40) {
+            var ratio:Float = 1.0 - (gy / 40.0);
+            var a:Int = Std.int(0.85 * 255 * ratio);
+            var color:Int = (a << 24) | 0x000000;
+            for (gx in 0...bgWidth) {
+                topFade.graphic.bitmap.setPixel32(gx, gy, color);
+            }
+        }
+        topFade.scrollFactor.set(0, 0);
+        fontHeaderGroup.add(topFade);
+
+        // Bottom fade gradient
+        var botFade = new FlxSprite(panelOffset, Std.int(screenH - 40));
+        botFade.makeGraphic(bgWidth, 40, 0x00000000);
+        for (gy in 0...40) {
+            var ratio:Float = gy / 40.0;
+            var a:Int = Std.int(0.85 * 255 * ratio);
+            var color:Int = (a << 24) | 0x000000;
+            for (gx in 0...bgWidth) {
+                botFade.graphic.bitmap.setPixel32(gx, gy, color);
+            }
+        }
+        botFade.scrollFactor.set(0, 0);
+        fontHeaderGroup.add(botFade);
+
+        var fTitle = new FlxText(panelOffset + 10, 10, bgWidth - 20, "SELECT FONT (ESC TO CANCEL)", 24);
+        fTitle.setFormat(menuFont, 24, FlxColor.YELLOW, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        fTitle.antialiasing = false;
+        fTitle.scrollFactor.set(0, 0);
+        fontHeaderGroup.add(fTitle);
+
         isFontMenuOpen = true;
         openTimer = 0.2;
         selectCooldown = 0.0;
-        // Offset slightly so the lerp runs on frame 1, triggering layout of all items
         curFontSelectedFloat = fontSelectedIndex + 0.01;
         subActionLocked = "none";
         changeFontSelection(0);
@@ -197,6 +241,11 @@ class KssetteFontSubState extends ScriptedMusicBeatSubState {
             remove(fontItemsGroup);
             fontItemsGroup.destroy();
             fontItemsGroup = null;
+        }
+        if (fontHeaderGroup != null) {
+            remove(fontHeaderGroup);
+            fontHeaderGroup.destroy();
+            fontHeaderGroup = null;
         }
         fontItems = [];
         isFontMenuOpen = false;
@@ -255,8 +304,6 @@ class KssetteFontSubState extends ScriptedMusicBeatSubState {
     function applyFontItemState(idx:Int):Void {
         if (idx < 0 || idx >= fontItems.length) return;
         var item = fontItems[idx];
-        var targetAlpha = (idx == fontSelectedIndex) ? 0.4 : 0.15;
-        if (item.bg != null && item.bg.alpha != targetAlpha) item.bg.alpha = targetAlpha;
         if (item.text != null) {
             var targetColor = (item.fileName == fontActiveFile) ? FlxColor.YELLOW : FlxColor.WHITE;
             if (item.text.color != targetColor) item.text.color = targetColor;
@@ -299,21 +346,14 @@ class KssetteFontSubState extends ScriptedMusicBeatSubState {
         
         while (startIdx < count) {
             var curItem = fontItems[startIdx];
-            if (curItem.bg.y + curItem.height >= 0) break;
-            setFontItemVisible(curItem, false);
+            if (curItem.bg.y + curItem.height >= 50) break;
             startIdx++;
         }
 
         var endIdx = startIdx;
         while (endIdx < count) {
             var curItem = fontItems[endIdx];
-            if (curItem.bg.y > screenHeight) break;
-            setFontItemVisible(curItem, true);
-            endIdx++;
-        }
-
-        while (endIdx < count) {
-            setFontItemVisible(fontItems[endIdx], false);
+            if (curItem.bg.y > screenHeight - 40) break;
             endIdx++;
         }
         
@@ -384,6 +424,10 @@ class KssetteFontSubState extends ScriptedMusicBeatSubState {
 
         if (holdTimer > 0) holdTimer -= elapsed;
 
+        if (openTimer <= 0 && (controls.ACCEPT_P || controls.ACCEPT || FlxG.keys.justPressed.ENTER || FlxG.keys.justPressed.SPACE)) {
+            selectCurrentFont();
+        }
+
         // Close only on back/escape - NOT on swipes to avoid closing during vertical scroll
         if (FlxG.keys.justPressed.ESCAPE || controls.BACK) {
             closeFontSelector();
@@ -398,7 +442,7 @@ class KssetteFontSubState extends ScriptedMusicBeatSubState {
         var sh = screenH;
         
         if (parent != null) {
-            this.panelOnLeft = parent.panelOnLeft;
+            this.panelOnLeft = false; // Force to right side
             this.panelWidth = parent.panelWidth;
         }
         
@@ -409,7 +453,7 @@ class KssetteFontSubState extends ScriptedMusicBeatSubState {
                 moveGroup(fontItemsGroup, targetFontX, elapsed, 12);
                 
                 var prevFloat = curFontSelectedFloat;
-                curFontSelectedFloat = FlxMath.lerp(curFontSelectedFloat, fontSelectedIndex, elapsed * 12);
+                curFontSelectedFloat = FlxMath.lerp(curFontSelectedFloat, fontSelectedIndex, (lowDetailMenu ? 1.0 : elapsed * 12));
                 if (Math.abs(curFontSelectedFloat - fontSelectedIndex) < 0.01) {
                     curFontSelectedFloat = fontSelectedIndex;
                 }
@@ -435,11 +479,32 @@ class KssetteFontSubState extends ScriptedMusicBeatSubState {
                             item.text.x = actualLeftEdge + 30;
                             item.bg.y = itemTargetY;
                             item.text.y = itemTargetY + (item.height - item.text.height) / 2;
+
+                            // Smooth alpha fade near header and footer
+                            var fadeRatio:Float = 1.0;
+                            if (itemTargetY < 120) {
+                                fadeRatio = (itemTargetY - 45) / 75.0;
+                                if (fadeRatio < 0) fadeRatio = 0;
+                            } else if (itemTargetY > sh - 120) {
+                                fadeRatio = (sh - 45 - itemTargetY) / 75.0;
+                                if (fadeRatio < 0) fadeRatio = 0;
+                            }
+                            if (fadeRatio > 1.0) fadeRatio = 1.0;
+
+                            var baseAlpha:Float = (i == fontSelectedIndex) ? 0.4 : 0.15;
+                            item.bg.alpha = baseAlpha * fadeRatio;
+                            item.text.alpha = fadeRatio;
+
+                            var isVisible:Bool = (fadeRatio > 0.01 && itemTargetY > 25 && itemTargetY < sh + 25);
+                            setFontItemVisible(item, isVisible);
                         }
                     }
                 }
                 
-                updateFontItemVisibility(screenH);
+                updateFontItemVisibility(sh);
+            }
+            if (fontHeaderGroup != null) {
+                moveGroup(fontHeaderGroup, targetFontX, elapsed, 12);
             }
             if (holdTimer > 0) holdTimer -= elapsed;
             handleFontInput(elapsed); 
