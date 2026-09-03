@@ -45,21 +45,32 @@ class CleanJudgements extends KassetteHUDElement {
         onUpdate(0);
     }
 
+    function killObj(obj:Dynamic) {
+        if (obj == null) return;
+        if (PlayState.instance != null) PlayState.instance.remove(obj, true);
+        obj.destroy();
+    }
+
     override public function onCountdownStart(event:Dynamic) {
         isPreview = false;
         var state = PlayState.instance;
         if (state == null) return;
         
+        killObj(sickTxt);
+        killObj(missTxt);
+
         sickTxt = new FlxText(FlxG.width - 150, FlxG.height * 0.1, 140, "Sicks: 0", 20);
         sickTxt.setFormat("VCR OSD Mono", 20, 0xFFFFFFFF, "right", FlxTextBorderStyle.OUTLINE, 0xFF000000);
         sickTxt.scrollFactor.set(0, 0);
         sickTxt.cameras = [state.camHUD];
+        sickTxt.zIndex = 1500;
         state.add(sickTxt);
 
         missTxt = new FlxText(FlxG.width - 150, sickTxt.y + 24, 140, "Misses: 0", 20);
         missTxt.setFormat("VCR OSD Mono", 20, 0xFFFFFFFF, "right", FlxTextBorderStyle.OUTLINE, 0xFF000000);
         missTxt.scrollFactor.set(0, 0);
         missTxt.cameras = [state.camHUD];
+        missTxt.zIndex = 1500;
         state.add(missTxt);
     }
 
@@ -74,18 +85,6 @@ class CleanJudgements extends KassetteHUDElement {
         if (KassetteHUDDatahunter.song != null) downscroll = KassetteHUDDatahunter.song.getDownscroll();
         else downscroll = Preferences.downscroll;
 
-        if (!isPreview) {
-            var strumY:Float = 50;
-            if (state != null && state.strumLineNotes != null && state.strumLineNotes.members.length > 0) {
-                for (strum in state.strumLineNotes.members) {
-                    if (strum != null && strum.exists) {
-                        strumY = strum.y;
-                        break;
-                    }
-                }
-            }
-            downscroll = (strumY > FlxG.height / 2);
-        }
 
         var inverted = optManager.getKssValue("kssette_score_pos") == "Inverted";
         var atTop = inverted ? !downscroll : downscroll;

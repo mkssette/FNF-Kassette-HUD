@@ -43,9 +43,10 @@ class CleanHealthBar extends KassetteHUDElement {
         var barShrinkRatio = 0.266;
         
         previewHealthBarBG = new FlxSprite(0, FlxG.height * 0.89);
-        try {
-            previewHealthBarBG.loadGraphic(Paths.image('healthBar'));
-        } catch(e:Dynamic) {
+        var bgGraphic = Paths.image('healthBar');
+        if (bgGraphic != null) {
+            previewHealthBarBG.loadGraphic(bgGraphic);
+        } else {
             previewHealthBarBG.makeGraphic(601, 19, FlxColor.BLACK);
         }
         previewHealthBarBG.setGraphicSize(Std.int(previewHealthBarBG.frameWidth * barShrinkRatio), Std.int(previewHealthBarBG.frameHeight));
@@ -68,12 +69,13 @@ class CleanHealthBar extends KassetteHUDElement {
         safeAdd(previewHealthBarFillP1, cam);
 
         previewIconP1 = new FlxSprite();
-        try {
-            previewIconP1.loadGraphic(Paths.image('icons/icon-bf'), true, 150, 150);
+        var p1Graphic = Paths.image('icons/icon-bf');
+        if (p1Graphic != null) {
+            previewIconP1.loadGraphic(p1Graphic, true, 150, 150);
             previewIconP1.animation.add('icon', [0, 1], 0, false, false);
             previewIconP1.animation.play('icon');
             previewIconP1.updateHitbox();
-        } catch(e:Dynamic) {}
+        }
         previewIconP1.scale.set(0.7, 0.7);
         previewIconP1.updateHitbox();
         previewIconP1.flipX = true;
@@ -81,12 +83,13 @@ class CleanHealthBar extends KassetteHUDElement {
         safeAdd(previewIconP1, cam);
 
         previewIconP2 = new FlxSprite();
-        try {
-            previewIconP2.loadGraphic(Paths.image('icons/icon-dad'), true, 150, 150);
+        var p2Graphic = Paths.image('icons/icon-dad');
+        if (p2Graphic != null) {
+            previewIconP2.loadGraphic(p2Graphic, true, 150, 150);
             previewIconP2.animation.add('icon', [0, 1], 0, false, false);
             previewIconP2.animation.play('icon');
             previewIconP2.updateHitbox();
-        } catch(e:Dynamic) {}
+        }
         previewIconP2.scale.set(0.7, 0.7);
         previewIconP2.updateHitbox();
         previewIconP2.scrollFactor.set(0, 0);
@@ -146,9 +149,9 @@ class CleanHealthBar extends KassetteHUDElement {
 
             var posPref = optManager.getKssValue("kssette_healthbar_position");
             if (posPref == "Left") {
-                previewHealthBarBG.x = 20;
+                previewHealthBarBG.x = 90;
             } else if (posPref == "Right") {
-                previewHealthBarBG.x = FlxG.width - previewHealthBarBG.width - 20;
+                previewHealthBarBG.x = FlxG.width - previewHealthBarBG.width - 90;
             } else {
                 previewHealthBarBG.screenCenter(0x01);
             }
@@ -188,17 +191,18 @@ class CleanHealthBar extends KassetteHUDElement {
                     previewIconP1.scale.set(p1Scale * 1.2, p1Scale * 1.2);
                     previewIconP2.scale.set(p2Scale * 1.2, p2Scale * 1.2);
                     
-                    try {
+                    if (previewIconP1 != null && previewIconP1.scale != null) {
                         FlxTween.cancelTweensOf(previewIconP1.scale);
-                        FlxTween.cancelTweensOf(previewIconP2.scale);
                         FlxTween.tween(previewIconP1.scale, {x: p1Scale, y: p1Scale}, 0.35, {ease: FlxEase.quadOut});
+                    }
+                    if (previewIconP2 != null && previewIconP2.scale != null) {
+                        FlxTween.cancelTweensOf(previewIconP2.scale);
                         FlxTween.tween(previewIconP2.scale, {x: p2Scale, y: p2Scale}, 0.35, {ease: FlxEase.quadOut});
-                    } catch(e:Dynamic) {}
+                    }
                 }
             }
             
             if (previewIconP1 != null && previewIconP2 != null) {
-                // Icons exactly centered on the edges of the bar for center-bopping
                 previewIconP1.x = previewHealthBarBG.x + previewHealthBarBG.width - (previewIconP1.width / 2);
                 previewIconP1.flipX = true;
                 previewIconP1.y = centerY - (previewIconP1.height / 2);
@@ -230,9 +234,9 @@ class CleanHealthBar extends KassetteHUDElement {
             
             var posPref = optManager != null ? optManager.getKssValue("kssette_healthbar_position") : "Center";
             if (posPref == "Left") {
-                state.healthBarBG.x = 20;
+                state.healthBarBG.x = 90;
             } else if (posPref == "Right") {
-                state.healthBarBG.x = FlxG.width - state.healthBarBG.width - 20;
+                state.healthBarBG.x = FlxG.width - state.healthBarBG.width - 90;
             } else {
                 state.healthBarBG.screenCenter(0x01);
             }
@@ -241,22 +245,12 @@ class CleanHealthBar extends KassetteHUDElement {
             if (KassetteHUDDatahunter.song != null) downscroll = KassetteHUDDatahunter.song.getDownscroll();
             else downscroll = Preferences.downscroll;
 
-            if (!isPreview) {
-                var strumY:Float = 50;
-                if (state != null && state.strumLineNotes != null && state.strumLineNotes.members.length > 0) {
-                    for (strum in state.strumLineNotes.members) {
-                        if (strum != null && strum.exists) {
-                            strumY = strum.y;
-                            break;
-                        }
-                    }
-                }
-                downscroll = (strumY > FlxG.height / 2);
-            }
 
             var hbY = downscroll ? FlxG.height * 0.11 : FlxG.height * 0.89;
             
             state.healthBarBG.y = hbY;
+            state.healthBarBG.zIndex = 1499;
+            state.healthBarBG.zIndex = 1499;
             barX = state.healthBarBG.x;
             barY = state.healthBarBG.y;
         }
@@ -268,6 +262,8 @@ class CleanHealthBar extends KassetteHUDElement {
             }
             state.healthBar.x = barX;
             state.healthBar.y = barY + ((state.healthBarBG.height - state.healthBar.height) / 2);
+            state.healthBar.zIndex = 1500;
+            state.healthBar.zIndex = 1500;
         }
         
         var isSolo = false;
@@ -325,6 +321,7 @@ class CleanHealthBar extends KassetteHUDElement {
                 state.iconP1.flipX = true;
             }
             state.iconP1.y = centerY - (state.iconP1.height / 2);
+            state.iconP1.zIndex = 1501;
             
             if (isSolo && hp1 < 0.4) {
                 var curAnim = state.iconP1.animation.curAnim;
@@ -335,6 +332,7 @@ class CleanHealthBar extends KassetteHUDElement {
         if (state.iconP2 != null && !isSolo) {
             state.iconP2.x = barX - (state.iconP2.width / 2);
             state.iconP2.y = centerY - (state.iconP2.height / 2);
+            state.iconP2.zIndex = 1501;
         } else if (state.iconP2 != null) {
             state.iconP2.visible = false;
         }

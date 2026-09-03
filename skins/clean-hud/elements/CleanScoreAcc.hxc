@@ -6,6 +6,8 @@ import flixel.FlxCamera;
 import flixel.text.FlxText;
 import flixel.text.FlxTextBorderStyle;
 import funkin.Preferences;
+import flixel.text.FlxTextFormat;
+import flixel.util.FlxColor;
 import funkin.Paths;
 import kassettehud.util.KassetteHUDElement;
 import kassettehud.util.KssetteOptionsManager;
@@ -21,6 +23,39 @@ class CleanScoreAcc extends KassetteHUDElement {
 
     var previewScoreTxt:FlxText;
     var previewAccTxt:FlxText;
+    
+    var _fmtPerfectGold:FlxTextFormat;
+    var _fmtPerfect:FlxTextFormat;
+    var _fmtExcellent:FlxTextFormat;
+    var _fmtGreat:FlxTextFormat;
+    var _fmtGood:FlxTextFormat;
+    var _fmtShit:FlxTextFormat;
+
+    function getRankFormat(rank:String):FlxTextFormat {
+        var fmt:FlxTextFormat = null;
+        if (rank == null) return null;
+        switch(rank.toUpperCase()) {
+            case "PERFECT_GOLD":
+                if (_fmtPerfectGold == null) _fmtPerfectGold = new FlxTextFormat(0xFFF9E859);
+                fmt = _fmtPerfectGold;
+            case "PERFECT":
+                if (_fmtPerfect == null) _fmtPerfect = new FlxTextFormat(0xFFFFAEFF);
+                fmt = _fmtPerfect;
+            case "EXCELLENT":
+                if (_fmtExcellent == null) _fmtExcellent = new FlxTextFormat(0xFFFFFFC5);
+                fmt = _fmtExcellent;
+            case "GREAT":
+                if (_fmtGreat == null) _fmtGreat = new FlxTextFormat(0xFFDCE6F1);
+                fmt = _fmtGreat;
+            case "GOOD":
+                if (_fmtGood == null) _fmtGood = new FlxTextFormat(0xFFE19978);
+                fmt = _fmtGood;
+            case "SHIT", "LOSS":
+                if (_fmtShit == null) _fmtShit = new FlxTextFormat(0xFF4460B7);
+                fmt = _fmtShit;
+        }
+        return fmt;
+    }
     
     var _lastFont:String = "";
 
@@ -47,6 +82,12 @@ class CleanScoreAcc extends KassetteHUDElement {
         onUpdate(0);
     }
 
+    function killObj(obj:Dynamic) {
+        if (obj == null) return;
+        if (PlayState.instance != null) PlayState.instance.remove(obj, true);
+        obj.destroy();
+    }
+
     override public function onCountdownStart(event:Dynamic) {
         isPreview = false;
         var state = PlayState.instance;
@@ -55,16 +96,21 @@ class CleanScoreAcc extends KassetteHUDElement {
         // Hide vanilla score texts
         if (state.scoreTxt != null) state.scoreTxt.visible = false;
         
+        killObj(scoreTxt);
+        killObj(accTxt);
+
         scoreTxt = new FlxText(10, FlxG.height * 0.1, 0, "S: 0", 20);
         scoreTxt.setFormat("VCR OSD Mono", 20, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
         scoreTxt.scrollFactor.set(0, 0);
         scoreTxt.cameras = [state.camHUD];
+        scoreTxt.zIndex = 1500;
         state.add(scoreTxt);
 
         accTxt = new FlxText(10, scoreTxt.y + 24, 0, "A: 0.00%", 20);
         accTxt.setFormat("VCR OSD Mono", 20, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
         accTxt.scrollFactor.set(0, 0);
         accTxt.cameras = [state.camHUD];
+        accTxt.zIndex = 1500;
         state.add(accTxt);
     }
 
@@ -74,23 +120,9 @@ class CleanScoreAcc extends KassetteHUDElement {
         if (optManager == null) return;
 
         var showHud = optManager.getKssValue("kssette_show_hud") == true;
-        
         var downscroll = false;
         if (KassetteHUDDatahunter.song != null) downscroll = KassetteHUDDatahunter.song.getDownscroll();
         else downscroll = Preferences.downscroll;
-
-        if (!isPreview) {
-            var strumY:Float = 50;
-            if (state != null && state.strumLineNotes != null && state.strumLineNotes.members.length > 0) {
-                for (strum in state.strumLineNotes.members) {
-                    if (strum != null && strum.exists) {
-                        strumY = strum.y;
-                        break;
-                    }
-                }
-            }
-            downscroll = (strumY > FlxG.height / 2);
-        }
 
         var inverted = optManager.getKssValue("kssette_score_pos") == "Inverted";
         var atTop = inverted ? !downscroll : downscroll;
@@ -138,13 +170,37 @@ class CleanScoreAcc extends KassetteHUDElement {
 
         // Update score
         var scoreStr = "0";
+        var rankID = "?";
         var scoreHunter = KassetteHUDDatahunter.score;
         if (scoreHunter != null) {
             scoreStr = scoreHunter.getScore(state);
+            rankID = scoreHunter.getRankID(state);
         } else {
             scoreStr = Std.string(Math.floor(state.songScore));
         }
-        scoreTxt.text = "S: " + scoreStr;
+        
+        var formattedRank = formatRank(rankID);
+        var scoreTextStr = "S: " + scoreStr;
+        var rankStart = -1;
+        var rankLen = 0;
+        
+        if (formattedRank != "?" && formattedRank != "") {
+            scoreTextStr += " [" + formattedRank + "]";
+            rankStart = scoreTextStr.lastIndexOf("[") + 1;
+            rankLen = formattedRank.length;
+        }
+        
+        scoreTxt.text = scoreTextStr;
+        scoreTxt.clearFormats();
+        
+        if (rankStart != -1) {
+            var rFmt = getRankFormat(rankID);
+            if (rFmt != null) {
+                var activeFont = scoreTxt.textField != null ? scoreTxt.textField.defaultTextFormat.font : cachedFont;
+                if (rFmt.format != null) rFmt.format.font = activeFont;
+                scoreTxt.addFormat(rFmt, rankStart, rankStart + rankLen);
+            }
+        }
         
         // Update accuracy
         var acc = 0.0;

@@ -65,35 +65,52 @@ class CleanTimeBreak extends KassetteHUDElement {
         onUpdate(0);
     }
 
+    function killObj(obj:Dynamic) {
+        if (obj == null) return;
+        if (PlayState.instance != null) PlayState.instance.remove(obj, true);
+        obj.destroy();
+    }
+
     override public function onCountdownStart(event:Dynamic) {
         isPreview = false;
         var state = PlayState.instance;
         if (state == null) return;
         
+        killObj(timeTxt);
+        killObj(timeBarBG);
+        killObj(timeBarFill);
+        killObj(breakBarBG);
+        killObj(breakBarFill);
+
         timeTxt = new FlxText(0, 10, 0, "[0:00]", 18);
         timeTxt.setFormat("VCR OSD Mono", 18, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
         timeTxt.scrollFactor.set(0, 0);
         timeTxt.cameras = [state.camHUD];
+        timeTxt.zIndex = 1500;
         state.add(timeTxt);
 
         timeBarBG = new FlxSprite(0, 0).makeGraphic(100, 10, FlxColor.BLACK);
         timeBarBG.scrollFactor.set(0, 0);
         timeBarBG.cameras = [state.camHUD];
+        timeBarBG.zIndex = 1499;
         state.add(timeBarBG);
 
         timeBarFill = new FlxSprite(0, 0).makeGraphic(96, 6, 0xFFFFFFFF);
         timeBarFill.scrollFactor.set(0, 0);
         timeBarFill.cameras = [state.camHUD];
+        timeBarFill.zIndex = 1500;
         state.add(timeBarFill);
 
         breakBarBG = new FlxSprite(0, 0).makeGraphic(100, 4, 0xFF000000);
         breakBarBG.scrollFactor.set(0, 0);
         breakBarBG.cameras = [state.camHUD];
+        breakBarBG.zIndex = 1499;
         state.add(breakBarBG);
 
         breakBarFill = new FlxSprite(0, 0).makeGraphic(96, 2, 0xFFFFFFFF);
         breakBarFill.scrollFactor.set(0, 0);
         breakBarFill.cameras = [state.camHUD];
+        breakBarFill.zIndex = 1500;
         state.add(breakBarFill);
     }
 
@@ -108,18 +125,6 @@ class CleanTimeBreak extends KassetteHUDElement {
         if (KassetteHUDDatahunter.song != null) downscroll = KassetteHUDDatahunter.song.getDownscroll();
         else downscroll = Preferences.downscroll;
 
-        if (!isPreview) {
-            var strumY:Float = 50;
-            if (state != null && state.strumLineNotes != null && state.strumLineNotes.members.length > 0) {
-                for (strum in state.strumLineNotes.members) {
-                    if (strum != null && strum.exists) {
-                        strumY = strum.y;
-                        break;
-                    }
-                }
-            }
-            downscroll = (strumY > FlxG.height / 2);
-        }
 
         var inverted = optManager.getKssValue("kssette_score_pos") == "Inverted";
         var atTop = inverted ? !downscroll : downscroll;
