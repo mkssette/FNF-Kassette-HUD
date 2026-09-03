@@ -129,14 +129,24 @@ class KssetteHealthBar extends KassetteHUDElement {
         previewIconP1.zIndex = 112;
         previewIconP2.zIndex = 112;
     }
+    
+    var _cPosPref:String = "Center";
+    var _cColored:Bool = true;
+    var _cIsCorners:Bool = false;
+    
+    function updateSettings() {
+        _cPosPref = getSettingString("kssette_healthbar_position", "Center");
+        _cColored = getSettingBool("kssette_colored_healthbar");
+        _cIsCorners = getSettingString("kssette_icon_pos", "Vanilla") == "Corners";
+    }
 
-    /**
-     * Called at the start of the song. Registers this module with KssetteApi and
-     * ensures the health bar and icon sprites draw on top of other HUD elements
-     * by re-adding them to the end of the display list.
-     */
+    override public function updatePreview() {
+        updateSettings();
+        onUpdate(0);
+    }
     override function onCountdownStart(event) {
         isPreview = false;
+        updateSettings();
         
         var optManager = KssetteOptionsManager.instance;
         if (optManager == null) return;
@@ -181,8 +191,7 @@ class KssetteHealthBar extends KassetteHUDElement {
             if (previewHealthBarFillP1 != null) previewHealthBarFillP1.y = hbY + 4;
             if (previewHealthBarFillP2 != null) previewHealthBarFillP2.y = hbY + 4;
 
-            var posPref = getSetting("kssette_healthbar_position");
-            if (posPref == null || posPref == "") posPref = "Center";
+            var posPref = _cPosPref;
             if (posPref == "Left") {
                 previewHealthBarBG.x = 90;
             } else if (posPref == "Right") {
@@ -191,7 +200,7 @@ class KssetteHealthBar extends KassetteHUDElement {
                 previewHealthBarBG.screenCenter(0x01); // X-axis
             }
 
-            var coloredHB = getSetting("kssette_colored_healthbar") == true;
+            var coloredHB = _cColored;
             var p1Color = 0xFF66FF33; 
             var p2Color = 0xFFFF0000;
             
@@ -241,7 +250,7 @@ class KssetteHealthBar extends KassetteHUDElement {
                 // Use a constant width/height for positioning calculations (150 is standard icon frame size)
                 var iconSize = 150.0;
                 
-                if (optManager.getKssValue("kssette_icon_pos") == "Corners") {
+                if (_cIsCorners) {
                     previewIconP1.x = previewHealthBarBG.x + previewHealthBarBG.width + 75 - iconSize;
                     previewIconP1.flipX = true;
                     previewIconP1.y = centerY + 75 - iconSize;
@@ -294,8 +303,7 @@ class KssetteHealthBar extends KassetteHUDElement {
         
         var hb = state.healthBar;
         if (hb != null && state.healthBarBG != null) {
-            var posPref = getSetting("kssette_healthbar_position");
-            if (posPref == null || posPref == "") posPref = "Center";
+            var posPref = _cPosPref;
             if (posPref == "Left") {
                 state.healthBarBG.x = 90;
             } else if (posPref == "Right") {
@@ -312,7 +320,7 @@ class KssetteHealthBar extends KassetteHUDElement {
             }
         }
 
-        if (getSetting("kssette_colored_healthbar") == true) {
+        if (_cColored) {
             
             if (p1 != null && p2 != null && hb != null) {
                 // Only resample colors when the active icons change.
@@ -353,7 +361,7 @@ class KssetteHealthBar extends KassetteHUDElement {
         }
 
         // --- ICON POSITIONING LOGIC ---
-        var isCorners = getSetting("kssette_icon_pos") == "Corners";
+        var isCorners = _cIsCorners;
         
         if ((isCorners || isSolo) && state.healthBarBG != null && state.healthBar != null && state.iconP1 != null) {
             state.iconP1.autoUpdate = false;
@@ -430,10 +438,9 @@ class KssetteHealthBar extends KassetteHUDElement {
      */
     override function onStepHit(event) {
         var state = PlayState.instance;
-        var optManager = KssetteOptionsManager.instance;
-        if (state == null || optManager == null) return;
+        if (state == null) return;
         
-        if (optManager.getKssValue("kssette_icon_pos") == "Corners" && state.iconP1 != null && state.iconP2 != null) {
+        if (_cIsCorners && state.iconP1 != null && state.iconP2 != null) {
             var iconHunter = KassetteHUDDatahunter.icon;
             var bop1 = 4;
             var bop2 = 4;
@@ -444,7 +451,6 @@ class KssetteHealthBar extends KassetteHUDElement {
             
             // Increase scale by 20% on the bop interval; interpolates back to normal in onUpdate.
             if (bop1 > 0 && event.step % bop1 == 0) {
-                var iconHunter = KassetteHUDDatahunter.icon;
                 var p1Scale:Float = 1.0;
                 if (iconHunter != null) p1Scale = iconHunter.cachedP1Scale;
                 state.iconP1.scale.set(p1Scale * 1.2, p1Scale * 1.2);

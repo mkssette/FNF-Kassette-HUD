@@ -56,8 +56,10 @@ class CleanScoreAcc extends KassetteHUDElement {
         }
         return fmt;
     }
-    
     var _lastFont:String = "";
+    var _lastScore:String = "";
+    var _lastRank:String = "";
+    var _lastAcc:Float = -1.0;
 
     public function new() {
         super("CleanScoreAcc");
@@ -161,35 +163,42 @@ class CleanScoreAcc extends KassetteHUDElement {
             scoreStr = Std.string(Math.floor(state.songScore));
         }
         
-        var formattedRank = formatRank(rankID);
-        var scoreTextStr = "S: " + scoreStr;
-        var rankStart = -1;
-        var rankLen = 0;
-        
-        if (formattedRank != "?" && formattedRank != "") {
-            scoreTextStr += " [" + formattedRank + "]";
-            rankStart = scoreTextStr.lastIndexOf("[") + 1;
-            rankLen = formattedRank.length;
-        }
-        
-        scoreTxt.text = scoreTextStr;
-        scoreTxt.clearFormats();
-        
-        if (rankStart != -1) {
-            var rFmt = getRankFormat(rankID);
-            if (rFmt != null) {
-                var activeFont = scoreTxt.textField != null ? scoreTxt.textField.defaultTextFormat.font : cachedFont;
-                if (rFmt.format != null) rFmt.format.font = activeFont;
-                scoreTxt.addFormat(rFmt, rankStart, rankStart + rankLen);
+        if (_lastScore != scoreStr || _lastRank != rankID) {
+            _lastScore = scoreStr;
+            _lastRank = rankID;
+            
+            var formattedRank = formatRank(rankID);
+            var scoreTextStr = "S: " + scoreStr;
+            var rankStart = -1;
+            var rankLen = 0;
+            
+            if (formattedRank != "?" && formattedRank != "") {
+                scoreTextStr += " [" + formattedRank + "]";
+                rankStart = scoreTextStr.lastIndexOf("[") + 1;
+                rankLen = formattedRank.length;
+            }
+            
+            scoreTxt.text = scoreTextStr;
+            scoreTxt.clearFormats();
+            
+            if (rankStart != -1) {
+                var rFmt = getRankFormat(rankID);
+                if (rFmt != null) {
+                    var activeFont = scoreTxt.textField != null ? scoreTxt.textField.defaultTextFormat.font : cachedFont;
+                    if (rFmt.format != null) rFmt.format.font = activeFont;
+                    scoreTxt.addFormat(rFmt, rankStart, rankStart + rankLen);
+                }
             }
         }
         
         // Update accuracy
         var acc = 0.0;
-        var scoreHunter = KassetteHUDDatahunter.score;
         if (scoreHunter != null) {
             acc = scoreHunter.getFinalAccuracy();
         }
-        accTxt.text = "A: " + acc + "%";
+        if (_lastAcc != acc) {
+            _lastAcc = acc;
+            accTxt.text = "A: " + acc + "%";
+        }
     }
 }

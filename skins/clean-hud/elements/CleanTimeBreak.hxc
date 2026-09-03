@@ -29,6 +29,8 @@ class CleanTimeBreak extends KassetteHUDElement {
     var pBreakBarBG:FlxSprite;
     var pBreakBarFill:FlxSprite;
 
+    var _lastSecondsTotal:Int = -1;
+
     var _lastFont:String = "";
 
     public function new() {
@@ -203,10 +205,13 @@ class CleanTimeBreak extends KassetteHUDElement {
         timeBarFill.updateHitbox();
 
         var secondsTotal = Math.floor(curTime / 1000);
-        var mins = Math.floor(secondsTotal / 60);
-        var secs = secondsTotal % 60;
-        var secsStr = (secs < 10) ? "0" + secs : "" + secs;
-        timeTxt.text = "[" + mins + ":" + secsStr + "]";
+        if (_lastSecondsTotal != secondsTotal) {
+            _lastSecondsTotal = secondsTotal;
+            var mins = Math.floor(secondsTotal / 60);
+            var secs = secondsTotal % 60;
+            var secsStr = (secs < 10) ? "0" + secs : "" + secs;
+            timeTxt.text = "[" + mins + ":" + secsStr + "]";
+        }
 
         // Break bar logic
         var breakHunter = KassetteHUDDatahunter.breakData;

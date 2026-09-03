@@ -959,15 +959,6 @@ class KssetteAccuracy extends KassetteHUDElement {
         
         if (isPreview) {
             if (uiText != null && uiText.exists) {
-                if (KssetteOptionsManager.instance != null) {
-                    var newMode = getSettingString("kssette_acc_mode", "Complex");
-                    if (newMode != null && newMode != "" && newMode != _cAccMode) {
-                        _cAccMode = newMode;
-                        lastVisualAcc = -1.0; 
-                    }
-                    _cSmooth = getSettingBool("kssette_smooth_display");
-                }
-                
                 if (_cScoreBop) {
                     if (KassetteHUDElement.preview_scoreBopTrigger) {
                         KassetteHUDElement.preview_scoreBopTrigger = false;
@@ -1069,42 +1060,36 @@ class KssetteAccuracy extends KassetteHUDElement {
         if (uiText == null || !uiText.exists) return;
 
         var scoreHunter = KassetteHUDDatahunter.score;
-        var t:Dynamic = null;
-        if (scoreHunter != null) {
-            t = {
-                missed: scoreHunter.getMisses(),
-                totalNotesHit: scoreHunter.getTotalNotesHit(),
-                maxCombo: scoreHunter.getMaxCombo(),
-                sick: scoreHunter.getSicks(),
-                good: scoreHunter.getGoods(),
-                bad: scoreHunter.getBads(),
-                shit: scoreHunter.getShits(),
-                combo: scoreHunter.getCombo(),
-                totalNotes: scoreHunter.getTotalNotes()
-            };
-        }
-        var m:Int = (t != null) ? t.missed : 0;
-        var h:Int = (t != null) ? t.totalNotesHit : 0;
-        var c:Int = (t != null) ? t.maxCombo : 0;
+        var m:Int = scoreHunter != null ? scoreHunter.getMisses() : 0;
+        var h:Int = scoreHunter != null ? scoreHunter.getTotalNotesHit() : 0;
+        var c:Int = scoreHunter != null ? scoreHunter.getMaxCombo() : 0;
         var currentScoreInt:Int = Math.floor(state.songScore);
 
         var majorChange:Bool = (m != lastMisses || h != lastNotesHit || c != lastMaxCombo);
         var minorChange:Bool = (currentScoreInt != lastScore);
 
-        if (cachedActualTotal == -1 && t != null) {
-            var tn = t?.totalNotes;
+        if (cachedActualTotal == -1 && scoreHunter != null) {
+            var tn = scoreHunter.getTotalNotes();
             if (tn != null && tn > 0) cachedActualTotal = Std.int(tn);
             if (cachedActualTotal <= 0) cachedActualTotal = cachedTotalNotes;
         }
 
         if (majorChange) {
-            if (_cJudgesVisible && t != null) {
-                if (t.sick != lastSick) { judgeValues[0].text = Std.string(t.sick); lastSick = t.sick; }
-                if (t.good != lastGood) { judgeValues[1].text = Std.string(t.good); lastGood = t.good; }
-                if (t.bad != lastBad) { judgeValues[2].text = Std.string(t.bad); lastBad = t.bad; }
-                if (t.shit != lastShit) { judgeValues[3].text = Std.string(t.shit); lastShit = t.shit; }
-                if (t.missed != lastMissesJudge) { judgeValues[4].text = Std.string(t.missed); lastMissesJudge = t.missed; }
-                if (t.maxCombo != lastMaxComboJudge) { judgeValues[5].text = Std.string(t.maxCombo); lastMaxComboJudge = t.maxCombo; }
+            if (_cJudgesVisible && scoreHunter != null) {
+                var s = scoreHunter.getSicks();
+                if (s != lastSick) { judgeValues[0].text = Std.string(s); lastSick = s; }
+                
+                var g = scoreHunter.getGoods();
+                if (g != lastGood) { judgeValues[1].text = Std.string(g); lastGood = g; }
+                
+                var b = scoreHunter.getBads();
+                if (b != lastBad) { judgeValues[2].text = Std.string(b); lastBad = b; }
+                
+                var sh = scoreHunter.getShits();
+                if (sh != lastShit) { judgeValues[3].text = Std.string(sh); lastShit = sh; }
+                
+                if (m != lastMissesJudge) { judgeValues[4].text = Std.string(m); lastMissesJudge = m; }
+                if (c != lastMaxComboJudge) { judgeValues[5].text = Std.string(c); lastMaxComboJudge = c; }
             }
 
             lastMisses = m;
@@ -1135,7 +1120,6 @@ class KssetteAccuracy extends KassetteHUDElement {
             pendingTextUpdate = true;
         }
 
-        var gammodHunter = KassetteHUDDatahunter.gammod;
         if (gammodHunter != null && gammodHunter.gammodHighscoreActive == true) {
             _rainbowHue += elapsed * 150;
             if (_rainbowHue >= 360) _rainbowHue -= 360;
@@ -1145,7 +1129,6 @@ class KssetteAccuracy extends KassetteHUDElement {
         uiUpdateTimer += elapsed;
         
         var updateThreshold:Float = 0.033; // ~30 fps
-        _cSmooth = getSettingBool("kssette_smooth_display");
         if (this.isMobile == true) {
             updateThreshold = 0.1; 
         }

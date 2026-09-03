@@ -17,6 +17,9 @@ class CleanJudgements extends KassetteHUDElement {
     var sickTxt:FlxText;
     var missTxt:FlxText;
 
+    var _lastSick:Int = -1;
+    var _lastMiss:Int = -1;
+
     var pSickTxt:FlxText;
     var pMissTxt:FlxText;
     
@@ -117,7 +120,13 @@ class CleanJudgements extends KassetteHUDElement {
             missCount = scoreHunter.getMisses();
         }
 
-        sickTxt.text = "Sicks: " + sickCount;
-        missTxt.text = "Misses: " + missCount;
+        if (_lastSick != sickCount) {
+            sickTxt.text = "Sicks: " + sickCount;
+            _lastSick = sickCount;
+        }
+        if (_lastMiss != missCount) {
+            missTxt.text = "Misses: " + missCount;
+            _lastMiss = missCount;
+        }
     }
 }
