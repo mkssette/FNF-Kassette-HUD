@@ -9,6 +9,7 @@ import Math;
 import Std;
 import funkin.modding.events.ScriptEvent;
 import funkin.modding.events.UpdateScriptEvent;
+import kassettehud.util.KssetteOptionsManager;
 
 class ScoreDatahunter extends KassetteHUDDatahunter {
     public var lastRankScore:Int = -1;
@@ -23,6 +24,9 @@ class ScoreDatahunter extends KassetteHUDDatahunter {
 
     public var totalNotes:Int = 0;
     
+    public var displayedAcc:Float = 0.0;
+    public var targetAcc:Float = 0.0;
+    
     public function new() {
         super("ScoreDatahunter");
         KassetteHUDDatahunter.score = this;
@@ -30,6 +34,37 @@ class ScoreDatahunter extends KassetteHUDDatahunter {
 
     override public function onUpdate(event:UpdateScriptEvent) {
         var elapsed = event.elapsed;
+        var state = PlayState.instance;
+        if (state == null) return;
+        
+        var optManager = KssetteOptionsManager.instance;
+        var accMode = "Classic";
+        var isSmooth = true;
+        if (optManager != null) {
+            var rawMode = optManager.getKssValue("kssette_acc_mode");
+            if (rawMode != null) accMode = rawMode;
+            var rawSmooth = optManager.getKssValue("kssette_smooth_display");
+            if (rawSmooth != null) isSmooth = (rawSmooth == "On" || rawSmooth == true || rawSmooth == "true");
+        }
+        
+        if (accMode == "Ascending") {
+            var songProgress:Float = 0.0;
+            if (state.currentSongLengthMs > 0 && state.conductorInUse != null) {
+                songProgress = state.conductorInUse.songPosition / state.currentSongLengthMs;
+            }
+            targetAcc = getAscendingAccuracy(state, songProgress);
+        } else if (accMode == "Classic") {
+            targetAcc = getAccuracy(state);
+        } else {
+            targetAcc = 0.0;
+        }
+
+        if (isSmooth) {
+            displayedAcc += (targetAcc - displayedAcc) * (elapsed * 8);
+            if (Math.abs(targetAcc - displayedAcc) < 0.001) displayedAcc = targetAcc;
+        } else {
+            displayedAcc = targetAcc;
+        }
     }
 
     override public function onCountdownStart(event:ScriptEvent) {
@@ -142,5 +177,66 @@ class ScoreDatahunter extends KassetteHUDDatahunter {
         if (songProgress >= 0.995) noteProgress = 1.0;
         
         return realAcc * noteProgress;
+    }
+
+    public function getSicks():Int {
+        if (Highscore.tallies != null) return Highscore.tallies.sick;
+        return 0;
+    }
+    public function getGoods():Int {
+        if (Highscore.tallies != null) return Highscore.tallies.good;
+        return 0;
+    }
+    public function getBads():Int {
+        if (Highscore.tallies != null) return Highscore.tallies.bad;
+        return 0;
+    }
+    public function getShits():Int {
+        if (Highscore.tallies != null) return Highscore.tallies.shit;
+        return 0;
+    }
+    public function getMisses():Int {
+        if (Highscore.tallies != null) return Highscore.tallies.missed;
+        return 0;
+    }
+    public function getMaxCombo():Int {
+        if (Highscore.tallies != null) return Highscore.tallies.maxCombo;
+        return 0;
+    }
+    public function getCombo():Int {
+        if (Highscore.tallies != null) return Highscore.tallies.combo;
+        return 0;
+    }
+    public function getTotalNotesHit():Int {
+        if (Highscore.tallies != null) return Highscore.tallies.totalNotesHit;
+        return 0;
+    }
+    
+    public function getTotalNotes():Int {
+        if (Highscore.tallies != null) {
+            var tn = Highscore.tallies?.totalNotes;
+            if (tn != null && tn > 0) return Std.int(tn);
+        }
+        return totalNotes;
+    }
+
+    public function getScore(state:PlayState):String {
+        if (state == null) return "0";
+        var rawScore = Math.floor(state.songScore);
+        var scoreStr = Std.string(rawScore);
+        
+        var result = "";
+        var len = scoreStr.length;
+        for (i in 0...len) {
+            if (i > 0 && (len - i) % 3 == 0 && scoreStr.charAt(i - 1) != "-") {
+                result += ",";
+            }
+            result += scoreStr.charAt(i);
+        }
+        return result;
+    }
+
+    public function getFinalAccuracy():Float {
+        return Math.floor(displayedAcc * 100) / 100;
     }
 }

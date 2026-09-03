@@ -1,0 +1,157 @@
+package kassettehud.util;
+
+import funkin.play.PlayState;
+import flixel.FlxG;
+import flixel.FlxCamera;
+import flixel.text.FlxText;
+import flixel.text.FlxTextBorderStyle;
+import funkin.Preferences;
+import funkin.Paths;
+import kassettehud.util.KassetteHUDElement;
+import kassettehud.util.KssetteOptionsManager;
+import kassettehud.util.KssetteFontManager;
+import kassettehud.util.KassetteHUDDatahunter;
+import funkin.modding.module.ModuleHandler;
+import StringTools;
+import Std;
+
+class CleanScoreAcc extends KassetteHUDElement {
+    var scoreTxt:FlxText;
+    var accTxt:FlxText;
+
+    var previewScoreTxt:FlxText;
+    var previewAccTxt:FlxText;
+    
+    var _lastFont:String = "";
+
+    public function new() {
+        super("CleanScoreAcc");
+        this.name = "CleanScoreAcc";
+    }
+
+    override public function buildPreview(cam:FlxCamera) {
+        isPreview = true;
+        
+        previewScoreTxt = new FlxText(10, FlxG.height * 0.1, 0, "S: 0", 20);
+        previewScoreTxt.setFormat("VCR OSD Mono", 20, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        previewScoreTxt.scrollFactor.set(0, 0);
+        safeAdd(previewScoreTxt, cam);
+        
+        previewAccTxt = new FlxText(10, previewScoreTxt.y + 24, 0, "A: 0.00%", 20);
+        previewAccTxt.setFormat("VCR OSD Mono", 20, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        previewAccTxt.scrollFactor.set(0, 0);
+        safeAdd(previewAccTxt, cam);
+    }
+
+    override public function updatePreview() {
+        onUpdate(0);
+    }
+
+    override public function onCountdownStart(event:Dynamic) {
+        isPreview = false;
+        var state = PlayState.instance;
+        if (state == null) return;
+        
+        // Hide vanilla score texts
+        if (state.scoreTxt != null) state.scoreTxt.visible = false;
+        
+        scoreTxt = new FlxText(10, FlxG.height * 0.1, 0, "S: 0", 20);
+        scoreTxt.setFormat("VCR OSD Mono", 20, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        scoreTxt.scrollFactor.set(0, 0);
+        scoreTxt.cameras = [state.camHUD];
+        state.add(scoreTxt);
+
+        accTxt = new FlxText(10, scoreTxt.y + 24, 0, "A: 0.00%", 20);
+        accTxt.setFormat("VCR OSD Mono", 20, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        accTxt.scrollFactor.set(0, 0);
+        accTxt.cameras = [state.camHUD];
+        state.add(accTxt);
+    }
+
+    override public function onUpdate(event:Dynamic) {
+        var state = PlayState.instance;
+        var optManager = KssetteOptionsManager.instance;
+        if (optManager == null) return;
+
+        var showHud = optManager.getKssValue("kssette_show_hud") == true;
+        
+        var downscroll = false;
+        if (KassetteHUDDatahunter.song != null) downscroll = KassetteHUDDatahunter.song.getDownscroll();
+        else downscroll = Preferences.downscroll;
+
+        if (!isPreview) {
+            var strumY:Float = 50;
+            if (state != null && state.strumLineNotes != null && state.strumLineNotes.members.length > 0) {
+                for (strum in state.strumLineNotes.members) {
+                    if (strum != null && strum.exists) {
+                        strumY = strum.y;
+                        break;
+                    }
+                }
+            }
+            downscroll = (strumY > FlxG.height / 2);
+        }
+
+        var inverted = optManager.getKssValue("kssette_score_pos") == "Inverted";
+        var atTop = inverted ? !downscroll : downscroll;
+
+        var targetY = atTop ? FlxG.height * 0.1 : FlxG.height * 0.9 - 48;
+
+        var cachedFont = KssetteFontManager.instance != null ? KssetteFontManager.instance.getHudFont() : "VCR OSD Mono";
+        if (cachedFont == null || cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
+
+        var fontChanged = (_lastFont != cachedFont);
+        if (fontChanged) _lastFont = cachedFont;
+
+        if (isPreview) {
+            if (previewScoreTxt != null) {
+                if (fontChanged) previewScoreTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+                previewScoreTxt.visible = showHud;
+                previewScoreTxt.y = targetY;
+            }
+            if (previewAccTxt != null) {
+                if (fontChanged) previewAccTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+                previewAccTxt.visible = showHud;
+                previewAccTxt.y = targetY + 24;
+            }
+            return;
+        }
+
+        if (state == null || scoreTxt == null || accTxt == null) return;
+
+        if (fontChanged) {
+            scoreTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+            accTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        }
+
+        scoreTxt.visible = showHud;
+        accTxt.visible = showHud;
+        scoreTxt.y = targetY;
+        accTxt.y = targetY + 24;
+
+        // Anti-Overlap System
+        // No more transparency anti-overlap for side texts since they physically evade the notes now.
+        scoreTxt.alpha = 1.0;
+        accTxt.alpha = 1.0;
+        
+        if (state.scoreTxt != null) state.scoreTxt.visible = false;
+
+        // Update score
+        var scoreStr = "0";
+        var scoreHunter = KassetteHUDDatahunter.score;
+        if (scoreHunter != null) {
+            scoreStr = scoreHunter.getScore(state);
+        } else {
+            scoreStr = Std.string(Math.floor(state.songScore));
+        }
+        scoreTxt.text = "S: " + scoreStr;
+        
+        // Update accuracy
+        var acc = 0.0;
+        var scoreHunter = KassetteHUDDatahunter.score;
+        if (scoreHunter != null) {
+            acc = scoreHunter.getFinalAccuracy();
+        }
+        accTxt.text = "A: " + acc + "%";
+    }
+}

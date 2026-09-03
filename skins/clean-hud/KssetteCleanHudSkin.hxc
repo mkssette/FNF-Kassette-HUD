@@ -1,0 +1,30 @@
+package kassettehud.util;
+
+import kassettehud.util.KassetteHUDSkin;
+import kassettehud.util.KassetteHUDElement;
+
+class KssetteCleanHudSkin extends KassetteHUDSkin {
+    public function new(?_id:String) {
+        super({
+            id: "clean-hud",
+            name: "Clean HUD",
+            author: "Alesmi",
+            description: "A highly compact and optimized HUD with corner elements."
+        });
+
+        // We disable specific options that conflict with this hardcoded clean HUD layout
+        this.disabledOptions = [
+            "kssette_timebar_pos",
+            "kssette_breakbar_pos"
+        ];
+    }
+
+    override public function buildElements():Dynamic {
+        return [
+            new CleanScoreAcc(),
+            new CleanTimeBreak(),
+            new CleanJudgements(),
+            new CleanHealthBar()
+        ];
+    }
+}

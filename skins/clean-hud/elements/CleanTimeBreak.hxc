@@ -1,0 +1,237 @@
+package kassettehud.util;
+
+import funkin.play.PlayState;
+import flixel.FlxG;
+import flixel.FlxCamera;
+import flixel.util.FlxColor;
+import flixel.text.FlxText;
+import flixel.text.FlxTextBorderStyle;
+import flixel.FlxSprite;
+import funkin.Paths;
+import kassettehud.util.KassetteHUDElement;
+import kassettehud.util.KssetteOptionsManager;
+import kassettehud.util.KssetteFontManager;
+import kassettehud.util.KassetteHUDDatahunter;
+import funkin.Conductor;
+import funkin.Preferences;
+import Std;
+
+class CleanTimeBreak extends KassetteHUDElement {
+    var timeTxt:FlxText;
+    var timeBarBG:FlxSprite;
+    var timeBarFill:FlxSprite;
+    var breakBarBG:FlxSprite;
+    var breakBarFill:FlxSprite;
+
+    var pTimeTxt:FlxText;
+    var pTimeBarBG:FlxSprite;
+    var pTimeBarFill:FlxSprite;
+    var pBreakBarBG:FlxSprite;
+    var pBreakBarFill:FlxSprite;
+
+    var _lastFont:String = "";
+
+    public function new() {
+        super("CleanTimeBreak");
+        this.name = "CleanTimeBreak";
+    }
+
+    override public function buildPreview(cam:FlxCamera) {
+        isPreview = true;
+        
+        pTimeTxt = new FlxText(0, 10, 0, "[1:30]", 18);
+        pTimeTxt.setFormat("VCR OSD Mono", 18, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        pTimeTxt.scrollFactor.set(0, 0);
+        safeAdd(pTimeTxt, cam);
+
+        pTimeBarBG = new FlxSprite(0, 0).makeGraphic(100, 10, FlxColor.BLACK);
+        pTimeBarBG.scrollFactor.set(0, 0);
+        safeAdd(pTimeBarBG, cam);
+
+        pTimeBarFill = new FlxSprite(0, 0).makeGraphic(96, 6, 0xFFFFFFFF);
+        pTimeBarFill.scrollFactor.set(0, 0);
+        safeAdd(pTimeBarFill, cam);
+
+        pBreakBarBG = new FlxSprite(0, 0).makeGraphic(100, 4, 0xFF000000);
+        pBreakBarBG.scrollFactor.set(0, 0);
+        safeAdd(pBreakBarBG, cam);
+
+        pBreakBarFill = new FlxSprite(0, 0).makeGraphic(96, 2, 0xFFFFFFFF);
+        pBreakBarFill.scrollFactor.set(0, 0);
+        safeAdd(pBreakBarFill, cam);
+    }
+
+    override public function updatePreview() {
+        onUpdate(0);
+    }
+
+    override public function onCountdownStart(event:Dynamic) {
+        isPreview = false;
+        var state = PlayState.instance;
+        if (state == null) return;
+        
+        timeTxt = new FlxText(0, 10, 0, "[0:00]", 18);
+        timeTxt.setFormat("VCR OSD Mono", 18, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        timeTxt.scrollFactor.set(0, 0);
+        timeTxt.cameras = [state.camHUD];
+        state.add(timeTxt);
+
+        timeBarBG = new FlxSprite(0, 0).makeGraphic(100, 10, FlxColor.BLACK);
+        timeBarBG.scrollFactor.set(0, 0);
+        timeBarBG.cameras = [state.camHUD];
+        state.add(timeBarBG);
+
+        timeBarFill = new FlxSprite(0, 0).makeGraphic(96, 6, 0xFFFFFFFF);
+        timeBarFill.scrollFactor.set(0, 0);
+        timeBarFill.cameras = [state.camHUD];
+        state.add(timeBarFill);
+
+        breakBarBG = new FlxSprite(0, 0).makeGraphic(100, 4, 0xFF000000);
+        breakBarBG.scrollFactor.set(0, 0);
+        breakBarBG.cameras = [state.camHUD];
+        state.add(breakBarBG);
+
+        breakBarFill = new FlxSprite(0, 0).makeGraphic(96, 2, 0xFFFFFFFF);
+        breakBarFill.scrollFactor.set(0, 0);
+        breakBarFill.cameras = [state.camHUD];
+        state.add(breakBarFill);
+    }
+
+    override public function onUpdate(event:Dynamic) {
+        var state = PlayState.instance;
+        var optManager = KssetteOptionsManager.instance;
+        if (optManager == null) return;
+
+        var showHud = optManager.getKssValue("kssette_show_hud") == true;
+        
+        var downscroll = false;
+        if (KassetteHUDDatahunter.song != null) downscroll = KassetteHUDDatahunter.song.getDownscroll();
+        else downscroll = Preferences.downscroll;
+
+        if (!isPreview) {
+            var strumY:Float = 50;
+            if (state != null && state.strumLineNotes != null && state.strumLineNotes.members.length > 0) {
+                for (strum in state.strumLineNotes.members) {
+                    if (strum != null && strum.exists) {
+                        strumY = strum.y;
+                        break;
+                    }
+                }
+            }
+            downscroll = (strumY > FlxG.height / 2);
+        }
+
+        var inverted = optManager.getKssValue("kssette_score_pos") == "Inverted";
+        var atTop = inverted ? !downscroll : downscroll;
+
+        var scoreY = atTop ? FlxG.height * 0.1 : FlxG.height * 0.9 - 48;
+        // Stack TimeBreak vertically underneath the Score block on the left
+        var targetY = scoreY + 48; 
+        if (!atTop && targetY > FlxG.height - 30) {
+            // Ensure it doesn't fall off the screen if placed at the bottom
+            targetY = scoreY - 32; 
+        }
+        var startX = 10.0; // Same X as Score
+
+        var cachedFont = KssetteFontManager.instance != null ? KssetteFontManager.instance.getHudFont() : "VCR OSD Mono";
+        if (cachedFont == null || cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
+
+        var fontChanged = (_lastFont != cachedFont);
+        if (fontChanged) _lastFont = cachedFont;
+
+        if (isPreview) {
+            if (pTimeTxt != null) {
+                if (fontChanged) pTimeTxt.setFormat(cachedFont, 18, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+                pTimeTxt.visible = showHud;
+                pTimeTxt.x = startX;
+                pTimeTxt.y = targetY;
+            }
+            if (pTimeBarBG != null && pTimeTxt != null) {
+                pTimeBarBG.visible = showHud;
+                pTimeBarBG.x = pTimeTxt.x + pTimeTxt.width + 6;
+                pTimeBarBG.y = targetY + 8;
+            }
+            if (pTimeBarFill != null && pTimeBarBG != null) {
+                pTimeBarFill.visible = showHud;
+                pTimeBarFill.x = pTimeBarBG.x + 2;
+                pTimeBarFill.y = pTimeBarBG.y + 2;
+            }
+            if (pBreakBarBG != null && pTimeBarBG != null) {
+                pBreakBarBG.visible = showHud;
+                pBreakBarBG.x = pTimeBarBG.x;
+                pBreakBarBG.y = pTimeBarBG.y + pTimeBarBG.height + 2;
+            }
+            if (pBreakBarFill != null && pBreakBarBG != null) {
+                pBreakBarFill.visible = showHud;
+                pBreakBarFill.x = pBreakBarBG.x;
+                pBreakBarFill.y = pBreakBarBG.y;
+            }
+            return;
+        }
+
+        if (state == null || timeTxt == null || timeBarBG == null || timeBarFill == null || breakBarBG == null || breakBarFill == null) return;
+
+        if (fontChanged) {
+            timeTxt.setFormat(cachedFont, 18, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        }
+
+        timeTxt.visible = showHud;
+        timeBarBG.visible = showHud;
+        timeBarFill.visible = showHud;
+        breakBarBG.visible = showHud;
+        breakBarFill.visible = showHud;
+        
+        timeTxt.x = startX;
+        timeTxt.y = targetY;
+
+        timeBarBG.x = timeTxt.x + timeTxt.width + 6;
+        timeBarBG.y = targetY + 8;
+        
+        timeBarFill.x = timeBarBG.x + 2;
+        timeBarFill.y = timeBarBG.y + 2;
+        
+        breakBarBG.x = timeBarBG.x;
+        breakBarBG.y = timeBarBG.y + timeBarBG.height + 2;
+        
+        breakBarFill.x = breakBarBG.x;
+        breakBarFill.y = breakBarBG.y;
+        
+        timeTxt.alpha = 1.0;
+        timeBarBG.alpha = 1.0;
+        timeBarFill.alpha = 1.0;
+        breakBarBG.alpha = 1.0;
+        breakBarFill.alpha = 1.0;
+
+        var curTime:Float = Conductor.instance.songPosition;
+        if (curTime < 0) curTime = 0;
+        
+        var songLen:Float = state != null ? state.currentSongLengthMs : 0;
+
+        if (songLen <= 0) songLen = 1;
+        
+        var timeRatio = curTime / songLen;
+        if (timeRatio > 1) timeRatio = 1;
+        
+        timeBarFill.scale.x = timeRatio;
+        timeBarFill.updateHitbox();
+
+        var secondsTotal = Math.floor(curTime / 1000);
+        var mins = Math.floor(secondsTotal / 60);
+        var secs = secondsTotal % 60;
+        var secsStr = (secs < 10) ? "0" + secs : "" + secs;
+        timeTxt.text = "[" + mins + ":" + secsStr + "]";
+
+        // Break bar logic
+        var breakHunter = KassetteHUDDatahunter.breakData;
+        if (breakHunter != null && breakHunter.currentBreakData != null && breakHunter.currentBreakData.active) {
+            var ratio = 1.0 - breakHunter.currentBreakData.progress;
+            breakBarFill.scale.x = ratio;
+            breakBarFill.updateHitbox();
+            breakBarBG.visible = showHud;
+            breakBarFill.visible = showHud;
+        } else {
+            breakBarBG.visible = false;
+            breakBarFill.visible = false;
+        }
+    }
+}

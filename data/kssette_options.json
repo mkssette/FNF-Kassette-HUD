@@ -337,6 +337,14 @@
       "name": "Positions",
       "options": [
         {
+          "id": "kssette_healthbar_position",
+          "name": "HEALTH BAR POSITION",
+          "description": "Choose where the health bar is placed horizontally on the screen.",
+          "type": "choice",
+          "options": ["Center", "Left", "Right"],
+          "defaultValue": "Center"
+        },
+        {
           "id": "kssette_timebar_pos",
           "name": "TIME BAR POSITION",
           "description": "Choose where the Song Progress Bar is placed on screen.",

@@ -1,0 +1,144 @@
+package kassettehud.util;
+
+import funkin.play.PlayState;
+import flixel.FlxG;
+import flixel.FlxCamera;
+import flixel.text.FlxText;
+import flixel.text.FlxTextBorderStyle;
+import funkin.Preferences;
+import funkin.Paths;
+import kassettehud.util.KassetteHUDElement;
+import kassettehud.util.KssetteOptionsManager;
+import kassettehud.util.KssetteFontManager;
+import kassettehud.util.KassetteHUDDatahunter;
+import Std;
+
+class CleanJudgements extends KassetteHUDElement {
+    var sickTxt:FlxText;
+    var missTxt:FlxText;
+
+    var pSickTxt:FlxText;
+    var pMissTxt:FlxText;
+    
+    var _lastFont:String = "";
+
+    public function new() {
+        super("CleanJudgements");
+        this.name = "CleanJudgements";
+    }
+
+    override public function buildPreview(cam:FlxCamera) {
+        isPreview = true;
+        
+        pSickTxt = new FlxText(FlxG.width - 150, FlxG.height * 0.1, 140, "Sicks: 0", 20);
+        pSickTxt.setFormat("VCR OSD Mono", 20, 0xFFFFFFFF, "right", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        pSickTxt.scrollFactor.set(0, 0);
+        safeAdd(pSickTxt, cam);
+        
+        pMissTxt = new FlxText(FlxG.width - 150, pSickTxt.y + 24, 140, "Misses: 0", 20);
+        pMissTxt.setFormat("VCR OSD Mono", 20, 0xFFFFFFFF, "right", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        pMissTxt.scrollFactor.set(0, 0);
+        safeAdd(pMissTxt, cam);
+    }
+
+    override public function updatePreview() {
+        onUpdate(0);
+    }
+
+    override public function onCountdownStart(event:Dynamic) {
+        isPreview = false;
+        var state = PlayState.instance;
+        if (state == null) return;
+        
+        sickTxt = new FlxText(FlxG.width - 150, FlxG.height * 0.1, 140, "Sicks: 0", 20);
+        sickTxt.setFormat("VCR OSD Mono", 20, 0xFFFFFFFF, "right", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        sickTxt.scrollFactor.set(0, 0);
+        sickTxt.cameras = [state.camHUD];
+        state.add(sickTxt);
+
+        missTxt = new FlxText(FlxG.width - 150, sickTxt.y + 24, 140, "Misses: 0", 20);
+        missTxt.setFormat("VCR OSD Mono", 20, 0xFFFFFFFF, "right", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        missTxt.scrollFactor.set(0, 0);
+        missTxt.cameras = [state.camHUD];
+        state.add(missTxt);
+    }
+
+    override public function onUpdate(event:Dynamic) {
+        var state = PlayState.instance;
+        var optManager = KssetteOptionsManager.instance;
+        if (optManager == null) return;
+
+        var showHud = optManager.getKssValue("kssette_show_hud") == true;
+        
+        var downscroll = false;
+        if (KassetteHUDDatahunter.song != null) downscroll = KassetteHUDDatahunter.song.getDownscroll();
+        else downscroll = Preferences.downscroll;
+
+        if (!isPreview) {
+            var strumY:Float = 50;
+            if (state != null && state.strumLineNotes != null && state.strumLineNotes.members.length > 0) {
+                for (strum in state.strumLineNotes.members) {
+                    if (strum != null && strum.exists) {
+                        strumY = strum.y;
+                        break;
+                    }
+                }
+            }
+            downscroll = (strumY > FlxG.height / 2);
+        }
+
+        var inverted = optManager.getKssValue("kssette_score_pos") == "Inverted";
+        var atTop = inverted ? !downscroll : downscroll;
+
+        var targetY = atTop ? FlxG.height * 0.1 : FlxG.height * 0.9 - 48;
+
+        var cachedFont = KssetteFontManager.instance != null ? KssetteFontManager.instance.getHudFont() : "VCR OSD Mono";
+        if (cachedFont == null || cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
+
+        var fontChanged = (_lastFont != cachedFont);
+        if (fontChanged) _lastFont = cachedFont;
+
+        if (isPreview) {
+            if (pSickTxt != null) {
+                if (fontChanged) pSickTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "right", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+                pSickTxt.visible = showHud;
+                pSickTxt.y = targetY;
+            }
+            if (pMissTxt != null) {
+                if (fontChanged) pMissTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "right", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+                pMissTxt.visible = showHud;
+                pMissTxt.y = targetY + 24;
+            }
+            return;
+        }
+
+        if (state == null || sickTxt == null || missTxt == null) return;
+
+        if (fontChanged) {
+            sickTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "right", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+            missTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "right", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        }
+
+        sickTxt.visible = showHud;
+        missTxt.visible = showHud;
+        sickTxt.y = targetY;
+        missTxt.y = targetY + 24;
+
+        // Anti-Overlap System
+        // No more transparency anti-overlap for side texts since they physically evade the notes now.
+        sickTxt.alpha = 1.0;
+        missTxt.alpha = 1.0;
+
+        var sickCount = 0;
+        var missCount = 0;
+        
+        var scoreHunter = KassetteHUDDatahunter.score;
+        if (scoreHunter != null) {
+            sickCount = scoreHunter.getSicks();
+            missCount = scoreHunter.getMisses();
+        }
+
+        sickTxt.text = "Sicks: " + sickCount;
+        missTxt.text = "Misses: " + missCount;
+    }
+}

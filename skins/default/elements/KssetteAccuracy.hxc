@@ -750,7 +750,8 @@ class KssetteAccuracy extends KassetteHUDElement {
             _scoreStart = -1; _scoreEnd = -1;
             _rankStart = -1;
             
-            var scoreStr = FlxStringUtil.formatMoney(scoreInt, false, true);
+            var scoreHunter = KassetteHUDDatahunter.score;
+            var scoreStr = scoreHunter != null ? scoreHunter.getScore(PlayState.instance) : Std.string(scoreInt);
             var strMain = "";
             var needSep = false;
 
@@ -1059,7 +1060,21 @@ class KssetteAccuracy extends KassetteHUDElement {
 
         if (uiText == null || !uiText.exists) return;
 
-        var t = Highscore.tallies;
+        var scoreHunter = KassetteHUDDatahunter.score;
+        var t:Dynamic = null;
+        if (scoreHunter != null) {
+            t = {
+                missed: scoreHunter.getMisses(),
+                totalNotesHit: scoreHunter.getTotalNotesHit(),
+                maxCombo: scoreHunter.getMaxCombo(),
+                sick: scoreHunter.getSicks(),
+                good: scoreHunter.getGoods(),
+                bad: scoreHunter.getBads(),
+                shit: scoreHunter.getShits(),
+                combo: scoreHunter.getCombo(),
+                totalNotes: scoreHunter.getTotalNotes()
+            };
+        }
         var m:Int = (t != null) ? t.missed : 0;
         var h:Int = (t != null) ? t.totalNotesHit : 0;
         var c:Int = (t != null) ? t.maxCombo : 0;
@@ -1090,81 +1105,14 @@ class KssetteAccuracy extends KassetteHUDElement {
             
             if (_cShowRank && scoreHunter != null) cachedRankStr = scoreHunter.getRankID(state);
             if (_cShowTier && scoreHunter != null) cachedTierStr = scoreHunter.getComboTier(state);
-
-            targetAcc = 0.0;
-            if (_cAccMode == "Ascending") {
-                if (t != null) {
-                    var totalHits:Int = t.totalNotesHit + t.missed;
-                    if (totalHits > 0) {
-                        var rawAcc:Float = ((t.sick + t.good - t.missed) / totalHits) * 100;
-                        var realAcc:Float = Math.floor(Math.max(0, rawAcc) * 100) / 100;
-
-                        var processed:Int = t.sick + t.good + t.bad + t.shit + t.missed;
-                        var totalPlayerNotes:Int = cachedActualTotal;
-                        
-                        if (processed > totalPlayerNotes) totalPlayerNotes = processed;
-
-                        var noteProgress:Float = (totalPlayerNotes > 0) ? (processed / totalPlayerNotes) : 1.0;
-                        if (noteProgress > 1.0) noteProgress = 1.0;
-                        
-                        var songProgress:Float = 0.0;
-                        if (state.currentSongLengthMs > 0 && state.conductorInUse != null) {
-                            songProgress = state.conductorInUse.songPosition / state.currentSongLengthMs;
-                        }
-                        if (Math.isNaN(songProgress) || songProgress < 0) songProgress = 0;
-                        if (songProgress >= 0.995) noteProgress = 1.0;
-                        
-                        targetAcc = realAcc * noteProgress;
-                    }
-                }
-            } else if (_cAccMode == "Classic") {
-                if (t != null) {
-                    var totalHits:Int = t.totalNotesHit + t.missed;
-                    if (totalHits > 0) {
-                        var raw:Float = ((t.sick + t.good - t.missed) / totalHits) * 100;
-                        targetAcc = Math.floor(Math.max(0, raw) * 100) / 100;
-                    }
-                }
-            }
-
-            if (!_cSmooth) displayedAcc = targetAcc;
         }
 
-        if (_cAccMode != "Off" && _cAccMode != "null" && _cAccMode != "false") {
-            if (_cSmooth) {
-                var tAcc = displayedAcc;
-                if (majorChange) {
-                    tAcc = targetAcc;
-                } else if (_cAccMode == "Ascending" && t != null) {
-                    var totalHits:Int = t.totalNotesHit + t.missed;
-                    if (totalHits > 0) {
-                        var rawAcc:Float = ((t.sick + t.good - t.missed) / totalHits) * 100;
-                        var realAcc:Float = Math.floor(Math.max(0, rawAcc) * 100) / 100;
-                        
-                        var processed:Int = t.sick + t.good + t.bad + t.shit + t.missed;
-                        var totalPlayerNotes:Int = cachedActualTotal;
-                        
-                        if (processed > totalPlayerNotes) totalPlayerNotes = processed;
-                        var noteProgress:Float = (totalPlayerNotes > 0) ? (processed / totalPlayerNotes) : 1.0;
-                        if (noteProgress > 1.0) noteProgress = 1.0;
-                        
-                        var songProgress:Float = 0.0;
-                        if (state.currentSongLengthMs > 0 && state.conductorInUse != null) {
-                            songProgress = state.conductorInUse.songPosition / state.currentSongLengthMs;
-                        }
-                        if (songProgress >= 0.995) noteProgress = 1.0;
-                        tAcc = realAcc * noteProgress;
-                    }
-                } else if (_cAccMode == "Classic") {
-                    tAcc = targetAcc;
-                }
-                
-                displayedAcc += (tAcc - displayedAcc) * (elapsed * 8);
-                if (Math.abs(tAcc - displayedAcc) < 0.001) displayedAcc = tAcc;
-            }
+        var visualAcc:Float = 0.0;
+        if (scoreHunter != null) {
+            visualAcc = scoreHunter.getFinalAccuracy();
+        } else {
+            visualAcc = Math.floor(displayedAcc * 100) / 100;
         }
-
-        var visualAcc:Float = Math.floor(displayedAcc * 100) / 100;
         var accTextChanged:Bool = (visualAcc != lastVisualAcc);
 
         var gammodChanged:Bool = false;
