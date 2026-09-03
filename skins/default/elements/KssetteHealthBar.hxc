@@ -187,10 +187,11 @@ class KssetteHealthBar extends KassetteHUDElement {
             if (previewHealthBarFillP2 != null) previewHealthBarFillP2.y = hbY + 4;
 
             var posPref = optManager.getKssValue("kssette_healthbar_position");
+            if (posPref == null || posPref == "") posPref = "Center";
             if (posPref == "Left") {
-                previewHealthBarBG.x = 20;
+                previewHealthBarBG.x = 90;
             } else if (posPref == "Right") {
-                previewHealthBarBG.x = flixel.FlxG.width - previewHealthBarBG.width - 20;
+                previewHealthBarBG.x = FlxG.width - previewHealthBarBG.width - 90;
             } else {
                 previewHealthBarBG.screenCenter(0x01); // X-axis
             }
@@ -209,6 +210,7 @@ class KssetteHealthBar extends KassetteHUDElement {
             
             var fw = Std.int((previewHealthBarBG.width - 8) / 2);
             if (previewHealthBarFillP1 != null) previewHealthBarFillP1.x = previewHealthBarBG.x + 4 + fw;
+            if (previewHealthBarFillP2 != null) previewHealthBarFillP2.x = previewHealthBarBG.x + 4;
             
             var centerY = previewHealthBarBG.y + (previewHealthBarBG.height / 2);
             
@@ -298,10 +300,11 @@ class KssetteHealthBar extends KassetteHUDElement {
         var hb = state.healthBar;
         if (hb != null && state.healthBarBG != null) {
             var posPref = optManager.getKssValue("kssette_healthbar_position");
+            if (posPref == null || posPref == "") posPref = "Center";
             if (posPref == "Left") {
-                state.healthBarBG.x = 20;
+                state.healthBarBG.x = 90;
             } else if (posPref == "Right") {
-                state.healthBarBG.x = flixel.FlxG.width - state.healthBarBG.width - 20;
+                state.healthBarBG.x = FlxG.width - state.healthBarBG.width - 90;
             } else {
                 state.healthBarBG.screenCenter(0x01);
             }

@@ -212,14 +212,29 @@ class KssetteTimeBar extends KassetteHUDElement {
             case "Vertical Right":
                 cachedX = FlxG.width - currentBgW - paddingX - cutoutSize; cachedY = 0;
             case "In Health":
-                var hbX:Float = (FlxG.width - currentBgW) / 2;
+                var bgW = 601; // Default healthbar width
+                var hbX:Float = (FlxG.width - bgW) / 2;
+                
+                var optManager = KssetteOptionsManager.instance;
+                if (optManager != null) {
+                    var hbPosPref = optManager.getKssValue("kssette_healthbar_position");
+                    if (hbPosPref == null || hbPosPref == "") hbPosPref = "Center";
+                    if (hbPosPref == "Left") {
+                        hbX = 90;
+                    } else if (hbPosPref == "Right") {
+                        hbX = FlxG.width - bgW - 90;
+                    }
+                }
+                
+                // Adjust to timebar's center
+                hbX += (bgW - currentBgW) / 2;
+                
                 var downscrollValue:Bool = Preferences.downscroll;
                 if (KassetteHUDDatahunter.song != null) downscrollValue = KassetteHUDDatahunter.song.getDownscroll();
                 var hbY:Float = downscrollValue ? FlxG.height * 0.11 : FlxG.height * 0.89;
                 var hbH:Float = 19;
                 var state = PlayState.instance;
                 if (state != null && state.healthBarBG != null) {
-                    hbX = state.healthBarBG.x + (state.healthBarBG.width - currentBgW) / 2;
                     hbY = state.healthBarBG.y;
                     hbH = state.healthBarBG.height;
                 }

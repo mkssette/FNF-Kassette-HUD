@@ -148,6 +148,7 @@ class CleanHealthBar extends KassetteHUDElement {
             if (previewHealthBarFillP2 != null) previewHealthBarFillP2.y = hbY + 2;
 
             var posPref = optManager.getKssValue("kssette_healthbar_position");
+            if (posPref == null || posPref == "") posPref = "Center";
             if (posPref == "Left") {
                 previewHealthBarBG.x = 90;
             } else if (posPref == "Right") {
@@ -233,6 +234,7 @@ class CleanHealthBar extends KassetteHUDElement {
             }
             
             var posPref = optManager != null ? optManager.getKssValue("kssette_healthbar_position") : "Center";
+            if (posPref == null || posPref == "") posPref = "Center";
             if (posPref == "Left") {
                 state.healthBarBG.x = 90;
             } else if (posPref == "Right") {

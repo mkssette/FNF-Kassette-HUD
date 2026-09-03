@@ -643,12 +643,22 @@ class KssetteAccuracy extends KassetteHUDElement {
             iX = safeLeft; iY = FlxG.height - 50 - yOffset; iA = "left";
             tW = FlxG.width - safeLeft - safeRight; iW = FlxG.width - safeLeft - safeRight;
         } else {
-            var inverted = (optManager.getKssValue("kssette_score_pos") == "Inverted");
+            var inverted = (optManager != null && optManager.getKssValue("kssette_score_pos") == "Inverted");
+            var hbPos = optManager != null ? optManager.getKssValue("kssette_healthbar_position") : "Center";
+            if (hbPos == null || hbPos == "") hbPos = "Center";
+            var bgW = 601;
+            var hbX:Float = (FlxG.width - bgW) / 2;
+            if (hbPos == "Left") {
+                hbX = 90.0;
+            } else if (hbPos == "Right") {
+                hbX = FlxG.width - bgW - 90.0;
+            }
+            var splitX:Float = hbX + (bgW / 2);
             
             if (!downscroll) {
                 if (inverted) {
-                    tX = safeLeft; tW = (FlxG.width / 2) - 10 - safeLeft; tA = "right";
-                    iX = (FlxG.width / 2) + 10; iW = (FlxG.width / 2) - 10 - safeRight; iA = "left";
+                    tX = safeLeft; tW = splitX - 10 - safeLeft; tA = "right";
+                    iX = splitX + 10; iW = (FlxG.width - safeRight) - (splitX + 10); iA = "left";
                     
                     if (hasBottomTimebar) {
                         tY = FlxG.height - 55;
@@ -658,17 +668,30 @@ class KssetteAccuracy extends KassetteHUDElement {
                         iY = FlxG.height - 36;
                     }
                 } else {
-                    tY = 15; iY = 24; tX = safeLeft; tW = (FlxG.width / 2) - 10 - safeLeft; tA = "right";
-                    iX = (FlxG.width / 2) + 10; iW = (FlxG.width / 2) - 10 - safeRight; iA = "left";
+                    tY = 15; iY = 24; tX = safeLeft; tW = splitX - 10 - safeLeft; tA = "right";
+                    iX = splitX + 10; iW = (FlxG.width - safeRight) - (splitX + 10); iA = "left";
                 }
             } else {
                 if (inverted) {
-                    tY = 15; iY = 24; tX = safeLeft; tW = (FlxG.width / 2) - 10 - safeLeft; tA = "right";
-                    iX = (FlxG.width / 2) + 10; iW = (FlxG.width / 2) - 10 - safeRight; iA = "left";
+                    tY = 15; iY = 24; tX = safeLeft; tW = splitX - 10 - safeLeft; tA = "right";
+                    iX = splitX + 10; iW = (FlxG.width - safeRight) - (splitX + 10); iA = "left";
                 } else {
-                    tA = "center"; iA = "center";
-                    tX = safeLeft; iX = safeLeft;
-                    tW = FlxG.width - safeLeft - safeRight; iW = FlxG.width - safeLeft - safeRight;
+                    if (hbPos == "Center") {
+                        tA = "center"; iA = "center";
+                        tX = safeLeft; iX = safeLeft;
+                        tW = FlxG.width - safeLeft - safeRight; iW = FlxG.width - safeLeft - safeRight;
+                    } else {
+                        tA = "center"; iA = "center";
+                        var bgW = 601;
+                        var hbX:Float = (FlxG.width - bgW) / 2;
+                        if (hbPos == "Left") {
+                            hbX = 90.0;
+                        } else if (hbPos == "Right") {
+                            hbX = FlxG.width - bgW - 90.0;
+                        }
+                        tX = hbX; iX = hbX;
+                        tW = bgW; iW = bgW;
+                    }
                     tY = uiText.y + 24;
                     iY = tY + 32;
                 }
@@ -888,7 +911,25 @@ class KssetteAccuracy extends KassetteHUDElement {
                 uiText.addFormat(currentTargetFmt, _rankStart, _rankStart + cachedRankLen);
             }
 
-            if (textChanged) uiText.screenCenter(0x01);
+            if (textChanged) {
+                var optManager = KssetteOptionsManager.instance;
+                var hbPos = optManager != null ? optManager.getKssValue("kssette_healthbar_position") : "Center";
+                if (hbPos == null || hbPos == "") hbPos = "Center";
+                var inverted = optManager != null && optManager.getKssValue("kssette_score_pos") == "Inverted";
+                
+                if (hbPos == "Center" || inverted) {
+                    uiText.screenCenter(0x01);
+                } else {
+                    var bgW = 601;
+                    var hbX:Float = (FlxG.width - bgW) / 2;
+                    if (hbPos == "Left") {
+                        hbX = 90.0;
+                    } else if (hbPos == "Right") {
+                        hbX = FlxG.width - bgW - 90.0;
+                    }
+                    uiText.x = hbX + (bgW - uiText.width) / 2;
+                }
+            }
         }
     }
     
