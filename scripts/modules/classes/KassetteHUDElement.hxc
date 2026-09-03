@@ -47,6 +47,33 @@ class KassetteHUDElement {
         return null;
     }
 
+    /** Shortcut for getting string settings safely */
+    public function getSettingString(key:String, defaultVal:String = ""):String {
+        var val = getSetting(key);
+        return val != null ? Std.string(val) : defaultVal;
+    }
+    
+    /** Shortcut for getting boolean settings safely */
+    public function getSettingBool(key:String, defaultVal:Bool = false):Bool {
+        var val = getSetting(key);
+        if (val == null) return defaultVal;
+        return (val == true || Std.string(val) == "On" || Std.string(val) == "true");
+    }
+
+    /** Returns true if the global HUD visibility option is enabled */
+    public function isHudVisible():Bool {
+        var val = getSetting("kssette_show_hud");
+        return (val == true || Std.string(val) == "On" || Std.string(val) == "true");
+    }
+
+    /** Returns true if downscroll is currently active in gameplay or preferences */
+    public function isDownscroll():Bool {
+        if (KassetteHUDDatahunter.song != null) {
+            return KassetteHUDDatahunter.song.getDownscroll();
+        }
+        return funkin.options.Preferences.downscroll;
+    }
+
     // Getters have been replaced with standard instance variables initialized in the constructor to improve HScript compatibility.
 
     public function onCountdownStart(event:Dynamic) {}

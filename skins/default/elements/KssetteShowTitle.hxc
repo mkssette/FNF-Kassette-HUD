@@ -182,13 +182,11 @@ class KssetteShowTitle extends KassetteHUDElement {
         var titleBaseSize = 44;
         var artistBaseSize = 32;
 
-        var showAlbum:String = "On";
-        var rawAlbum = getSetting("kssette_intro_album");
-        if (rawAlbum != null) showAlbum = Std.string(rawAlbum);
+        var showAlbum = getSettingBool("kssette_intro_album", true);
 
         var albumArtAsset:String = null;
 
-        if (showAlbum == "On" || showAlbum == "true") {
+        if (showAlbum) {
             if (isPreview) {
                 albumArtAsset = "freeplay/albumRoll/freeplayAlbum/spritemap1";
             } else {

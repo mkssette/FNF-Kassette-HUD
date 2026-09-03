@@ -30,50 +30,32 @@ class CleanJudgements extends KassetteHUDElement {
     override public function buildPreview(cam:FlxCamera) {
         isPreview = true;
         
-        var cachedFont = KssetteFontManager.instance != null ? KssetteFontManager.instance.getHudFont() : "VCR OSD Mono";
-        if (cachedFont == null || cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
-
-        pSickTxt = new FlxText(FlxG.width - 210, FlxG.height * 0.1, 200, "Sick: 0", 20);
-        pSickTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "right", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        pSickTxt = createText(FlxG.width - 210, FlxG.height * 0.1, 200, "Sick: 0", 20, 0xFFFFFFFF, "right");
         pSickTxt.scrollFactor.set(0, 0);
         safeAdd(pSickTxt, cam);
         
-        pMissTxt = new FlxText(FlxG.width - 210, pSickTxt.y + 24, 200, "Miss: 0", 20);
-        pMissTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "right", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        pMissTxt = createText(FlxG.width - 210, pSickTxt.y + 24, 200, "Miss: 0", 20, 0xFFFFFFFF, "right");
         pMissTxt.scrollFactor.set(0, 0);
         safeAdd(pMissTxt, cam);
     }
 
-    override public function updatePreview() {
-        onUpdate(0);
-    }
 
-    function killObj(obj:Dynamic) {
-        if (obj == null) return;
-        if (PlayState.instance != null) PlayState.instance.remove(obj, true);
-        obj.destroy();
-    }
 
     override public function onCountdownStart(event:Dynamic) {
         isPreview = false;
         var state = PlayState.instance;
         if (state == null) return;
         
-        killObj(sickTxt);
-        killObj(missTxt);
+        safeDestroy(sickTxt);
+        safeDestroy(missTxt);
 
-        var cachedFont = KssetteFontManager.instance != null ? KssetteFontManager.instance.getHudFont() : "VCR OSD Mono";
-        if (cachedFont == null || cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
-
-        sickTxt = new FlxText(FlxG.width - 210, FlxG.height * 0.1, 200, "Sick: 0", 20);
-        sickTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "right", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        sickTxt = createText(FlxG.width - 210, FlxG.height * 0.1, 200, "Sick: 0", 20, 0xFFFFFFFF, "right");
         sickTxt.scrollFactor.set(0, 0);
         sickTxt.cameras = [state.camHUD];
         sickTxt.zIndex = 1500;
         state.add(sickTxt);
 
-        missTxt = new FlxText(FlxG.width - 210, sickTxt.y + 24, 200, "Miss: 0", 20);
-        missTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "right", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        missTxt = createText(FlxG.width - 210, sickTxt.y + 24, 200, "Miss: 0", 20, 0xFFFFFFFF, "right");
         missTxt.scrollFactor.set(0, 0);
         missTxt.cameras = [state.camHUD];
         missTxt.zIndex = 1500;
@@ -82,23 +64,15 @@ class CleanJudgements extends KassetteHUDElement {
 
     override public function onUpdate(event:Dynamic) {
         var state = PlayState.instance;
-        var optManager = KssetteOptionsManager.instance;
-        if (optManager == null) return;
+        var showHud = isHudVisible();
+        var downscroll = isDownscroll();
 
-        var showHud = optManager.getKssValue("kssette_show_hud") == true;
-        
-        var downscroll = false;
-        if (KassetteHUDDatahunter.song != null) downscroll = KassetteHUDDatahunter.song.getDownscroll();
-        else downscroll = Preferences.downscroll;
-
-
-        var inverted = optManager.getKssValue("kssette_score_pos") == "Inverted";
+        var inverted = getSetting("kssette_score_pos") == "Inverted";
         var atTop = inverted ? !downscroll : downscroll;
 
         var targetY = atTop ? FlxG.height * 0.1 : FlxG.height * 0.9 - 48;
 
-        var cachedFont = KssetteFontManager.instance != null ? KssetteFontManager.instance.getHudFont() : "VCR OSD Mono";
-        if (cachedFont == null || cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
+        var cachedFont = getHudFont();
 
         var fontChanged = (_lastFont != cachedFont);
         if (fontChanged) _lastFont = cachedFont;

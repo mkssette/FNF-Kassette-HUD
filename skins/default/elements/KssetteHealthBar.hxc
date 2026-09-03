@@ -165,28 +165,23 @@ class KssetteHealthBar extends KassetteHUDElement {
      */
     override function onUpdate(event:Dynamic) {
         var elapsed:Float = (Std.isOfType(event, Float)) ? event : (event != null ? event.elapsed : 0);
-        var optManager = KssetteOptionsManager.instance;
         
         if (isPreview) {
-            if (optManager == null || previewHealthBarBG == null || !previewHealthBarBG.exists) return;
+            if (previewHealthBarBG == null || !previewHealthBarBG.exists) return;
             
-            var cachedActive = optManager.getKssValue("kssette_show_hud") == true;
+            var cachedActive = isHudVisible();
             previewHealthBarBG.visible = cachedActive;
             if (previewHealthBarFillP1 != null) previewHealthBarFillP1.visible = cachedActive;
             if (previewHealthBarFillP2 != null) previewHealthBarFillP2.visible = cachedActive;
             if (previewIconP1 != null) previewIconP1.visible = cachedActive;
             if (previewIconP2 != null) previewIconP2.visible = cachedActive;
 
-            var downscroll = false;
-            if (KassetteHUDDatahunter.song != null) downscroll = KassetteHUDDatahunter.song.getDownscroll();
-            else downscroll = Preferences.downscroll;
-
-            var hbY = downscroll ? FlxG.height * 0.11 : FlxG.height * 0.89;
+            var hbY = isDownscroll() ? FlxG.height * 0.11 : FlxG.height * 0.89;
             previewHealthBarBG.y = hbY;
             if (previewHealthBarFillP1 != null) previewHealthBarFillP1.y = hbY + 4;
             if (previewHealthBarFillP2 != null) previewHealthBarFillP2.y = hbY + 4;
 
-            var posPref = optManager.getKssValue("kssette_healthbar_position");
+            var posPref = getSetting("kssette_healthbar_position");
             if (posPref == null || posPref == "") posPref = "Center";
             if (posPref == "Left") {
                 previewHealthBarBG.x = 90;
@@ -196,7 +191,7 @@ class KssetteHealthBar extends KassetteHUDElement {
                 previewHealthBarBG.screenCenter(0x01); // X-axis
             }
 
-            var coloredHB = optManager.getKssValue("kssette_colored_healthbar") == true;
+            var coloredHB = getSetting("kssette_colored_healthbar") == true;
             var p1Color = 0xFF66FF33; 
             var p2Color = 0xFFFF0000;
             
@@ -299,7 +294,7 @@ class KssetteHealthBar extends KassetteHUDElement {
         
         var hb = state.healthBar;
         if (hb != null && state.healthBarBG != null) {
-            var posPref = optManager.getKssValue("kssette_healthbar_position");
+            var posPref = getSetting("kssette_healthbar_position");
             if (posPref == null || posPref == "") posPref = "Center";
             if (posPref == "Left") {
                 state.healthBarBG.x = 90;
@@ -358,7 +353,7 @@ class KssetteHealthBar extends KassetteHUDElement {
         }
 
         // --- ICON POSITIONING LOGIC ---
-        var isCorners = optManager.getKssValue("kssette_icon_pos") == "Corners";
+        var isCorners = getSetting("kssette_icon_pos") == "Corners";
         
         if ((isCorners || isSolo) && state.healthBarBG != null && state.healthBar != null && state.iconP1 != null) {
             state.iconP1.autoUpdate = false;

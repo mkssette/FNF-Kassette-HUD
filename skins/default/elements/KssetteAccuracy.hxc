@@ -175,8 +175,6 @@ class KssetteAccuracy extends KassetteHUDElement {
     var _scoreEnd:Int = -1;
     var _rankStart:Int = -1;
 
-    /** Cached reference to options manager. */
-    var optManager:Dynamic = null;
     // --- Cached option flags (read once per settings update) ---
     var _cShowScore:Bool = true;
     var _cShowMisses:Bool = true;
@@ -317,16 +315,16 @@ class KssetteAccuracy extends KassetteHUDElement {
      * backgrounds to camHUD for correct draw ordering.
      */
     override function onCountdownStart(event) {
-        optManager = KssetteOptionsManager.instance;
-        if (optManager == null) return;
+        if (KssetteOptionsManager.instance != null) {
+            KssetteOptionsManager.instance.invalidateCache();
+        }
         
         scoreHunter = KassetteHUDDatahunter.score;
         songHunter = KassetteHUDDatahunter.song;
         gammodHunter = KassetteHUDDatahunter.gammod;
         iconHunter = KassetteHUDDatahunter.icon;
 
-        optManager.invalidateCache();
-        
+
         var state = PlayState.instance;
         if (state == null) return;
         
@@ -363,8 +361,7 @@ class KssetteAccuracy extends KassetteHUDElement {
         _lastBuiltUnranked = false;
         _cachedText = "";
         
-        cachedFont = KssetteFontManager.instance != null ? KssetteFontManager.instance.getHudFont() : "VCR OSD Mono";
-        if (cachedFont == null || cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
+        cachedFont = getHudFont();
 
         securityTriggered = false;
         displayedAcc = 0;
@@ -415,11 +412,9 @@ class KssetteAccuracy extends KassetteHUDElement {
     public function buildPreview(cam:FlxCamera) {
         isPreview = true;
         previewCam = cam;
-        optManager = KssetteOptionsManager.instance;
-        if (optManager != null) {
-            cachedFont = KssetteFontManager.instance != null ? KssetteFontManager.instance.getHudFont() : "VCR OSD Mono";
+        if (KssetteOptionsManager.instance != null) {
+            cachedFont = getHudFont();
         }
-        if (cachedFont == null || cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
 
         setupUI(cam);
         updatePreview();
@@ -431,9 +426,6 @@ class KssetteAccuracy extends KassetteHUDElement {
      */
     public function updatePreview() {
         if (!isPreview || uiText == null) return;
-        
-        if (optManager == null) optManager = KssetteOptionsManager.instance;
-        if (optManager == null) return;
 
         updateSettings();
         updatePositions();
@@ -442,7 +434,6 @@ class KssetteAccuracy extends KassetteHUDElement {
             updateAccuracyText(123456, 0, 100.00, "PERFECT_GOLD", "SFC");
             lastVisualAcc = 100.00;
         }
-        trace("[KssetteAccuracy] updatePreview() called. uiText.text: " + uiText.text + " | y: " + uiText.y + " | isPreview: " + isPreview);
 
         for (i in 0...judgeLabels.length) {
             if (judgeValues[i] != null) {
@@ -464,37 +455,20 @@ class KssetteAccuracy extends KassetteHUDElement {
      * Called at countdown start, on resume, and during preview updates.
      */
     function updateSettings() {
-        if (optManager == null) return;
         
-        var rawScore = optManager.getKssValue("kssette_show_score");
-        _cShowScore = (rawScore == true || Std.string(rawScore) == "On" || Std.string(rawScore) == "true");
+        _cShowScore = getSettingBool("kssette_show_score");
+        _cShowMisses = getSettingBool("kssette_show_misses");
+        _cShowRank = getSettingBool("kssette_show_rank");
+        _cShowTier = getSettingBool("kssette_show_tier");
         
-        var rawMisses = optManager.getKssValue("kssette_show_misses");
-        _cShowMisses = (rawMisses == true || Std.string(rawMisses) == "On" || Std.string(rawMisses) == "true");
+        _cAccMode = getSettingString("kssette_acc_mode", "Complex");
+        _cJudgePos = getSettingString("kssette_judge_pos", "Underneath");
         
-        var rawRank = optManager.getKssValue("kssette_show_rank");
-        _cShowRank = (rawRank == true || Std.string(rawRank) == "On" || Std.string(rawRank) == "true");
-        
-        var rawTier = optManager.getKssValue("kssette_show_tier");
-        _cShowTier = (rawTier == true || Std.string(rawTier) == "On" || Std.string(rawTier) == "true");
-        
-        _cAccMode = Std.string(optManager.getKssValue("kssette_acc_mode"));
-        _cJudgePos = Std.string(optManager.getKssValue("kssette_judge_pos"));
-        
-        var rawSmooth = optManager.getKssValue("kssette_smooth_display");
-        _cSmooth = (rawSmooth == true || Std.string(rawSmooth) == "On" || Std.string(rawSmooth) == "true");
-        
-        var rawTime = optManager.getKssValue("kssette_show_song_time");
-        _cShowTime = (rawTime == true || Std.string(rawTime) == "On" || Std.string(rawTime) == "true");
-        
-        var rawTitle = optManager.getKssValue("kssette_show_song_title");
-        _cShowTitle = (rawTitle == true || Std.string(rawTitle) == "On" || Std.string(rawTitle) == "true");
-        
-        var rawDiff = optManager.getKssValue("kssette_show_song_diff");
-        _cShowDiff = (rawDiff == true || Std.string(rawDiff) == "On" || Std.string(rawDiff) == "true");
-        
-        var rawBop = optManager.getKssValue("kssette_score_bop");
-        _cScoreBop = (rawBop == true || Std.string(rawBop) == "On" || Std.string(rawBop) == "true");
+        _cSmooth = getSettingBool("kssette_smooth_display");
+        _cShowTime = getSettingBool("kssette_show_song_time");
+        _cShowTitle = getSettingBool("kssette_show_song_title");
+        _cShowDiff = getSettingBool("kssette_show_song_diff");
+        _cScoreBop = getSettingBool("kssette_score_bop");
         
         var songHunter = KassetteHUDDatahunter.song;
         if (songHunter != null) {
@@ -506,8 +480,7 @@ class KssetteAccuracy extends KassetteHUDElement {
         _cIsBotplay = (cachedModeMsg != null && (cachedModeMsg.indexOf("Botplay") != -1 || cachedModeMsg.indexOf("AutoPlay") != -1));
         _cJudgesVisible = (_cJudgePos != "Off" && _cJudgePos != "false");
 
-        cachedFont = KssetteFontManager.instance != null ? KssetteFontManager.instance.getHudFont() : "VCR OSD Mono";
-        if (cachedFont == null || cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
+        cachedFont = getHudFont();
 
         if (uiText != null) {
             uiText.visible = true; 
@@ -571,18 +544,15 @@ class KssetteAccuracy extends KassetteHUDElement {
      * and info panel position. Also lays out the judgement counter panel.
      */
     public function updatePositions() {
-        if (uiText == null || optManager == null) return;
+        if (uiText == null) return;
         
-        var downscroll = false;
-        if (songHunter != null) downscroll = songHunter.getDownscroll();
-        else downscroll = Preferences.downscroll;
-        var timeBarPos:String = Std.string(optManager.getKssValue("kssette_timebar_pos"));
-        var showTimeBar:Bool = optManager.getKssValue("kssette_show_timebar") == true;
+        var downscroll = isDownscroll();
+        var timeBarPos = getSettingString("kssette_timebar_pos", "Bottom");
+        var showTimeBar = getSettingBool("kssette_show_timebar");
         var hasBottomTimebar = showTimeBar && (timeBarPos.indexOf("Bottom") != -1);
         var hasTopTimebar = showTimeBar && (timeBarPos.indexOf("Top") != -1);
-        var inverted = optManager.getKssValue("kssette_score_pos") == "Inverted";
-        var optManager = KssetteOptionsManager.instance;
-        var isMob = optManager != null && optManager.isMobileMode == true;
+        var inverted = getSettingString("kssette_score_pos", "Default") == "Inverted";
+        var isMob = this.isMobile;
         
         var state = PlayState.instance;
         var hbY:Float = (state != null && state.healthBarBG != null) ? state.healthBarBG.y : (downscroll ? (FlxG.height * 0.11) : (FlxG.height * 0.89));
@@ -620,11 +590,10 @@ class KssetteAccuracy extends KassetteHUDElement {
             uiText.zIndex = 1000;
         }
 
-        var infoPos:String = Std.string(optManager.getKssValue("kssette_info_pos"));
+        var infoPos = getSettingString("kssette_info_pos", "Bottom Left");
 
         var safeX:Float = 18;
-        var optManager = KssetteOptionsManager.instance;
-        if (optManager != null && optManager.isMobileMode == true) safeX = 85;
+        if (this.isMobile == true) safeX = 85;
 
         var safeLeft:Float = safeX;
         var safeRight:Float = safeX;
@@ -643,8 +612,8 @@ class KssetteAccuracy extends KassetteHUDElement {
             iX = safeLeft; iY = FlxG.height - 50 - yOffset; iA = "left";
             tW = FlxG.width - safeLeft - safeRight; iW = FlxG.width - safeLeft - safeRight;
         } else {
-            var inverted = (optManager != null && optManager.getKssValue("kssette_score_pos") == "Inverted");
-            var hbPos = optManager != null ? optManager.getKssValue("kssette_healthbar_position") : "Center";
+            var inverted = getSettingString("kssette_score_pos", "Default") == "Inverted";
+            var hbPos = getSettingString("kssette_healthbar_position", "Center");
             if (hbPos == null || hbPos == "") hbPos = "Center";
             var bgW = 601;
             var hbX:Float = (FlxG.width - bgW) / 2;
@@ -710,12 +679,11 @@ class KssetteAccuracy extends KassetteHUDElement {
             if (infoText.alignment != iA) infoText.alignment = iA;
         }
 
-        var jPos:String = Std.string(optManager.getKssValue("kssette_judge_pos"));
+        var jPos = getSettingString("kssette_judge_pos", "Underneath");
 
         var jMarginLeft:Float = 6;
         var jMarginRight:Float = 6;
-        var optManager = KssetteOptionsManager.instance;
-        if (optManager != null && optManager.isMobileMode == true) {
+        if (this.isMobile == true) {
             jMarginLeft = 85;
             jMarginRight = 85;
         }
@@ -912,10 +880,9 @@ class KssetteAccuracy extends KassetteHUDElement {
             }
 
             if (textChanged) {
-                var optManager = KssetteOptionsManager.instance;
-                var hbPos = optManager != null ? optManager.getKssValue("kssette_healthbar_position") : "Center";
-                if (hbPos == null || hbPos == "") hbPos = "Center";
-                var inverted = optManager != null && optManager.getKssValue("kssette_score_pos") == "Inverted";
+                var hbPos = getSettingString("kssette_healthbar_position", "Center");
+                var isMob = this.isMobile;
+                var inverted = getSettingString("kssette_score_pos", "Default") == "Inverted";
                 
                 if (hbPos == "Center" || inverted) {
                     uiText.screenCenter(0x01);
@@ -992,13 +959,13 @@ class KssetteAccuracy extends KassetteHUDElement {
         
         if (isPreview) {
             if (uiText != null && uiText.exists) {
-                if (optManager != null) {
-                    var newMode = Std.string(optManager.getKssValue("kssette_acc_mode"));
-                    if (newMode != _cAccMode) {
+                if (KssetteOptionsManager.instance != null) {
+                    var newMode = getSettingString("kssette_acc_mode", "Complex");
+                    if (newMode != null && newMode != "" && newMode != _cAccMode) {
                         _cAccMode = newMode;
                         lastVisualAcc = -1.0; 
                     }
-                    _cSmooth = (optManager.getKssValue("kssette_smooth_display") == true);
+                    _cSmooth = getSettingBool("kssette_smooth_display");
                 }
                 
                 if (_cScoreBop) {
@@ -1046,7 +1013,7 @@ class KssetteAccuracy extends KassetteHUDElement {
             frameUpdateTimer = 0.0;
         }
 
-        if (state == null || optManager == null) return;
+        if (state == null) return;
         
         if (timeText != null && timeText.exists) {
             var showT:Bool = _cShowTime;
@@ -1178,9 +1145,9 @@ class KssetteAccuracy extends KassetteHUDElement {
         uiUpdateTimer += elapsed;
         
         var updateThreshold:Float = 0.033; // ~30 fps
-        var optManager = KssetteOptionsManager.instance;
-        if (optManager != null && optManager.isMobileMode == true) {
-            updateThreshold = 0.1; // fuck you jetsam
+        _cSmooth = getSettingBool("kssette_smooth_display");
+        if (this.isMobile == true) {
+            updateThreshold = 0.1; 
         }
         
         if (pendingTextUpdate && (majorChange || uiUpdateTimer >= updateThreshold)) {

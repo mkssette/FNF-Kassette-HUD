@@ -39,11 +39,7 @@ class CleanTimeBreak extends KassetteHUDElement {
     override public function buildPreview(cam:FlxCamera) {
         isPreview = true;
         
-        var cachedFont = KssetteFontManager.instance != null ? KssetteFontManager.instance.getHudFont() : "VCR OSD Mono";
-        if (cachedFont == null || cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
-
-        pTimeTxt = new FlxText(0, 10, 0, "[1:30]", 18);
-        pTimeTxt.setFormat(cachedFont, 18, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        pTimeTxt = createText(0, 10, 0, "[1:30]", 18, 0xFFFFFFFF, "left");
         pTimeTxt.scrollFactor.set(0, 0);
         safeAdd(pTimeTxt, cam);
 
@@ -64,32 +60,20 @@ class CleanTimeBreak extends KassetteHUDElement {
         safeAdd(pBreakBarFill, cam);
     }
 
-    override public function updatePreview() {
-        onUpdate(0);
-    }
 
-    function killObj(obj:Dynamic) {
-        if (obj == null) return;
-        if (PlayState.instance != null) PlayState.instance.remove(obj, true);
-        obj.destroy();
-    }
 
     override public function onCountdownStart(event:Dynamic) {
         isPreview = false;
         var state = PlayState.instance;
         if (state == null) return;
         
-        killObj(timeTxt);
-        killObj(timeBarBG);
-        killObj(timeBarFill);
-        killObj(breakBarBG);
-        killObj(breakBarFill);
+        safeDestroy(timeTxt);
+        safeDestroy(timeBarBG);
+        safeDestroy(timeBarFill);
+        safeDestroy(breakBarBG);
+        safeDestroy(breakBarFill);
 
-        var cachedFont = KssetteFontManager.instance != null ? KssetteFontManager.instance.getHudFont() : "VCR OSD Mono";
-        if (cachedFont == null || cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
-
-        timeTxt = new FlxText(0, 10, 0, "[0:00]", 18);
-        timeTxt.setFormat(cachedFont, 18, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        timeTxt = createText(0, 10, 0, "[0:00]", 18, 0xFFFFFFFF, "left");
         timeTxt.scrollFactor.set(0, 0);
         timeTxt.cameras = [state.camHUD];
         timeTxt.zIndex = 1500;
@@ -122,17 +106,10 @@ class CleanTimeBreak extends KassetteHUDElement {
 
     override public function onUpdate(event:Dynamic) {
         var state = PlayState.instance;
-        var optManager = KssetteOptionsManager.instance;
-        if (optManager == null) return;
+        var showHud = isHudVisible();
+        var downscroll = isDownscroll();
 
-        var showHud = optManager.getKssValue("kssette_show_hud") == true;
-        
-        var downscroll = false;
-        if (KassetteHUDDatahunter.song != null) downscroll = KassetteHUDDatahunter.song.getDownscroll();
-        else downscroll = Preferences.downscroll;
-
-
-        var inverted = optManager.getKssValue("kssette_score_pos") == "Inverted";
+        var inverted = getSetting("kssette_score_pos") == "Inverted";
         var atTop = inverted ? !downscroll : downscroll;
 
         var scoreY = atTop ? FlxG.height * 0.1 : FlxG.height * 0.9 - 48;
@@ -144,8 +121,7 @@ class CleanTimeBreak extends KassetteHUDElement {
         }
         var startX = 10.0; // Same X as Score
 
-        var cachedFont = KssetteFontManager.instance != null ? KssetteFontManager.instance.getHudFont() : "VCR OSD Mono";
-        if (cachedFont == null || cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
+        var cachedFont = getHudFont();
 
         var fontChanged = (_lastFont != cachedFont);
         if (fontChanged) _lastFont = cachedFont;

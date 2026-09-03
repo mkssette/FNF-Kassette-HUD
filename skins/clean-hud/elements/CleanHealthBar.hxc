@@ -128,17 +128,14 @@ class CleanHealthBar extends KassetteHUDElement {
         
         if (isPreview) {
             if (optManager == null || previewHealthBarBG == null || !previewHealthBarBG.exists) return;
-            
-            var cachedActive = optManager.getKssValue("kssette_show_hud") == true;
+            var cachedActive = isHudVisible();
             previewHealthBarBG.visible = cachedActive;
             if (previewHealthBarFillP1 != null) previewHealthBarFillP1.visible = cachedActive;
             if (previewHealthBarFillP2 != null) previewHealthBarFillP2.visible = cachedActive;
             if (previewIconP1 != null) previewIconP1.visible = cachedActive;
             if (previewIconP2 != null) previewIconP2.visible = cachedActive;
 
-            var downscroll = false;
-            if (KassetteHUDDatahunter.song != null) downscroll = KassetteHUDDatahunter.song.getDownscroll();
-            else downscroll = Preferences.downscroll;
+            var downscroll = isDownscroll();
 
             var atTop = downscroll;
 
@@ -147,7 +144,7 @@ class CleanHealthBar extends KassetteHUDElement {
             if (previewHealthBarFillP1 != null) previewHealthBarFillP1.y = hbY + 2;
             if (previewHealthBarFillP2 != null) previewHealthBarFillP2.y = hbY + 2;
 
-            var posPref = optManager.getKssValue("kssette_healthbar_position");
+            var posPref = getSetting("kssette_healthbar_position");
             if (posPref == null || posPref == "") posPref = "Center";
             if (posPref == "Left") {
                 previewHealthBarBG.x = 90;
@@ -161,7 +158,7 @@ class CleanHealthBar extends KassetteHUDElement {
             if (previewHealthBarFillP1 != null) previewHealthBarFillP1.x = previewHealthBarBG.x + 4 + fw;
             if (previewHealthBarFillP2 != null) previewHealthBarFillP2.x = previewHealthBarBG.x + 4;
 
-            var coloredHB = optManager.getKssValue("kssette_colored_healthbar") == true;
+            var coloredHB = getSetting("kssette_colored_healthbar") == true;
             if (coloredHB) {
                 _p1Color = 0xFF31B0D1;
                 _p2Color = 0xFFAF66CE;
@@ -217,7 +214,7 @@ class CleanHealthBar extends KassetteHUDElement {
 
         if (state == null || state.healthBarBG == null || state.healthBar == null) return;
 
-        var cachedActive = optManager != null ? optManager.getKssValue("kssette_show_hud") == true : true;
+        var cachedActive = isHudVisible();
         state.healthBarBG.visible = cachedActive;
         state.healthBar.visible = cachedActive;
         if (state.iconP1 != null) state.iconP1.visible = cachedActive;
@@ -233,7 +230,7 @@ class CleanHealthBar extends KassetteHUDElement {
                 state.healthBarBG.updateHitbox();
             }
             
-            var posPref = optManager != null ? optManager.getKssValue("kssette_healthbar_position") : "Center";
+            var posPref = getSetting("kssette_healthbar_position");
             if (posPref == null || posPref == "") posPref = "Center";
             if (posPref == "Left") {
                 state.healthBarBG.x = 90;
@@ -243,10 +240,7 @@ class CleanHealthBar extends KassetteHUDElement {
                 state.healthBarBG.screenCenter(0x01);
             }
             
-            var downscroll = false;
-            if (KassetteHUDDatahunter.song != null) downscroll = KassetteHUDDatahunter.song.getDownscroll();
-            else downscroll = Preferences.downscroll;
-
+            var downscroll = isDownscroll();
 
             var hbY = downscroll ? FlxG.height * 0.11 : FlxG.height * 0.89;
             
