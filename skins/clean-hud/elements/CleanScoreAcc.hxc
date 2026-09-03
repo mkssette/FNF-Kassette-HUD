@@ -67,13 +67,16 @@ class CleanScoreAcc extends KassetteHUDElement {
     override public function buildPreview(cam:FlxCamera) {
         isPreview = true;
         
+        var cachedFont = KssetteFontManager.instance != null ? KssetteFontManager.instance.getHudFont() : "VCR OSD Mono";
+        if (cachedFont == null || cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
+
         previewScoreTxt = new FlxText(10, FlxG.height * 0.1, 0, "S: 0", 20);
-        previewScoreTxt.setFormat("VCR OSD Mono", 20, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        previewScoreTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
         previewScoreTxt.scrollFactor.set(0, 0);
         safeAdd(previewScoreTxt, cam);
         
         previewAccTxt = new FlxText(10, previewScoreTxt.y + 24, 0, "A: 0.00%", 20);
-        previewAccTxt.setFormat("VCR OSD Mono", 20, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        previewAccTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
         previewAccTxt.scrollFactor.set(0, 0);
         safeAdd(previewAccTxt, cam);
     }
@@ -99,15 +102,18 @@ class CleanScoreAcc extends KassetteHUDElement {
         killObj(scoreTxt);
         killObj(accTxt);
 
+        var cachedFont = KssetteFontManager.instance != null ? KssetteFontManager.instance.getHudFont() : "VCR OSD Mono";
+        if (cachedFont == null || cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
+
         scoreTxt = new FlxText(10, FlxG.height * 0.1, 0, "S: 0", 20);
-        scoreTxt.setFormat("VCR OSD Mono", 20, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        scoreTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
         scoreTxt.scrollFactor.set(0, 0);
         scoreTxt.cameras = [state.camHUD];
         scoreTxt.zIndex = 1500;
         state.add(scoreTxt);
 
         accTxt = new FlxText(10, scoreTxt.y + 24, 0, "A: 0.00%", 20);
-        accTxt.setFormat("VCR OSD Mono", 20, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        accTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
         accTxt.scrollFactor.set(0, 0);
         accTxt.cameras = [state.camHUD];
         accTxt.zIndex = 1500;

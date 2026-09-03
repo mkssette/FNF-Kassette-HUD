@@ -30,13 +30,16 @@ class CleanJudgements extends KassetteHUDElement {
     override public function buildPreview(cam:FlxCamera) {
         isPreview = true;
         
-        pSickTxt = new FlxText(FlxG.width - 150, FlxG.height * 0.1, 140, "Sicks: 0", 20);
-        pSickTxt.setFormat("VCR OSD Mono", 20, 0xFFFFFFFF, "right", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        var cachedFont = KssetteFontManager.instance != null ? KssetteFontManager.instance.getHudFont() : "VCR OSD Mono";
+        if (cachedFont == null || cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
+
+        pSickTxt = new FlxText(FlxG.width - 210, FlxG.height * 0.1, 200, "Sick: 0", 20);
+        pSickTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "right", FlxTextBorderStyle.OUTLINE, 0xFF000000);
         pSickTxt.scrollFactor.set(0, 0);
         safeAdd(pSickTxt, cam);
         
-        pMissTxt = new FlxText(FlxG.width - 150, pSickTxt.y + 24, 140, "Misses: 0", 20);
-        pMissTxt.setFormat("VCR OSD Mono", 20, 0xFFFFFFFF, "right", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        pMissTxt = new FlxText(FlxG.width - 210, pSickTxt.y + 24, 200, "Miss: 0", 20);
+        pMissTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "right", FlxTextBorderStyle.OUTLINE, 0xFF000000);
         pMissTxt.scrollFactor.set(0, 0);
         safeAdd(pMissTxt, cam);
     }
@@ -59,15 +62,18 @@ class CleanJudgements extends KassetteHUDElement {
         killObj(sickTxt);
         killObj(missTxt);
 
-        sickTxt = new FlxText(FlxG.width - 150, FlxG.height * 0.1, 140, "Sicks: 0", 20);
-        sickTxt.setFormat("VCR OSD Mono", 20, 0xFFFFFFFF, "right", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        var cachedFont = KssetteFontManager.instance != null ? KssetteFontManager.instance.getHudFont() : "VCR OSD Mono";
+        if (cachedFont == null || cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
+
+        sickTxt = new FlxText(FlxG.width - 210, FlxG.height * 0.1, 200, "Sick: 0", 20);
+        sickTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "right", FlxTextBorderStyle.OUTLINE, 0xFF000000);
         sickTxt.scrollFactor.set(0, 0);
         sickTxt.cameras = [state.camHUD];
         sickTxt.zIndex = 1500;
         state.add(sickTxt);
 
-        missTxt = new FlxText(FlxG.width - 150, sickTxt.y + 24, 140, "Misses: 0", 20);
-        missTxt.setFormat("VCR OSD Mono", 20, 0xFFFFFFFF, "right", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        missTxt = new FlxText(FlxG.width - 210, sickTxt.y + 24, 200, "Miss: 0", 20);
+        missTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "right", FlxTextBorderStyle.OUTLINE, 0xFF000000);
         missTxt.scrollFactor.set(0, 0);
         missTxt.cameras = [state.camHUD];
         missTxt.zIndex = 1500;

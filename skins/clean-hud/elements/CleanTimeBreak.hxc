@@ -39,8 +39,11 @@ class CleanTimeBreak extends KassetteHUDElement {
     override public function buildPreview(cam:FlxCamera) {
         isPreview = true;
         
+        var cachedFont = KssetteFontManager.instance != null ? KssetteFontManager.instance.getHudFont() : "VCR OSD Mono";
+        if (cachedFont == null || cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
+
         pTimeTxt = new FlxText(0, 10, 0, "[1:30]", 18);
-        pTimeTxt.setFormat("VCR OSD Mono", 18, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        pTimeTxt.setFormat(cachedFont, 18, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
         pTimeTxt.scrollFactor.set(0, 0);
         safeAdd(pTimeTxt, cam);
 
@@ -82,8 +85,11 @@ class CleanTimeBreak extends KassetteHUDElement {
         killObj(breakBarBG);
         killObj(breakBarFill);
 
+        var cachedFont = KssetteFontManager.instance != null ? KssetteFontManager.instance.getHudFont() : "VCR OSD Mono";
+        if (cachedFont == null || cachedFont == "null" || cachedFont == "") cachedFont = "VCR OSD Mono";
+
         timeTxt = new FlxText(0, 10, 0, "[0:00]", 18);
-        timeTxt.setFormat("VCR OSD Mono", 18, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        timeTxt.setFormat(cachedFont, 18, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
         timeTxt.scrollFactor.set(0, 0);
         timeTxt.cameras = [state.camHUD];
         timeTxt.zIndex = 1500;
