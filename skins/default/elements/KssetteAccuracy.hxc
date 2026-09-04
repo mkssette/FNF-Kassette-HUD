@@ -190,6 +190,13 @@ class KssetteAccuracy extends KassetteHUDElement {
     var _cJudgesVisible:Bool = false;
     var _cScoreBop:Bool = false;
     var _bopTimer:Float = 0.0;
+    
+    var _cDownscroll:Bool = false;
+    var _cTimeBarPos:String = "Bottom";
+    var _cShowTimeBar:Bool = false;
+    var _cScorePos:String = "Default";
+    var _cInfoPos:String = "Bottom Left";
+    var _cHbPos:String = "Center";
 
     /** Cached accuracy rank string (e.g. "PERFECT_GOLD"). */
     var cachedRankStr:String = "?";
@@ -470,6 +477,13 @@ class KssetteAccuracy extends KassetteHUDElement {
         _cShowDiff = getSettingBool("kssette_show_song_diff");
         _cScoreBop = getSettingBool("kssette_score_bop");
         
+        _cDownscroll = isDownscroll();
+        _cTimeBarPos = getSettingString("kssette_timebar_pos", "Bottom");
+        _cShowTimeBar = getSettingBool("kssette_show_timebar");
+        _cScorePos = getSettingString("kssette_score_pos", "Default");
+        _cInfoPos = getSettingString("kssette_info_pos", "Bottom Left");
+        _cHbPos = getSettingString("kssette_healthbar_position", "Center");
+        
         var songHunter = KassetteHUDDatahunter.song;
         if (songHunter != null) {
             cachedModeMsg = Std.string(songHunter.getModeMessage());
@@ -546,12 +560,12 @@ class KssetteAccuracy extends KassetteHUDElement {
     public function updatePositions() {
         if (uiText == null) return;
         
-        var downscroll = isDownscroll();
-        var timeBarPos = getSettingString("kssette_timebar_pos", "Bottom");
-        var showTimeBar = getSettingBool("kssette_show_timebar");
+        var downscroll = _cDownscroll;
+        var timeBarPos = _cTimeBarPos;
+        var showTimeBar = _cShowTimeBar;
         var hasBottomTimebar = showTimeBar && (timeBarPos.indexOf("Bottom") != -1);
         var hasTopTimebar = showTimeBar && (timeBarPos.indexOf("Top") != -1);
-        var inverted = getSettingString("kssette_score_pos", "Default") == "Inverted";
+        var inverted = _cScorePos == "Inverted";
         var isMob = this.isMobile;
         
         var state = PlayState.instance;
@@ -590,7 +604,7 @@ class KssetteAccuracy extends KassetteHUDElement {
             uiText.zIndex = 1000;
         }
 
-        var infoPos = getSettingString("kssette_info_pos", "Bottom Left");
+        var infoPos = _cInfoPos;
 
         var safeX:Float = 18;
         if (this.isMobile == true) safeX = 85;
@@ -612,8 +626,8 @@ class KssetteAccuracy extends KassetteHUDElement {
             iX = safeLeft; iY = FlxG.height - 50 - yOffset; iA = "left";
             tW = FlxG.width - safeLeft - safeRight; iW = FlxG.width - safeLeft - safeRight;
         } else {
-            var inverted = getSettingString("kssette_score_pos", "Default") == "Inverted";
-            var hbPos = getSettingString("kssette_healthbar_position", "Center");
+            var inverted = _cScorePos == "Inverted";
+            var hbPos = _cHbPos;
             if (hbPos == null || hbPos == "") hbPos = "Center";
             var bgW = 601;
             var hbX:Float = (FlxG.width - bgW) / 2;
@@ -679,7 +693,7 @@ class KssetteAccuracy extends KassetteHUDElement {
             if (infoText.alignment != iA) infoText.alignment = iA;
         }
 
-        var jPos = getSettingString("kssette_judge_pos", "Underneath");
+        var jPos = _cJudgePos;
 
         var jMarginLeft:Float = 6;
         var jMarginRight:Float = 6;
@@ -880,9 +894,9 @@ class KssetteAccuracy extends KassetteHUDElement {
             }
 
             if (textChanged) {
-                var hbPos = getSettingString("kssette_healthbar_position", "Center");
+                var hbPos = _cHbPos;
                 var isMob = this.isMobile;
-                var inverted = getSettingString("kssette_score_pos", "Default") == "Inverted";
+                var inverted = _cScorePos == "Inverted";
                 
                 if (hbPos == "Center" || inverted) {
                     uiText.screenCenter(0x01);

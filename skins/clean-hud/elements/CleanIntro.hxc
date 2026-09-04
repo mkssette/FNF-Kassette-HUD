@@ -1,0 +1,127 @@
+package kassettehud.util;
+
+import funkin.play.PlayState;
+import flixel.FlxG;
+import flixel.FlxCamera;
+import flixel.text.FlxText;
+import flixel.text.FlxTextBorderStyle;
+import flixel.util.FlxColor;
+import flixel.tweens.FlxTween;
+import flixel.tweens.FlxEase;
+import kassettehud.util.KassetteHUDElement;
+import kassettehud.util.KassetteHUDDatahunter;
+
+class CleanIntro extends KassetteHUDElement {
+    var introText:FlxText;
+    
+    var _cShowIntro:Bool = true;
+    var _cHudVisible:Bool = true;
+    var _introTween:FlxTween;
+
+    public function new() {
+        super("CleanIntro");
+        this.name = "CleanIntro";
+    }
+
+    function updateSettings() {
+        // Obey the song title visibility setting
+        _cShowIntro = getSettingBool("kssette_show_song_title");
+        _cHudVisible = isHudVisible();
+    }
+
+    override public function buildPreview(cam:FlxCamera) {
+        isPreview = true;
+        
+        introText = createText(20, FlxG.height * 0.45, 0, "Song Name - Artist", 20, 0xFFFFFFFF, "left");
+        introText.scrollFactor.set(0, 0);
+        introText.setFormat(getHudFont(), 20, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        safeAdd(introText, cam);
+    }
+
+    override public function updatePreview() {
+        updateSettings();
+        if (introText != null) {
+            introText.visible = _cShowIntro;
+            introText.setFormat(getHudFont(), 20, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        }
+    }
+
+    var _playedIntro:Bool = false;
+
+    override public function onCountdownStart(event:Dynamic) {
+        _playedIntro = false;
+        if (_introTween != null) {
+            _introTween.cancel();
+            _introTween = null;
+        }
+        safeDestroy(introText);
+        introText = null;
+    }
+
+    override public function onSongStart(event:Dynamic) {
+        if (_playedIntro) return;
+        _playedIntro = true;
+        
+        isPreview = false;
+        updateSettings();
+        
+        var state = PlayState.instance;
+        if (state == null) return;
+        
+        if (_introTween != null) {
+            _introTween.cancel();
+            _introTween = null;
+        }
+        
+        safeDestroy(introText);
+
+        if (!_cShowIntro) return;
+
+        var songName = "Unknown";
+        var artistName = "Unknown Artist";
+        
+        var songHunter = KassetteHUDDatahunter.song;
+        if (songHunter != null) {
+            songName = songHunter.getSongTitle();
+            artistName = songHunter.getSongArtist();
+        }
+
+        var fullText = songName + " - " + artistName;
+
+        introText = createText(-800, FlxG.height * 0.45, 0, fullText, 24, 0xFFFFFFFF, "left");
+        introText.scrollFactor.set(0, 0);
+        introText.cameras = [state.camHUD];
+        introText.zIndex = 1600;
+        introText.setFormat(getHudFont(), 24, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        
+        // Start off-screen left
+        introText.x = -introText.width - 50;
+        
+        state.add(introText);
+        
+        // Slide in from left
+        _introTween = FlxTween.tween(introText, {x: 20}, 1.0, {
+            ease: FlxEase.expoOut,
+            onComplete: function(twn:FlxTween) {
+                // Wait for 3.5 seconds, then slide out to the right
+                if (introText != null) {
+                    _introTween = FlxTween.tween(introText, {x: FlxG.width + 50}, 1.0, {
+                        ease: FlxEase.expoIn,
+                        startDelay: 3.5,
+                        onComplete: function(twn2:FlxTween) {
+                            if (introText != null) introText.visible = false;
+                        }
+                    });
+                }
+            }
+        });
+    }
+
+    override public function onUpdate(event:Dynamic) {
+        var showHud = _cHudVisible;
+        if (introText != null && !isPreview) {
+            // Only hide it if the HUD itself is forcefully hidden, otherwise let it tween
+            if (!showHud) introText.visible = false;
+        }
+    }
+}

@@ -28,11 +28,17 @@ class CleanJudgements extends KassetteHUDElement {
     var _cShowSicks:Bool = true;
     var _cShowMisses:Bool = true;
     var _cScorePos:String = "Default";
+    var _cHudVisible:Bool = true;
+    var _cDownscroll:Bool = false;
+    var _cFont:String = "VCR OSD Mono";
 
     function updateSettings() {
         _cShowSicks = getSettingString("kssette_judge_pos", "Underneath") != "Off";
         _cShowMisses = getSettingBool("kssette_show_misses");
         _cScorePos = getSettingString("kssette_score_pos", "Default");
+        _cHudVisible = isHudVisible();
+        _cDownscroll = isDownscroll();
+        _cFont = getHudFont();
     }
 
     public function new() {
@@ -83,15 +89,15 @@ class CleanJudgements extends KassetteHUDElement {
 
     override public function onUpdate(event:Dynamic) {
         var state = PlayState.instance;
-        var showHud = isHudVisible();
-        var downscroll = isDownscroll();
+        var showHud = _cHudVisible;
+        var downscroll = _cDownscroll;
 
         var inverted = _cScorePos == "Inverted";
         var atTop = inverted ? !downscroll : downscroll;
 
         var targetY = atTop ? FlxG.height * 0.1 : FlxG.height * 0.9 - 48;
 
-        var cachedFont = getHudFont();
+        var cachedFont = _cFont;
 
         var fontChanged = (_lastFont != cachedFont);
         if (fontChanged) _lastFont = cachedFont;

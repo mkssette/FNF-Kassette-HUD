@@ -106,13 +106,18 @@ class CleanHealthBar extends KassetteHUDElement {
 	var _cPosPref:String = "Center";
 	var _cColored:Bool = true;
 	var _cIsCorners:Bool = false;
+	var _cHudVisible:Bool = true;
+	var _cDownscroll:Bool = false;
 
+	// Opposite logic moved to GammodDatahunter check in onUpdate
 	var _lastOpposite:Bool = false;
 
 	function updateSettings() {
 		_cPosPref = getSettingString("kssette_healthbar_position", "Center");
 		_cColored = getSettingBool("kssette_colored_healthbar");
 		_cIsCorners = getSettingString("kssette_icon_behavior", "Bop (Vanilla)") == "Corners";
+		_cHudVisible = isHudVisible();
+		_cDownscroll = isDownscroll();
 	}
 
 	override public function updatePreview() {

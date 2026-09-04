@@ -35,10 +35,18 @@ class CleanTimeBreak extends KassetteHUDElement {
     
     var _cShowTime:Bool = true;
     var _cScorePos:String = "Default";
+    var _cAccMode:String = "Complex";
+    var _cHudVisible:Bool = true;
+    var _cDownscroll:Bool = false;
+    var _cFont:String = "VCR OSD Mono";
 
     function updateSettings() {
         _cShowTime = getSettingBool("kssette_show_song_time");
         _cScorePos = getSettingString("kssette_score_pos", "Default");
+        _cAccMode = getSettingString("kssette_acc_mode", "Complex");
+        _cHudVisible = isHudVisible();
+        _cDownscroll = isDownscroll();
+        _cFont = getHudFont();
     }
 
     public function new() {
@@ -122,8 +130,8 @@ class CleanTimeBreak extends KassetteHUDElement {
 
     override public function onUpdate(event:Dynamic) {
         var state = PlayState.instance;
-        var showHud = isHudVisible();
-        var downscroll = isDownscroll();
+        var showHud = _cHudVisible;
+        var downscroll = _cDownscroll;
 
         var inverted = _cScorePos == "Inverted";
         var atTop = inverted ? !downscroll : downscroll;
@@ -142,8 +150,7 @@ class CleanTimeBreak extends KassetteHUDElement {
         if (hasMult) targetY += 24;
         
         // Push down for Acc if present
-        var accMode = getSettingString("kssette_acc_mode", "Complex");
-        var showAcc = accMode != "Off" && accMode != "null" && accMode != "false";
+        var showAcc = _cAccMode != "Off" && _cAccMode != "null" && _cAccMode != "false";
         if (showAcc) targetY += 24;
         
         if (!atTop && targetY > FlxG.height - 30) {
@@ -152,7 +159,7 @@ class CleanTimeBreak extends KassetteHUDElement {
         }
         var startX = 10.0; // Same X as Score
 
-        var cachedFont = getHudFont();
+        var cachedFont = _cFont;
 
         var fontChanged = (_lastFont != cachedFont);
         if (fontChanged) _lastFont = cachedFont;

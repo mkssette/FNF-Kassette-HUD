@@ -68,6 +68,10 @@ class CleanScoreAcc extends KassetteHUDElement {
     var _cShowScore:Bool = true;
     var _cShowRank:Bool = true;
     var _cAccMode:String = "Complex";
+    var _cHudVisible:Bool = true;
+    var _cDownscroll:Bool = false;
+    var _cScorePos:String = "Default";
+    var _cFont:String = "VCR OSD Mono";
 
     var _fmtUnranked:FlxTextFormat;
     var _fmtMult:FlxTextFormat;
@@ -76,6 +80,10 @@ class CleanScoreAcc extends KassetteHUDElement {
         _cShowScore = getSettingBool("kssette_show_score");
         _cShowRank = getSettingBool("kssette_show_rank");
         _cAccMode = getSettingString("kssette_acc_mode", "Complex");
+        _cScorePos = getSettingString("kssette_score_pos", "Default");
+        _cHudVisible = isHudVisible();
+        _cDownscroll = isDownscroll();
+        _cFont = getHudFont();
     }
 
     public function new() {
@@ -130,15 +138,15 @@ class CleanScoreAcc extends KassetteHUDElement {
 
     override public function onUpdate(event:Dynamic) {
         var state = PlayState.instance;
-        var showHud = isHudVisible();
-        var downscroll = isDownscroll();
+        var showHud = _cHudVisible;
+        var downscroll = _cDownscroll;
 
-        var inverted = getSetting("kssette_score_pos") == "Inverted";
+        var inverted = _cScorePos == "Inverted";
         var atTop = inverted ? !downscroll : downscroll;
 
         var targetY = atTop ? FlxG.height * 0.1 : FlxG.height * 0.9 - 48;
 
-        var cachedFont = getHudFont();
+        var cachedFont = _cFont;
 
         var fontChanged = (_lastFont != cachedFont);
         if (fontChanged) _lastFont = cachedFont;
@@ -269,23 +277,7 @@ class CleanScoreAcc extends KassetteHUDElement {
         
         var acc = 0.0;
         if (scoreHunter != null) {
-            if (_cAccMode == "Ascending") {
-                var curTime:Float = 0;
-                var songLen:Float = 1;
-                if (state != null && state.conductorInUse != null) {
-                    curTime = state.conductorInUse.songPosition;
-                    songLen = state.currentSongLengthMs;
-                    if (songLen <= 0) songLen = 1;
-                }
-                var songRatio = curTime / songLen;
-                if (songRatio < 0) songRatio = 0;
-                if (songRatio > 1) songRatio = 1;
-                
-                var rawAcc = scoreHunter.getAscendingAccuracy(state, songRatio);
-                acc = Math.floor(rawAcc * 100) / 100;
-            } else {
-                acc = scoreHunter.getFinalAccuracy();
-            }
+            acc = scoreHunter.getFinalAccuracy();
         }
         if (_lastAcc != acc || _lastShowAcc != showAcc) {
             _lastAcc = acc;

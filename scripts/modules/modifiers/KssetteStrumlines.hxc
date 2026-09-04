@@ -87,6 +87,8 @@ class KssetteStrumlines extends KHUDModifier {
     var cachedIsMobPC:Bool = true;
     /** Cached screen cutout/notch size (computed once, then reused). */
     var cachedCutoutSize:Float = -1.0;
+    var cachedShowTimeBar:Bool = false;
+    var cachedTimeBarPos:String = "";
     /** Cached opponent opacity value (0.0 - 1.0). */
     var cachedOppOpacity:Float = 1.0;
 
@@ -126,6 +128,9 @@ class KssetteStrumlines extends KHUDModifier {
         cachedCutoutSize = -1.0;
         
         var isMobLayout = false;
+        
+        cachedShowTimeBar = getSetting("kssette_show_timebar") == true;
+        cachedTimeBarPos = Std.string(getSetting("kssette_timebar_pos"));
 
 
         var rawMode:Dynamic = getSetting("kssette_middlescroll");
@@ -502,8 +507,8 @@ class KssetteStrumlines extends KHUDModifier {
         
         var cutoutSize:Float = cachedCutoutSize;
 
-        var showTimeBar:Bool = getSetting("kssette_show_timebar") == true;
-        var timeBarPos:String = Std.string(getSetting("kssette_timebar_pos"));
+        var showTimeBar:Bool = cachedShowTimeBar;
+        var timeBarPos:String = cachedTimeBarPos;
 
         var marginLeft:Float = Constants.STRUMLINE_X_OFFSET + cutoutSize;
         var marginRight:Float = Constants.STRUMLINE_X_OFFSET + cutoutSize;

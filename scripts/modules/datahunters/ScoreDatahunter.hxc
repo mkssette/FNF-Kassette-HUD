@@ -27,6 +27,9 @@ class ScoreDatahunter extends KassetteHUDDatahunter {
     public var displayedAcc:Float = 0.0;
     public var targetAcc:Float = 0.0;
     
+    public var cachedAccMode:String = "Classic";
+    public var cachedSmooth:Bool = true;
+    
     public function new() {
         super("ScoreDatahunter");
         KassetteHUDDatahunter.score = this;
@@ -38,14 +41,8 @@ class ScoreDatahunter extends KassetteHUDDatahunter {
         if (state == null) return;
         
         var optManager = KssetteOptionsManager.instance;
-        var accMode = "Classic";
-        var isSmooth = true;
-        if (optManager != null) {
-            var rawMode = optManager.getKssValue("kssette_acc_mode");
-            if (rawMode != null) accMode = rawMode;
-            var rawSmooth = optManager.getKssValue("kssette_smooth_display");
-            if (rawSmooth != null) isSmooth = (rawSmooth == "On" || rawSmooth == true || rawSmooth == "true");
-        }
+        var accMode = cachedAccMode;
+        var isSmooth = cachedSmooth;
         
         if (accMode == "Ascending") {
             var songProgress:Float = 0.0;
@@ -68,6 +65,14 @@ class ScoreDatahunter extends KassetteHUDDatahunter {
     }
 
     override public function onCountdownStart(event:ScriptEvent) {
+        var optManager = KssetteOptionsManager.instance;
+        if (optManager != null) {
+            var rawMode = optManager.getKssValue("kssette_acc_mode");
+            if (rawMode != null) cachedAccMode = rawMode;
+            var rawSmooth = optManager.getKssValue("kssette_smooth_display");
+            if (rawSmooth != null) cachedSmooth = (rawSmooth == "On" || rawSmooth == true || rawSmooth == "true");
+        }
+
         lastRankScore = -1;
         lastRankMisses = -1;
         cachedRank = "?";

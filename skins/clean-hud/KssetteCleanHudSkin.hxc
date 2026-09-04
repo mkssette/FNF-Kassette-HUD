@@ -24,7 +24,8 @@ class KssetteCleanHudSkin extends KassetteHUDSkin {
             new CleanScoreAcc(),
             new CleanTimeBreak(),
             new CleanJudgements(),
-            new CleanHealthBar()
+            new CleanHealthBar(),
+            new CleanIntro()
         ];
     }
 }
