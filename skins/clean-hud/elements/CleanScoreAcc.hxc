@@ -160,7 +160,7 @@ class CleanScoreAcc extends KassetteHUDElement {
             if (previewAccTxt != null) {
                 if (fontChanged) previewAccTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
                 previewAccTxt.visible = showHud;
-                previewAccTxt.y = targetY + 24;
+                previewAccTxt.y = previewScoreTxt != null ? targetY + previewScoreTxt.height : targetY + 24;
             }
             return;
         }
@@ -177,7 +177,7 @@ class CleanScoreAcc extends KassetteHUDElement {
         scoreTxt.y = targetY;
         
         var hasMult = _lastMult != 1.0;
-        accTxt.y = targetY + (hasMult ? 48 : 24);
+        accTxt.y = targetY + scoreTxt.height;
 
         // Anti-Overlap System
         // No more transparency anti-overlap for side texts since they physically evade the notes now.
@@ -239,8 +239,9 @@ class CleanScoreAcc extends KassetteHUDElement {
             
             if (_cShowRank && formattedRank != "?" && formattedRank != "") {
                 if (scoreTextStr != "") scoreTextStr += " ";
+                var beforeRank = scoreTextStr.length;
                 scoreTextStr += "[" + formattedRank + "]";
-                rankStart = scoreTextStr.lastIndexOf("[") + 1;
+                rankStart = beforeRank + 1;
                 rankLen = formattedRank.length;
             }
             

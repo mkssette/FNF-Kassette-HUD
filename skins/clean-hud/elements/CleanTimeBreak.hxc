@@ -141,17 +141,21 @@ class CleanTimeBreak extends KassetteHUDElement {
         var gammodHunter = KassetteHUDDatahunter.gammod;
         var hasMult = gammodHunter != null && gammodHunter.gammodMultiplier != null && gammodHunter.gammodMultiplier != 1.0;
         
+        var lineH:Float = 24.0;
+        if (timeTxt != null && timeTxt.height > 10) lineH = timeTxt.height * (20.0 / 18.0);
+        else if (pTimeTxt != null && pTimeTxt.height > 10) lineH = pTimeTxt.height * (20.0 / 18.0);
+
         // Stack TimeBreak vertically underneath the Score block on the left
         // Default spacing if neither Acc nor Mult are present
-        var targetY = scoreY + 24; 
+        var targetY = scoreY + lineH; 
         
         // Push down for Score text (always present)
         // Push down for Mult if present
-        if (hasMult) targetY += 24;
+        if (hasMult) targetY += lineH;
         
         // Push down for Acc if present
         var showAcc = _cAccMode != "Off" && _cAccMode != "null" && _cAccMode != "false";
-        if (showAcc) targetY += 24;
+        if (showAcc) targetY += lineH;
         
         if (!atTop && targetY > FlxG.height - 30) {
             // Ensure it doesn't fall off the screen if placed at the bottom

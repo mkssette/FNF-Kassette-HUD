@@ -76,6 +76,10 @@ class KssetteResumeCount extends KHUDModifier {
     var cachedImageScale:Array<Float> = [1.0, 1.0, 1.0, 1.0];
     /** The NoteStyle ID that the currently cached assets belong to. */
     var cachedAssetsStyle:String = "";
+    
+    /** Arrays to keep track of active countdown visual objects so they can be cleaned up. */
+    var activeTweens:Array<FlxTween> = [];
+    var activeSprites:Array<FlxSprite> = [];
 
     public function new() {
         super("KssetteResumeCount");
@@ -348,10 +352,15 @@ class KssetteResumeCount extends KHUDModifier {
                 tweenEase = FlxEase.cubeOut;
             }
             
-            FlxTween.tween(sprite, tweenParams, tweenDuration, { ease: tweenEase, onComplete: function(t:FlxTween) { 
+            var tw = FlxTween.tween(sprite, tweenParams, tweenDuration, { ease: tweenEase, onComplete: function(t:FlxTween) { 
                 if (state != null) state.remove(sprite, true); 
                 sprite.destroy(); 
+                if (activeSprites != null) activeSprites.remove(sprite);
+                if (activeTweens != null) activeTweens.remove(t);
             }});
+            
+            if (activeSprites != null) activeSprites.push(sprite);
+            if (activeTweens != null) activeTweens.push(tw);
         }
 
         if (num > 0) {

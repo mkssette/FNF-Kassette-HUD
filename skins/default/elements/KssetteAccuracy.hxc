@@ -706,7 +706,12 @@ class KssetteAccuracy extends KassetteHUDElement {
             if (timeBarPos == "Vertical Right") jMarginRight += 22;
         }
 
-        var tw = 200; var sy = 22; var sx = jMarginLeft; var sY = (FlxG.height - judgeNames.length * sy) * 0.5;
+        var tw = 200; 
+        var sy:Float = 22;
+        if (judgeLabels.length > 0 && judgeLabels[0] != null) sy = judgeLabels[0].height;
+        if (sy < 22) sy = 22;
+        
+        var sx = jMarginLeft; var sY = (FlxG.height - judgeNames.length * sy) * 0.5;
         if (jPos == "Right") sx = FlxG.width - tw - jMarginRight;
         if (jPos == "Top Left") sY = 100;
         if (jPos == "Top Right") { sx = FlxG.width - tw - jMarginRight; sY = 100; }

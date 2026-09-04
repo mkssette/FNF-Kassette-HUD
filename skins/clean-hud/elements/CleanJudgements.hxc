@@ -111,7 +111,7 @@ class CleanJudgements extends KassetteHUDElement {
             if (pMissTxt != null) {
                 if (fontChanged) pMissTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "right", FlxTextBorderStyle.OUTLINE, 0xFF000000);
                 pMissTxt.visible = showHud && _cShowMisses;
-                pMissTxt.y = _cShowSicks ? targetY + 24 : targetY;
+                pMissTxt.y = _cShowSicks ? targetY + pSickTxt.height : targetY;
             }
             return;
         }
@@ -126,7 +126,7 @@ class CleanJudgements extends KassetteHUDElement {
         sickTxt.visible = showHud && _cShowSicks;
         missTxt.visible = showHud && _cShowMisses;
         sickTxt.y = targetY;
-        missTxt.y = _cShowSicks ? targetY + 24 : targetY;
+        missTxt.y = _cShowSicks ? targetY + sickTxt.height : targetY;
 
         // Anti-Overlap System
         // No more transparency anti-overlap for side texts since they physically evade the notes now.

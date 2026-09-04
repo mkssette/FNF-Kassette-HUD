@@ -64,14 +64,22 @@ class ScoreDatahunter extends KassetteHUDDatahunter {
         }
     }
 
-    override public function onCountdownStart(event:ScriptEvent) {
+    public function updateSettings() {
         var optManager = KssetteOptionsManager.instance;
         if (optManager != null) {
             var rawMode = optManager.getKssValue("kssette_acc_mode");
-            if (rawMode != null) cachedAccMode = rawMode;
+            if (rawMode != null) cachedAccMode = Std.string(rawMode);
             var rawSmooth = optManager.getKssValue("kssette_smooth_display");
             if (rawSmooth != null) cachedSmooth = (rawSmooth == "On" || rawSmooth == true || rawSmooth == "true");
         }
+    }
+
+    override public function onResume(event:ScriptEvent) {
+        updateSettings();
+    }
+
+    override public function onCountdownStart(event:ScriptEvent) {
+        updateSettings();
 
         lastRankScore = -1;
         lastRankMisses = -1;
