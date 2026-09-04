@@ -248,6 +248,14 @@
           "defaultValue": "Off"
         },
         {
+          "id": "kssette_incoming_fade",
+          "name": "INCOMING NOTE FADE",
+          "description": "Lanes will glow when a note is approaching (up to 4 seconds ahead).",
+          "type": "choice",
+          "options": ["On", "Off"],
+          "defaultValue": "On"
+        },
+        {
           "id": "kssette_hide_opponent",
           "name": "HIDE OPPONENT NOTES",
           "description": "Hides the opponent's notes completely. Only active when Middle Scroll is Off.",
