@@ -60,6 +60,23 @@ class CleanScoreAcc extends KassetteHUDElement {
     var _lastScore:String = "";
     var _lastRank:String = "";
     var _lastAcc:Float = -1.0;
+    
+    var _lastUnranked:Bool = false;
+    var _lastMult:Float = 1.0;
+    var _lastShowAcc:Bool = true;
+
+    var _cShowScore:Bool = true;
+    var _cShowRank:Bool = true;
+    var _cAccMode:String = "Complex";
+
+    var _fmtUnranked:FlxTextFormat;
+    var _fmtMult:FlxTextFormat;
+
+    function updateSettings() {
+        _cShowScore = getSettingBool("kssette_show_score");
+        _cShowRank = getSettingBool("kssette_show_rank");
+        _cAccMode = getSettingString("kssette_acc_mode", "Complex");
+    }
 
     public function new() {
         super("CleanScoreAcc");
@@ -80,7 +97,14 @@ class CleanScoreAcc extends KassetteHUDElement {
 
 
 
+    override public function updatePreview() {
+        updateSettings();
+        onUpdate(0);
+    }
+
     override public function onCountdownStart(event:Dynamic) {
+        isPreview = false;
+        updateSettings();
         isPreview = false;
         var state = PlayState.instance;
         if (state == null) return;
@@ -143,7 +167,9 @@ class CleanScoreAcc extends KassetteHUDElement {
         scoreTxt.visible = showHud;
         accTxt.visible = showHud;
         scoreTxt.y = targetY;
-        accTxt.y = targetY + 24;
+        
+        var hasMult = _lastMult != 1.0;
+        accTxt.y = targetY + (hasMult ? 48 : 24);
 
         // Anti-Overlap System
         // No more transparency anti-overlap for side texts since they physically evade the notes now.
@@ -153,52 +179,129 @@ class CleanScoreAcc extends KassetteHUDElement {
         if (state.scoreTxt != null) state.scoreTxt.visible = false;
 
         // Update score
+        var gammodHunter = KassetteHUDDatahunter.gammod;
+        var isUnranked = gammodHunter != null && gammodHunter.gammodUnranked == true;
+        var multiplierValue:Float = 1.0;
+        if (gammodHunter != null && gammodHunter.gammodMultiplier != null) multiplierValue = gammodHunter.gammodMultiplier;
+
         var scoreStr = "0";
         var rankID = "?";
         var scoreHunter = KassetteHUDDatahunter.score;
         if (scoreHunter != null) {
             scoreStr = scoreHunter.getScore(state);
             rankID = scoreHunter.getRankID(state);
-        } else {
+        } else if (state != null) {
             scoreStr = Std.string(Math.floor(state.songScore));
         }
-        
-        if (_lastScore != scoreStr || _lastRank != rankID) {
+
+        if (_lastScore != scoreStr || _lastRank != rankID || _lastUnranked != isUnranked || _lastMult != multiplierValue) {
             _lastScore = scoreStr;
             _lastRank = rankID;
+            _lastUnranked = isUnranked;
+            _lastMult = multiplierValue;
             
             var formattedRank = formatRank(rankID);
-            var scoreTextStr = "S: " + scoreStr;
+            var scoreTextStr = "";
+            var unrankedStart = -1;
+            var unrankedEnd = -1;
+            var multStart = -1;
+            var multEnd = -1;
             var rankStart = -1;
             var rankLen = 0;
             
-            if (formattedRank != "?" && formattedRank != "") {
-                scoreTextStr += " [" + formattedRank + "]";
+            if (_cShowScore) {
+                if (isUnranked) {
+                    scoreTextStr += "S: ";
+                    unrankedStart = scoreTextStr.length;
+                    scoreTextStr += "UNRANKED";
+                    unrankedEnd = scoreTextStr.length;
+                } else {
+                    scoreTextStr += "S: " + scoreStr;
+                }
+            }
+            
+            if (multiplierValue != 1.0) {
+                if (scoreTextStr != "") scoreTextStr += "\n";
+                multStart = scoreTextStr.length;
+                var multStr = Std.string(multiplierValue);
+                if (multStr.indexOf(".") == -1) multStr += ".0";
+                scoreTextStr += "M: " + multStr + "x";
+                multEnd = scoreTextStr.length;
+            }
+            
+            if (_cShowRank && formattedRank != "?" && formattedRank != "") {
+                if (scoreTextStr != "") scoreTextStr += " ";
+                scoreTextStr += "[" + formattedRank + "]";
                 rankStart = scoreTextStr.lastIndexOf("[") + 1;
                 rankLen = formattedRank.length;
             }
             
-            scoreTxt.text = scoreTextStr;
-            scoreTxt.clearFormats();
-            
-            if (rankStart != -1) {
-                var rFmt = getRankFormat(rankID);
-                if (rFmt != null) {
-                    var activeFont = scoreTxt.textField != null ? scoreTxt.textField.defaultTextFormat.font : cachedFont;
-                    if (rFmt.format != null) rFmt.format.font = activeFont;
-                    scoreTxt.addFormat(rFmt, rankStart, rankStart + rankLen);
+            if (scoreTxt != null) {
+                scoreTxt.text = scoreTextStr;
+                scoreTxt.clearFormats();
+                
+                var activeFont = scoreTxt.textField != null ? scoreTxt.textField.defaultTextFormat.font : cachedFont;
+
+                if (unrankedStart != -1) {
+                    if (_fmtUnranked == null) _fmtUnranked = new FlxTextFormat(0xFFFF0000);
+                    if (_fmtUnranked.format != null) _fmtUnranked.format.font = activeFont;
+                    scoreTxt.addFormat(_fmtUnranked, unrankedStart, unrankedEnd);
+                }
+
+                if (multStart != -1) {
+                    if (_fmtMult == null) _fmtMult = new FlxTextFormat(0xFF66FFFF);
+                    if (_fmtMult.format != null) _fmtMult.format.font = activeFont;
+                    scoreTxt.addFormat(_fmtMult, multStart, multEnd);
+                }
+
+                if (rankStart != -1) {
+                    var rFmt = getRankFormat(rankID);
+                    if (rFmt != null) {
+                        if (rFmt.format != null) rFmt.format.font = activeFont;
+                        scoreTxt.addFormat(rFmt, rankStart, rankStart + rankLen);
+                    }
                 }
             }
         }
         
         // Update accuracy
+        var showAcc = (_cAccMode != "Off" && _cAccMode != "null" && _cAccMode != "false");
+        
         var acc = 0.0;
         if (scoreHunter != null) {
-            acc = scoreHunter.getFinalAccuracy();
+            if (_cAccMode == "Ascending") {
+                var curTime:Float = 0;
+                var songLen:Float = 1;
+                if (state != null && state.conductorInUse != null) {
+                    curTime = state.conductorInUse.songPosition;
+                    songLen = state.currentSongLengthMs;
+                    if (songLen <= 0) songLen = 1;
+                }
+                var songRatio = curTime / songLen;
+                if (songRatio < 0) songRatio = 0;
+                if (songRatio > 1) songRatio = 1;
+                
+                var rawAcc = scoreHunter.getAscendingAccuracy(state, songRatio);
+                acc = Math.floor(rawAcc * 100) / 100;
+            } else {
+                acc = scoreHunter.getFinalAccuracy();
+            }
         }
-        if (_lastAcc != acc) {
+        if (_lastAcc != acc || _lastShowAcc != showAcc) {
             _lastAcc = acc;
-            accTxt.text = "A: " + acc + "%";
+            _lastShowAcc = showAcc;
+            if (accTxt != null) {
+                if (showAcc) {
+                    accTxt.text = "A: " + acc + "%";
+                } else {
+                    accTxt.text = "";
+                }
+            }
+        }
+        
+        // Ensure preview pushes accTxt properly
+        if (isPreview && previewAccTxt != null && previewScoreTxt != null) {
+            previewAccTxt.y = previewScoreTxt.y + 24;
         }
     }
 }

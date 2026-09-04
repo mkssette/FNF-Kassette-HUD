@@ -24,6 +24,16 @@ class CleanJudgements extends KassetteHUDElement {
     var pMissTxt:FlxText;
     
     var _lastFont:String = "";
+    
+    var _cShowSicks:Bool = true;
+    var _cShowMisses:Bool = true;
+    var _cScorePos:String = "Default";
+
+    function updateSettings() {
+        _cShowSicks = getSettingString("kssette_judge_pos", "Underneath") != "Off";
+        _cShowMisses = getSettingBool("kssette_show_misses");
+        _cScorePos = getSettingString("kssette_score_pos", "Default");
+    }
 
     public function new() {
         super("CleanJudgements");
@@ -44,8 +54,14 @@ class CleanJudgements extends KassetteHUDElement {
 
 
 
+    override public function updatePreview() {
+        updateSettings();
+        onUpdate(0);
+    }
+
     override public function onCountdownStart(event:Dynamic) {
         isPreview = false;
+        updateSettings();
         var state = PlayState.instance;
         if (state == null) return;
         
@@ -70,7 +86,7 @@ class CleanJudgements extends KassetteHUDElement {
         var showHud = isHudVisible();
         var downscroll = isDownscroll();
 
-        var inverted = getSetting("kssette_score_pos") == "Inverted";
+        var inverted = _cScorePos == "Inverted";
         var atTop = inverted ? !downscroll : downscroll;
 
         var targetY = atTop ? FlxG.height * 0.1 : FlxG.height * 0.9 - 48;
@@ -83,13 +99,13 @@ class CleanJudgements extends KassetteHUDElement {
         if (isPreview) {
             if (pSickTxt != null) {
                 if (fontChanged) pSickTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "right", FlxTextBorderStyle.OUTLINE, 0xFF000000);
-                pSickTxt.visible = showHud;
+                pSickTxt.visible = showHud && _cShowSicks;
                 pSickTxt.y = targetY;
             }
             if (pMissTxt != null) {
                 if (fontChanged) pMissTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "right", FlxTextBorderStyle.OUTLINE, 0xFF000000);
-                pMissTxt.visible = showHud;
-                pMissTxt.y = targetY + 24;
+                pMissTxt.visible = showHud && _cShowMisses;
+                pMissTxt.y = _cShowSicks ? targetY + 24 : targetY;
             }
             return;
         }
@@ -101,10 +117,10 @@ class CleanJudgements extends KassetteHUDElement {
             missTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "right", FlxTextBorderStyle.OUTLINE, 0xFF000000);
         }
 
-        sickTxt.visible = showHud;
-        missTxt.visible = showHud;
+        sickTxt.visible = showHud && _cShowSicks;
+        missTxt.visible = showHud && _cShowMisses;
         sickTxt.y = targetY;
-        missTxt.y = targetY + 24;
+        missTxt.y = _cShowSicks ? targetY + 24 : targetY;
 
         // Anti-Overlap System
         // No more transparency anti-overlap for side texts since they physically evade the notes now.

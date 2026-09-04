@@ -32,6 +32,14 @@ class CleanTimeBreak extends KassetteHUDElement {
     var _lastSecondsTotal:Int = -1;
 
     var _lastFont:String = "";
+    
+    var _cShowTime:Bool = true;
+    var _cScorePos:String = "Default";
+
+    function updateSettings() {
+        _cShowTime = getSettingBool("kssette_show_song_time");
+        _cScorePos = getSettingString("kssette_score_pos", "Default");
+    }
 
     public function new() {
         super("CleanTimeBreak");
@@ -64,8 +72,14 @@ class CleanTimeBreak extends KassetteHUDElement {
 
 
 
+    override public function updatePreview() {
+        updateSettings();
+        onUpdate(0);
+    }
+
     override public function onCountdownStart(event:Dynamic) {
         isPreview = false;
+        updateSettings();
         var state = PlayState.instance;
         if (state == null) return;
         
@@ -111,12 +125,27 @@ class CleanTimeBreak extends KassetteHUDElement {
         var showHud = isHudVisible();
         var downscroll = isDownscroll();
 
-        var inverted = getSetting("kssette_score_pos") == "Inverted";
+        var inverted = _cScorePos == "Inverted";
         var atTop = inverted ? !downscroll : downscroll;
 
         var scoreY = atTop ? FlxG.height * 0.1 : FlxG.height * 0.9 - 48;
+        
+        var gammodHunter = KassetteHUDDatahunter.gammod;
+        var hasMult = gammodHunter != null && gammodHunter.gammodMultiplier != null && gammodHunter.gammodMultiplier != 1.0;
+        
         // Stack TimeBreak vertically underneath the Score block on the left
-        var targetY = scoreY + 48; 
+        // Default spacing if neither Acc nor Mult are present
+        var targetY = scoreY + 24; 
+        
+        // Push down for Score text (always present)
+        // Push down for Mult if present
+        if (hasMult) targetY += 24;
+        
+        // Push down for Acc if present
+        var accMode = getSettingString("kssette_acc_mode", "Complex");
+        var showAcc = accMode != "Off" && accMode != "null" && accMode != "false";
+        if (showAcc) targetY += 24;
+        
         if (!atTop && targetY > FlxG.height - 30) {
             // Ensure it doesn't fall off the screen if placed at the bottom
             targetY = scoreY - 32; 
@@ -131,17 +160,17 @@ class CleanTimeBreak extends KassetteHUDElement {
         if (isPreview) {
             if (pTimeTxt != null) {
                 if (fontChanged) pTimeTxt.setFormat(cachedFont, 18, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
-                pTimeTxt.visible = showHud;
+                pTimeTxt.visible = showHud && _cShowTime;
                 pTimeTxt.x = startX;
                 pTimeTxt.y = targetY;
             }
             if (pTimeBarBG != null && pTimeTxt != null) {
-                pTimeBarBG.visible = showHud;
+                pTimeBarBG.visible = showHud && _cShowTime;
                 pTimeBarBG.x = pTimeTxt.x + pTimeTxt.width + 6;
                 pTimeBarBG.y = targetY + 8;
             }
             if (pTimeBarFill != null && pTimeBarBG != null) {
-                pTimeBarFill.visible = showHud;
+                pTimeBarFill.visible = showHud && _cShowTime;
                 pTimeBarFill.x = pTimeBarBG.x + 2;
                 pTimeBarFill.y = pTimeBarBG.y + 2;
             }
@@ -164,11 +193,9 @@ class CleanTimeBreak extends KassetteHUDElement {
             timeTxt.setFormat(cachedFont, 18, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
         }
 
-        timeTxt.visible = showHud;
-        timeBarBG.visible = showHud;
-        timeBarFill.visible = showHud;
-        breakBarBG.visible = showHud;
-        breakBarFill.visible = showHud;
+        timeTxt.visible = showHud && _cShowTime;
+        timeBarBG.visible = showHud && _cShowTime;
+        timeBarFill.visible = showHud && _cShowTime;
         
         timeTxt.x = startX;
         timeTxt.y = targetY;
@@ -216,11 +243,21 @@ class CleanTimeBreak extends KassetteHUDElement {
         // Break bar logic
         var breakHunter = KassetteHUDDatahunter.breakData;
         if (breakHunter != null && breakHunter.currentBreakData != null && breakHunter.currentBreakData.active) {
+            // progress goes from 0.0 to 1.0. User noted it was filling instead of emptying,
+            // so using 1.0 - progress makes it shrink towards 0.0 (empty).
             var ratio = 1.0 - breakHunter.currentBreakData.progress;
             breakBarFill.scale.x = ratio;
             breakBarFill.updateHitbox();
             breakBarBG.visible = showHud;
             breakBarFill.visible = showHud;
+            
+            // Adjust position slightly if time bar is hidden
+            if (!_cShowTime) {
+                breakBarBG.x = startX;
+                breakBarBG.y = targetY + 8;
+                breakBarFill.x = breakBarBG.x;
+                breakBarFill.y = breakBarBG.y;
+            }
         } else {
             breakBarBG.visible = false;
             breakBarFill.visible = false;
