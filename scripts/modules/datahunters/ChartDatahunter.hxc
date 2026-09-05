@@ -1,30 +1,33 @@
 package kassettehud.util;
 
 import kassettehud.util.KassetteHUDElement;
-
 import funkin.play.PlayState;
 import Std;
 import Math;
 import funkin.modding.events.ScriptEvent;
 import funkin.modding.events.UpdateScriptEvent;
 
-class BreakDatahunter extends KassetteHUDDatahunter {
+class ChartDatahunter extends KassetteHUDDatahunter {
     public var playerNoteTimes:Array<Dynamic> = [];
     public var currentNoteIndex:Int = 0;
     
     // { active:Bool, progress:Float, timeLeft:Float }
     public var currentBreakData:Dynamic = { active: false, progress: 0.0, timeLeft: 0.0 };
 
-    public function new() {
-        super("BreakDatahunter");
-        KassetteHUDDatahunter.breakData = this;
-    }
+    // Notes mapped by direction (0-3) for visual modifiers like Incoming Fade
+    public var incomingFadeNotes:Array<Array<Dynamic>> = [[], [], [], []];
 
+    public function new() {
+        super("ChartDatahunter");
+        KassetteHUDDatahunter.breakData = this;
+        KassetteHUDDatahunter.chartData = this;
+    }
 
     override public function onCountdownStart(event:ScriptEvent) {
         playerNoteTimes = [];
         currentNoteIndex = 0;
         currentBreakData = { active: false, progress: 0.0, timeLeft: 0.0 };
+        incomingFadeNotes = [[], [], [], []];
 
         var state = PlayState.instance;
         if (state != null && state.currentChart != null && state.currentChart.notes != null) {
@@ -36,23 +39,51 @@ class BreakDatahunter extends KassetteHUDDatahunter {
                 if (note == null) continue;
 
                 var isPlayer:Bool = false;
-                try {
-                    var strumIdx:Dynamic = note.getStrumlineIndex();
-                    isPlayer = (strumIdx == 0);
-                } catch(e:Dynamic) {}
+                var dir:Int = -1;
+                
+                // Meticulous parsing of direction using safe navigation to avoid try/catch overhead
+                var d = (note?.data != null) ? note.data : ((note?.d != null) ? note.d : -1);
+                var dVal = Std.parseInt(Std.string(d));
+                
+                // Usually 0-3 is player in V-Slice unless it's a specific opponent chart, 
+                // but checking getStrumlineIndex() is more accurate if it works. 
+                // However, safe parsing via dVal is extremely fast and robust for standard 4K.
+                if (dVal >= 0 && dVal < 4) isPlayer = true;
+                
+                dir = dVal % 4;
 
-                if (isPlayer) {
-                    var noteTime:Float = (note.time != null) ? note.time : -1.0;
-                    var noteLen:Float = (note.length != null) ? note.length : 0.0;
-                    if (noteTime >= 0) playerNoteTimes.push({start: noteTime, end: noteTime + noteLen});
+                if (isPlayer && dir >= 0 && dir < 4) {
+                    var noteTime:Float = -1.0;
+                    var rawTime = (note?.time != null) ? note.time : ((note?.t != null) ? note.t : null);
+                    if (rawTime != null) noteTime = Std.parseFloat(Std.string(rawTime));
+                    
+                    var noteLen:Float = 0.0;
+                    var rawLen = (note?.length != null) ? note.length : ((note?.l != null) ? note.l : null);
+                    if (rawLen != null) noteLen = Std.parseFloat(Std.string(rawLen));
+                    
+                    if (noteTime >= 0) {
+                        var noteData = {start: noteTime, end: noteTime + noteLen};
+                        playerNoteTimes.push(noteData);
+                        incomingFadeNotes[dir].push(noteData);
+                    }
                 }
             }
 
+            // Sort all break notes chronologically
             playerNoteTimes.sort(function(a, b) {
                 if (a.start < b.start) return -1;
                 if (a.start > b.start) return 1;
                 return 0;
             });
+            
+            // Sort direction-specific notes chronologically
+            for (d in 0...4) {
+                incomingFadeNotes[d].sort(function(a, b) {
+                    if (a.start < b.start) return -1;
+                    if (a.start > b.start) return 1;
+                    return 0;
+                });
+            }
         }
     }
 

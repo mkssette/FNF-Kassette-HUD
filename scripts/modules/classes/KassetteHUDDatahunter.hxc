@@ -20,6 +20,7 @@ class KassetteHUDDatahunter extends Module {
     public static var asset:Dynamic = null;
     public static var icon:Dynamic = null;
     public static var breakData:Dynamic = null;
+    public static var chartData:Dynamic = null;
 
     public function new(name:String) {
         super(name);
