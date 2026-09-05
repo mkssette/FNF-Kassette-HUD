@@ -11,10 +11,13 @@ import funkin.Conductor;
 import funkin.Preferences;
 import Std;
 import funkin.modding.events.ScriptEvent;
+import flixel.group.FlxSpriteGroup;
 
 class KssetteIncomingFade extends KHUDModifier {
     var _enabled:Bool = false;
     var fades:Array<FlxSprite> = [];
+    var fadesGroup:Dynamic = null; // Group to hold fades in absolute coordinates
+    
     var pNotes:Array<Array<Float>> = [[], [], [], []];
     var curIdx:Array<Int> = [0, 0, 0, 0];
     
@@ -41,13 +44,12 @@ class KssetteIncomingFade extends KHUDModifier {
         
         if (!_enabled) return;
 
-        var state = playState;
+        var state = PlayState.instance;
         if (state == null || state.currentChart == null) {
             trace("KssetteIncomingFade: playState or chart is null!");
             return;
         }
         
-        // Build the note timing queues
         pNotes = [[], [], [], []];
         curIdx = [0, 0, 0, 0];
         
@@ -61,41 +63,49 @@ class KssetteIncomingFade extends KHUDModifier {
                 
                 var isPlayer:Bool = false;
                 var dir:Int = -1;
-                try {
-                    var strumIdx:Dynamic = note.getStrumlineIndex();
-                    isPlayer = (strumIdx == 1);
-                    dir = note.getDirection();
-                } catch(e:Dynamic) {}
+                
+                // Meticulous parsing of direction and mustHit using safe navigation
+                var d = (note?.data != null) ? note.data : ((note?.d != null) ? note.d : -1);
+                var dVal = Std.parseInt(Std.string(d));
+                
+                if (dVal >= 0 && dVal < 4) isPlayer = true;
+                
+                dir = dVal % 4;
                 
                 if (isPlayer && dir >= 0 && dir < 4) {
-                    var noteTime:Float = (note.time != null) ? note.time : -1.0;
+                    var noteTime:Float = -1.0;
+                    var rawTime = (note?.time != null) ? note.time : ((note?.t != null) ? note.t : null);
+                    if (rawTime != null) noteTime = Std.parseFloat(Std.string(rawTime));
+                    
+                    var noteLen:Float = 0.0;
+                    var rawLen = (note?.length != null) ? note.length : ((note?.l != null) ? note.l : null);
+                    if (rawLen != null) noteLen = Std.parseFloat(Std.string(rawLen));
+                    
                     if (noteTime >= 0) {
-                        pNotes[dir].push(noteTime);
+                        pNotes[dir].push({start: noteTime, end: noteTime + noteLen});
                     }
                 }
             }
-            trace("KssetteIncomingFade: Notes queued -> " + pNotes[0].length + ", " + pNotes[1].length + ", " + pNotes[2].length + ", " + pNotes[3].length);
             
-            // Sort to ensure chronologically correct
             for (dir in 0...4) {
                 pNotes[dir].sort(function(a, b) {
-                    if (a < b) return -1;
-                    if (a > b) return 1;
+                    if (a.start < b.start) return -1;
+                    if (a.start > b.start) return 1;
                     return 0;
                 });
             }
         }
 
-        // Cleanup old fades if re-entering
         for (f in fades) {
             if (f != null) {
-                state.remove(f);
                 f.destroy();
             }
         }
         fades = [];
-        // We will create the gradients in onUpdate to ensure playerStrumline is fully populated.
-        // Some songs (like erect remixes) might delay strumline creation.
+        if (fadesGroup != null) {
+            fadesGroup.destroy();
+            fadesGroup = null;
+        }
     }
 
     override public function onUpdate(event:Dynamic) {
@@ -109,98 +119,138 @@ class KssetteIncomingFade extends KHUDModifier {
         var state = PlayState.instance;
         if (state == null) return;
         
+        var pos = (Conductor.instance != null) ? Conductor.instance.songPosition : 0;
         var downscroll = Preferences.downscroll;
-        
-        // Deferred initialization
-        if (fades.length == 0 && state.playerStrumline != null && state.playerStrumline.strumlineNotes != null && state.playerStrumline.strumlineNotes.group != null && state.playerStrumline.strumlineNotes.group.members != null) {
+
+        if (fades.length == 0 && state.playerStrumline != null && state.playerStrumline.strumlineNotes != null) {
+            fadesGroup = new FlxSpriteGroup();
+            var strumIndex = state.members.indexOf(state.playerStrumline);
+            if (strumIndex >= 0) {
+                state.insert(strumIndex, fadesGroup);
+            } else {
+                state.add(fadesGroup);
+            }
+            
+            var colors = [0xFFC24B99, 0xFF00FFFF, 0xFF12FA05, 0xFFF9393F];
             for (i in 0...4) {
-                var strum = state.playerStrumline.strumlineNotes.group.members[i];
-                if (strum == null) continue;
-                
                 var c = colors[i];
-                var transparentC = c & 0x00FFFFFF;
+                var r = (c >> 16) & 0xFF;
+                var g = (c >> 8) & 0xFF;
+                var b = c & 0xFF;
                 
-                var w = strum.width > 0 ? Std.int(strum.width) : 112;
+                var w = 112;
                 var h = 250;
-                // Generar degradado dinámico usando la GPU
-                var grad = new FlxSprite().makeGraphic(1, 2, 0x00FFFFFF);
-                grad.graphic.bitmap.setPixel32(0, 0, 0xFFFFFFFF); // Sólido
-                grad.graphic.bitmap.setPixel32(0, 1, 0x00FFFFFF); // Transparente
+                
+                var grad = new FlxSprite().makeGraphic(1, h, 0x00FFFFFF, false, "kssetteFade_" + i);
+                
+                var isDown = Preferences.downscroll;
+                for (y in 0...h) {
+                    var alpha = isDown ? Std.int(255 * (1.0 - (y / (h - 1)))) : Std.int(255 * (y / (h - 1)));
+                    var color = (alpha << 24) | (r << 16) | (g << 8) | b;
+                    grad.graphic.bitmap.setPixel32(0, y, color);
+                }
                 
                 grad.antialiasing = true;
                 grad.setGraphicSize(w, h);
                 grad.updateHitbox();
                 
-                // Determinamos físicamente dónde está el receptor en lugar de confiar en Preferences
-                var isReceptorAtBottom = strum.y > FlxG.height / 2;
-                
-                // Si el receptor está abajo (downscroll), spawnea arriba -> parte sólida arriba (flipY=false)
-                // Si el receptor está arriba (upscroll), spawnea abajo -> parte sólida abajo (flipY=true)
-                grad.flipY = !isReceptorAtBottom;
-                
-                grad.color = c;
-                
-                if (grad == null) continue;
-                
-                grad.alpha = 0.6;
                 grad.visible = false;
                 grad.cameras = [state.camHUD];
                 fades.push(grad);
-                
-                // Lo metemos en el mismo grupo que las flechas para que compartan el mismo espacio de coordenadas X.
-                state.playerStrumline.insert(0, grad);
-                
-                trace("KssetteIncomingFade: grad " + i + " initialized in onUpdate.");
+                fadesGroup.add(grad);
             }
+            fadesGroup.cameras = [state.camHUD];
         }
-        
-        if (Conductor.instance == null) return;
-        
-        var pos = Conductor.instance.songPosition;
-        var state = playState;
-        var downscroll = Preferences.downscroll;
         
         for (dir in 0...4) {
             var arr = pNotes[dir];
             var idx = curIdx[dir];
             
-            // Dynamically align to strumline
-            if (state != null && state.playerStrumline != null && state.playerStrumline.members != null) {
-                var strum = state.playerStrumline.members[dir];
+            if (state != null && state.playerStrumline != null && state.playerStrumline.strumlineNotes != null && state.playerStrumline.strumlineNotes.members != null) {
+                var strum = state.playerStrumline.strumlineNotes.members[dir];
                 var grad = fades[dir];
                 if (strum != null && grad != null) {
-                    // Cero matemáticas para X. Al estar en el mismo grupo, comparten el mismo X.
-                    grad.x = strum.x;
+                    var sPos = strum.getScreenPosition(null, state.camHUD);
+                    var centerX = sPos.x + (strum.width * 0.5);
+                    grad.x = centerX - (grad.width * 0.5);
+                    sPos.put();
                     
-                    var isReceptorAtBottom = strum.y > FlxG.height / 2;
-                    
-                    if (isReceptorAtBottom) {
-                        grad.y = -state.playerStrumline.y; // Top of screen
+                    if (downscroll) {
+                        grad.y = 0;
                     } else {
-                        grad.y = (FlxG.height - grad.height) - state.playerStrumline.y; // Bottom of screen
+                        grad.y = FlxG.height - grad.height;
                     }
                 }
             }
             
-            // Fast forward past notes we've already passed
-            while (idx < arr.length && arr[idx] != null && arr[idx] < pos - 50) {
+            while (idx < arr.length && arr[idx] != null && arr[idx].start < pos) {
                 idx++;
             }
             curIdx[dir] = idx;
             
             if (idx < arr.length && arr[idx] != null) {
-                var dist = arr[idx] - pos;
-                // El usuario quiere que simplemente aparezca de forma estática 4 segundos antes.
-                if (dist <= 4000 && dist >= -100) {
-                    if (fades[dir] != null) {
-                        fades[dir].visible = true;
-                        fades[dir].alpha = 0.6;
+                var renderDistance:Float = 1600;
+                try {
+                    if (state.playerStrumline != null) {
+                        var scrollSpeed = state.playerStrumline.scrollSpeed;
+                        if (scrollSpeed == null || scrollSpeed <= 0) scrollSpeed = 1.0;
+                        renderDistance = 720 / 0.45 / (scrollSpeed < 1 ? scrollSpeed : 1);
                     }
-                } else {
-                    if (fades[dir] != null) fades[dir].visible = false;
+                } catch(e:Dynamic) {
+                    if (state.currentChart != null) {
+                        try {
+                            var scrollSpeed = state.currentChart.scrollSpeed;
+                            if (scrollSpeed == null || scrollSpeed <= 0) scrollSpeed = 1.0;
+                            renderDistance = 720 / 0.45 / (scrollSpeed < 1 ? scrollSpeed : 1);
+                        } catch(e2:Dynamic) {
+                            renderDistance = 1600;
+                        }
+                    } else {
+                        renderDistance = 1600;
+                    }
+                }
+                
+                var shouldBeVisible = false;
+                var k = idx;
+                while (k < arr.length && arr[k] != null) {
+                    var kDist = arr[k].start - pos;
+                    if (kDist > renderDistance + 1500) {
+                        break;
+                    }
+                    if (kDist <= renderDistance + 1500 && kDist > renderDistance) {
+                        shouldBeVisible = true;
+                        break;
+                    }
+                    k++;
+                }
+                
+                var targetAlpha:Float = shouldBeVisible ? 0.6 : 0.0;
+                
+                if (fades[dir] != null) {
+                    fades[dir].visible = true;
+                    
+                    var fadeSpeed:Float = 4.0;
+                    if (fades[dir].alpha < targetAlpha) {
+                        fades[dir].alpha += fadeSpeed * FlxG.elapsed;
+                        if (fades[dir].alpha > targetAlpha) fades[dir].alpha = targetAlpha;
+                    } else if (fades[dir].alpha > targetAlpha) {
+                        fades[dir].alpha -= fadeSpeed * FlxG.elapsed;
+                        if (fades[dir].alpha < targetAlpha) fades[dir].alpha = targetAlpha;
+                    }
+                    
+                    if (fades[dir].alpha <= 0) {
+                        fades[dir].visible = false;
+                    }
                 }
             } else {
-                if (fades[dir] != null) fades[dir].visible = false;
+                if (fades[dir] != null) {
+                    var fadeSpeed:Float = 4.0;
+                    fades[dir].alpha -= fadeSpeed * FlxG.elapsed;
+                    if (fades[dir].alpha <= 0) {
+                        fades[dir].alpha = 0;
+                        fades[dir].visible = false;
+                    }
+                }
             }
         }
     }
