@@ -13,7 +13,6 @@ import kassettehud.util.KssetteOptionsManager;
 import kassettehud.util.KssetteFontManager;
 import kassettehud.util.KassetteHUDDatahunter;
 import funkin.Conductor;
-import funkin.Preferences;
 import Std;
 
 class CleanTimeBreak extends KassetteHUDElement {

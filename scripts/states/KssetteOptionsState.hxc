@@ -29,7 +29,6 @@ import funkin.modding.events.ScriptEvent;
 import funkin.Conductor;
 import flixel.math.FlxMath;
 import funkin.graphics.FunkinCamera;
-import funkin.Preferences;
 import Math;
 import Std;
 import flixel.math.FlxPoint;

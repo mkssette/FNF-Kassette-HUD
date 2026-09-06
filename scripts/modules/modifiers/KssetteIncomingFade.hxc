@@ -8,7 +8,6 @@ import kassettehud.util.KHUDModifier;
 import flixel.util.FlxColor;
 import flixel.math.FlxPoint;
 import funkin.Conductor;
-import funkin.Preferences;
 import Std;
 import funkin.modding.events.ScriptEvent;
 import flixel.group.FlxSpriteGroup;
@@ -100,7 +99,9 @@ class KssetteIncomingFade extends KHUDModifier {
 			return;
 
 		var pos = (Conductor.instance != null) ? Conductor.instance.songPosition : 0;
-		var downscroll = Preferences.downscroll;
+		var downscroll = false;
+		if (KssetteOptionsManager.instance != null) downscroll = KssetteOptionsManager.instance.getDownscroll();
+		else downscroll = false;
 
 		var elapsed = FlxG.elapsed;
 
@@ -125,7 +126,7 @@ class KssetteIncomingFade extends KHUDModifier {
 
 				var grad = new FlxSprite().makeGraphic(1, h, 0x00FFFFFF, false, "kssetteFade_" + i);
 
-				var isDown = Preferences.downscroll;
+				var isDown = downscroll;
 				for (y in 0...h) {
 					var alpha = isDown ? Std.int(255 * (1.0 - (y / (h - 1)))) : Std.int(255 * (y / (h - 1)));
 					var color = (alpha << 24) | (r << 16) | (g << 8) | b;

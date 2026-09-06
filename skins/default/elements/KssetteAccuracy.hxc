@@ -46,7 +46,6 @@ import kassettehud.util.KssetteOptionsManager;
 import kassettehud.util.KassetteHUDDatahunter;
 import kassettehud.util.KssetteFontManager;
 import funkin.play.PlayState;
-import funkin.Preferences;
 import flixel.text.FlxText;
 import funkin.Paths;
 import flixel.text.FlxTextBorderStyle;

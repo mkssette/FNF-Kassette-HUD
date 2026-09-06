@@ -124,6 +124,10 @@ class KssetteOptionsManager extends Module {
         if (FlxG.onMobile) {
             var mobileVal:Dynamic = Save.instance.modOptions.get("kssette_mobile_keyboard");
             _mobileLikePc = (mobileVal == "On" || mobileVal == true);
+            
+            if (Save.instance.mobileOptions != null && Save.instance.mobileOptions.controlsScheme != "Arrows") {
+                _mobileLikePc = true;
+            }
         }
 
         for (key in optionKeys) {
@@ -251,6 +255,11 @@ class KssetteOptionsManager extends Module {
 
     public function isForcedDownscroll():Bool {
         return isMobileMode && !_mobileLikePc;
+    }
+
+    public function getDownscroll():Bool {
+        var forced:Bool = isForcedDownscroll();
+        return Preferences.downscroll || forced;
     }
 
 

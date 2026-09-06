@@ -11,7 +11,6 @@ import funkin.play.PlayState;
 import funkin.Paths;
 import flixel.text.FlxText;
 import flixel.text.FlxTextBorderStyle;
-import funkin.Preferences;
 import StringTools;
 import Std;
 
@@ -258,8 +257,8 @@ class KssetteSkyCompat extends Module {
                     if (optM.isForcedDownscroll != null) forceDownscrollLook = optM.isForcedDownscroll();
                     
                     var isDownscroll = false;
-                    if (KassetteHUDDatahunter.song != null) isDownscroll = KassetteHUDDatahunter.song.getDownscroll();
-                    else isDownscroll = Preferences.downscroll;
+                    if (optM != null && optM.getDownscroll != null) isDownscroll = optM.getDownscroll();
+                    else isDownscroll = false;
 
                     var tX:Float = originalTimerX != -1 ? originalTimerX : (FlxG.width - skyHUDModule.timerBackdrop.width) / 2;
                     var tY:Float = originalTimerY != -1 ? originalTimerY : 20;

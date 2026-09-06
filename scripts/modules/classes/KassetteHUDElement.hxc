@@ -68,10 +68,10 @@ class KassetteHUDElement {
 
     /** Returns true if downscroll is currently active in gameplay or preferences */
     public function isDownscroll():Bool {
-        if (KassetteHUDDatahunter.song != null) {
-            return KassetteHUDDatahunter.song.getDownscroll();
+        if (KssetteOptionsManager.instance != null) {
+            return KssetteOptionsManager.instance.getDownscroll();
         }
-        return funkin.options.Preferences.downscroll;
+        return false;
     }
 
     // Getters have been replaced with standard instance variables initialized in the constructor to improve HScript compatibility.

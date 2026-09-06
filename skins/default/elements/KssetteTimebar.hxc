@@ -33,7 +33,7 @@ import flixel.FlxSprite;
 import flixel.FlxCamera;
 import Std;
 
-import funkin.Preferences;
+import flixel.util.FlxStringUtil;
 import funkin.modding.events.SubStateScriptEvent;
 import funkin.play.PauseSubState;
 import funkin.ui.FullScreenScaleMode;

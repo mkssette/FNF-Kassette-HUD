@@ -5,7 +5,6 @@ import funkin.play.PlayState;
 import kassettehud.util.KassetteHUDElement;
 import kassettehud.util.KssetteOptionsManager;
 import kassettehud.util.KassetteHUDDatahunter;
-import funkin.Preferences;
 import funkin.Paths;
 import funkin.data.notestyle.NoteStyleRegistry;
 import funkin.play.components.HealthIcon;
@@ -144,19 +143,23 @@ class KssetteHUDPreview extends ScriptedMusicBeatSubState {
 
         isArrowsScheme = false;
         if (isMob && !isMobPC) {
-            if (Std.string(Preferences.controlsScheme) == "Arrows") isArrowsScheme = true;
             if (!isArrowsScheme) {
+                var ctrlScheme = "Arrows"; // Fallback like Preferences.hx
                 try {
-                    if (Save.instance?.mobileOptions?.controlsScheme != null) {
-                        if (Std.string(Save.instance.mobileOptions.controlsScheme) == "Arrows") isArrowsScheme = true;
+                    if (Save.instance != null && Save.instance.mobileOptions != null) {
+                        if (Save.instance.mobileOptions.controlsScheme != null) {
+                            ctrlScheme = Std.string(Save.instance.mobileOptions.controlsScheme);
+                        }
                     }
                 } catch(e:Dynamic) {}
+                
+                if (ctrlScheme == "Arrows") isArrowsScheme = true;
             }
         }
 
         var downscroll = false;
-        if (KassetteHUDDatahunter.song != null) downscroll = KassetteHUDDatahunter.song.getDownscroll();
-        else downscroll = Preferences.downscroll;
+        if (KssetteOptionsManager.instance != null) downscroll = KssetteOptionsManager.instance.getDownscroll();
+        else downscroll = false;
         
         var rawMs:Dynamic = KssetteOptionsManager.instance != null ? KssetteOptionsManager.instance.getKssValue("kssette_middlescroll") : null;
         var ms:String = "";

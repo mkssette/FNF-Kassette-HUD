@@ -6,7 +6,6 @@ import kassettehud.util.KassetteHUDDatahunter;
 import funkin.play.PlayState;
 import funkin.modding.events.ScriptEvent;
 import funkin.modding.events.UpdateScriptEvent;
-import funkin.Preferences;
 import funkin.save.Save;
 import funkin.modding.module.ModuleHandler;
 import flixel.util.FlxStringUtil;
@@ -67,9 +66,8 @@ class SongDatahunter extends KassetteHUDDatahunter {
     }
 
     public function getDownscroll():Bool {
-        var forced:Bool = false;
-        if (KssetteOptionsManager.instance != null) forced = KssetteOptionsManager.instance.isForcedDownscroll();
-        return Preferences.downscroll || forced;
+        if (KssetteOptionsManager.instance != null) return KssetteOptionsManager.instance.getDownscroll();
+        return false;
     }
 
     public function getSongTitle():String {

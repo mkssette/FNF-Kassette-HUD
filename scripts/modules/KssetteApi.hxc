@@ -195,7 +195,8 @@ class KssetteApi extends Module {
 	// Returns true if downscroll is active (either from user preferences or forced by mobile mode).
 	// Example: ModuleHandler.getModule("KssetteApi").scriptCall("getDownscroll", [])
 	public function getDownscroll():Bool {
-		if (KassetteHUDDatahunter.song != null) return KassetteHUDDatahunter.song.getDownscroll();
+		var optManager = KssetteOptionsManager.instance;
+		if (optManager != null) return optManager.getDownscroll();
 		return false;
 	}
 

@@ -37,13 +37,13 @@ import flixel.FlxG;
 import funkin.modding.module.Module;
 import kassettehud.util.KssetteOptionsManager;
 import kassettehud.util.KassetteHUDDatahunter;
+import funkin.save.Save;
 import funkin.modding.module.ModuleHandler;
 import funkin.modding.events.ScriptEvent;
 import funkin.modding.events.UpdateScriptEvent;
 import funkin.play.PlayState;
 import funkin.play.notes.Strumline;
 import funkin.util.Constants;
-import funkin.Preferences;
 import funkin.mobile.input.ControlsHandler;
 import funkin.ui.FullScreenScaleMode;
 import Std;
@@ -175,8 +175,17 @@ class KssetteStrumlines extends KHUDModifier {
         if (state == null) return;
 
         cachedIsArrows = false;
-        if (Preferences.controlsScheme == 'Arrows') {
-            cachedIsArrows = !ControlsHandler.hasExternalInputDevice;
+        var ctrlScheme = "Arrows"; // Fallback like Preferences.hx
+        try { 
+            if (Save.instance != null && Save.instance.mobileOptions != null) {
+                if (Save.instance.mobileOptions.controlsScheme != null) {
+                    ctrlScheme = Std.string(Save.instance.mobileOptions.controlsScheme);
+                }
+            }
+        } catch(e:Dynamic) {}
+        
+        if (ctrlScheme == 'Arrows') {
+            cachedIsArrows = true; // Use true, because we want it to work on PC as well when testing layouts
         }
 
         cachedIsPixelStyle = false;
