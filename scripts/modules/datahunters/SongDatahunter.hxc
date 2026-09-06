@@ -25,10 +25,6 @@ class SongDatahunter extends KassetteHUDDatahunter {
     var _checkedSongId:Bool = false;
     var _cachedSongId:String = "";
     var _qtModule:Dynamic = null;
-    
-    var _cachedModeMsg:String = null;
-    var _cachedBotplay:Bool = false;
-    var _cachedGammodAuto:Bool = false;
 
     public function new() {
         super("SongDatahunter");
@@ -58,9 +54,6 @@ class SongDatahunter extends KassetteHUDDatahunter {
         _checkedSongId = false;
         _cachedSongId = "";
         _qtModule = null;
-        _cachedModeMsg = null;
-        _cachedBotplay = false;
-        _cachedGammodAuto = false;
         
         gammodAutoPlay = false;
     }
@@ -232,46 +225,6 @@ class SongDatahunter extends KassetteHUDDatahunter {
 
     public function getModeMessage():String {
         var state = PlayState.instance;
-        if (state == null) return "";
-        
-        var gammodAutoMod = ModuleHandler.getModule("GammodAutoPlay");
-        var gAutoPlay = gammodAutoPlay;
-        if (gammodAutoMod != null) {
-            var autoRaw:Dynamic = gammodAutoMod?.value;
-            if (autoRaw == null) autoRaw = gammodAutoMod.scriptGet("value");
-            gAutoPlay = (autoRaw != null && Std.string(autoRaw).toUpperCase() != "DISABLED");
-            gammodAutoPlay = gAutoPlay;
-        }
-
-        var botplay:Bool = state.isBotPlayMode || (Save.instance.modOptions.get("BotMode") == true) || gAutoPlay;
-        
-        if (!botplay) {
-            if (!_checkedSongId) {
-                _checkedSongId = true;
-                _cachedSongId = (state.currentSong != null && state.currentSong.id != null) ? state.currentSong.id : ((state.currentChart != null && state.currentChart.songName != null) ? state.currentChart.songName : "");
-            }
-            if (_cachedSongId != null && _cachedSongId.toLowerCase() == "termination") {
-                if (_qtModule == null) _qtModule = ModuleHandler.getModule("QTdodgeModule");
-                if (_qtModule != null && _qtModule?.scriptGet != null) {
-                    var scriptGetFn:Dynamic = _qtModule.scriptGet;
-                    if (scriptGetFn != null && scriptGetFn("qtBotplay") == true) botplay = true;
-                }
-            }
-        }
-        
-        if (_cachedModeMsg != null && botplay == _cachedBotplay && gAutoPlay == _cachedGammodAuto) return _cachedModeMsg;
-        
-        _cachedBotplay = botplay;
-        _cachedGammodAuto = gAutoPlay;
-        var songName:String = getSongTitle();
-
-        if (botplay) {
-            if (gammodAutoPlay) _cachedModeMsg = 'Watching "' + songName + '" with AutoPlay';
-            else _cachedModeMsg = 'Watching "' + songName + '" with Botplay';
-        } else {
-            _cachedModeMsg = "";
-        }
-        
-        return _cachedModeMsg; 
+        return "";
     }
 }

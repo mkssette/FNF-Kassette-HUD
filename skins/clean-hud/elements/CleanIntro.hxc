@@ -91,7 +91,7 @@ class CleanIntro extends KassetteHUDElement {
         introText = createText(-800, FlxG.height * 0.45, 0, fullText, 24, 0xFFFFFFFF, "left");
         introText.scrollFactor.set(0, 0);
         introText.cameras = [state.camHUD];
-        introText.zIndex = 1600;
+        introText.zIndex = KassetteHUDElement.Z_SCREEN_OVERLAYS;
         introText.setFormat(getHudFont(), 24, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
         
         // Start off-screen left

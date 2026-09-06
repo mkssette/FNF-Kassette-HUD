@@ -307,14 +307,14 @@ class KssetteShowTitle extends KassetteHUDElement {
         }
         
         if (albumSprite != null) {
-            albumSprite.zIndex = 100000;
+            albumSprite.zIndex = KassetteHUDElement.Z_SCREEN_OVERLAYS;
             safeAdd(albumSprite, cam);
         }
 
-        artistTxt.zIndex = 100001;
+        artistTxt.zIndex = KassetteHUDElement.Z_SCREEN_OVERLAYS;
         safeAdd(artistTxt, cam);
 
-        titleTxt.zIndex = 100002;
+        titleTxt.zIndex = KassetteHUDElement.Z_SCREEN_OVERLAYS;
         safeAdd(titleTxt, cam);
 
         if (artistStr == "Unknown Artist" || artistStr == "null" || artistStr == "") {

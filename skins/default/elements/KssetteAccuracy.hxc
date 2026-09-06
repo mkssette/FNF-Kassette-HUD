@@ -74,7 +74,6 @@ class KssetteAccuracy extends KassetteHUDElement {
     /** Text showing remaining song time. */
     public var timeText:FlxText; 
     /** Scrolling marquee showing the current game mode (e.g., "Botplay"). */
-    public var modeText:FlxText; 
     /** Label FlxText objects for each judgement counter (Sicks, Goods, etc.). */
     public var judgeLabels:Array<FlxText> = [];
     /** Value FlxText objects for each judgement counter. */
@@ -109,7 +108,6 @@ class KssetteAccuracy extends KassetteHUDElement {
     var lastMaxComboJudge:Int = -1;
 
     /** True if the anti-cheat system has been triggered. */
-    var securityTriggered:Bool = false;
     /** Total player note count pre-computed from the chart. */
     var cachedTotalNotes:Int = -1;
     /** Adjusted actual note total (may differ when tallies exceed pre-count). */
@@ -185,7 +183,6 @@ class KssetteAccuracy extends KassetteHUDElement {
     var _cShowTitle:Bool = true;
     var _cShowDiff:Bool = true;
     var _cSmooth:Bool = false;
-    var _cIsBotplay:Bool = false;
     var _cJudgesVisible:Bool = false;
     var _cScoreBop:Bool = false;
     var _bopTimer:Float = 0.0;
@@ -201,8 +198,6 @@ class KssetteAccuracy extends KassetteHUDElement {
     var cachedRankStr:String = "?";
     /** Cached combo tier string (e.g. "SFC", "GFC"). */
     var cachedTierStr:String = "N/A";
-    /** Cached mode message string (e.g. "Botplay"); empty when no mode is active. */
-    var cachedModeMsg:String = "";
 
     /** True when rendering in the options menu preview instead of gameplay. */
 
@@ -222,7 +217,6 @@ class KssetteAccuracy extends KassetteHUDElement {
         safeDestroy(uiText);
         safeDestroy(infoText);
         safeDestroy(timeText);
-        safeDestroy(modeText);
         for (t in judgeLabels) safeDestroy(t);
         for (t in judgeValues) safeDestroy(t);
         judgeLabels = [];
@@ -375,24 +369,6 @@ class KssetteAccuracy extends KassetteHUDElement {
         
         if (state.scoreText != null) state.scoreText.visible = false;
 
-        if (state.playerStrumline != null) {
-            var bg1 = state.playerStrumline?.background;
-            if (bg1 != null) {
-                state.playerStrumline.remove(bg1, true);
-                bg1.zIndex = 10;
-                bg1.cameras = [state.camHUD];
-                state.add(bg1);
-            }
-        }
-        if (state.opponentStrumline != null) {
-            var bg2 = state.opponentStrumline?.background;
-            if (bg2 != null) {
-                state.opponentStrumline.remove(bg2, true);
-                bg2.zIndex = 10;
-                bg2.cameras = [state.camHUD];
-                state.add(bg2);
-            }
-        }
 
 
             setupUI(state.camHUD);
@@ -483,14 +459,6 @@ class KssetteAccuracy extends KassetteHUDElement {
         _cInfoPos = getSettingString("kssette_info_pos", "Bottom Left");
         _cHbPos = getSettingString("kssette_healthbar_position", "Center");
         
-        var songHunter = KassetteHUDDatahunter.song;
-        if (songHunter != null) {
-            cachedModeMsg = Std.string(songHunter.getModeMessage());
-        } else {
-            cachedModeMsg = null;
-        }
-        
-        _cIsBotplay = (cachedModeMsg != null && (cachedModeMsg.indexOf("Botplay") != -1 || cachedModeMsg.indexOf("AutoPlay") != -1));
         _cJudgesVisible = (_cJudgePos != "Off" && _cJudgePos != "false");
 
         cachedFont = getHudFont();
@@ -599,8 +567,8 @@ class KssetteAccuracy extends KassetteHUDElement {
         
         if (uiText.y != newY) uiText.y = newY;
 
-        if (uiText != null && uiText.zIndex < 900) {
-            uiText.zIndex = 1000;
+        if (uiText != null && uiText.zIndex < KassetteHUDElement.Z_HUD_BASE - 10) {
+            uiText.zIndex = KassetteHUDElement.Z_HUD_BASE;
         }
 
         var infoPos = _cInfoPos;
@@ -1013,14 +981,10 @@ class KssetteAccuracy extends KassetteHUDElement {
         var state = PlayState.instance;
 
 
-        if (!securityTriggered) {
-            frameUpdateTimer += elapsed;
-            if (frameUpdateTimer < 0.008) return;
-            elapsed = frameUpdateTimer;
-            frameUpdateTimer = 0.0;
-        } else {
-            frameUpdateTimer = 0.0;
-        }
+        frameUpdateTimer += elapsed;
+        if (frameUpdateTimer < 0.008) return;
+        elapsed = frameUpdateTimer;
+        frameUpdateTimer = 0.0;
 
         if (state == null) return;
         
@@ -1036,43 +1000,6 @@ class KssetteAccuracy extends KassetteHUDElement {
                     timeText.text = "[" + FlxStringUtil.formatTime(remainingSeconds, false) + "]";
                 }
             }
-        }
-
-        if (modeText != null && modeText.exists) {
-            if (cachedModeMsg != "" && cachedModeMsg != "null") {
-                if (modeText.text != cachedModeMsg) modeText.text = cachedModeMsg;
-                if (!modeText.visible) modeText.visible = true;
-                if (modeText.alpha != 1) modeText.alpha = 1;
-                
-                modeText.x -= 200 * elapsed;
-                if (modeText.x + modeText.width < 0) modeText.x = FlxG.width;
-            } else {
-                if (modeText.visible) modeText.visible = false; 
-            }
-        }
-
-        if (_cIsBotplay) {
-            if (!state.startingSong && !state.isEndingSong && uiText != null && uiText.exists) {
-                if (modeText == null || !modeText.exists || !modeText.visible || modeText.alpha <= 0 || modeText.text != cachedModeMsg) {
-                    securityTriggered = true;
-                }
-            }
-        }
-
-        if (securityTriggered) {
-            if (state.playerStrumline != null) {
-                state.playerStrumline.visible = false;
-                var targets = state.playerStrumline.getNotesMayHit();
-                if (targets != null) {
-                    for (note in targets) {
-                        if (note != null && note.alive && !note.hasBeenHit) {
-                            note.hasBeenHit = true;
-                            state.noteMiss(note);
-                        }
-                    }
-                }
-            }
-            if (state.health > 0) state.health -= 0.005;
         }
 
         if (uiText == null || !uiText.exists) return;

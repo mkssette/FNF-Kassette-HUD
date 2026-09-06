@@ -216,7 +216,7 @@ class KssetteNight extends KHUDModifier {
         overlayGame.scrollFactor.set(0, 0); 
         overlayGame.screenCenter();
         
-        overlayGame.zIndex = 50; 
+        overlayGame.zIndex = KassetteHUDElement.Z_BACKGROUND_OVERLAYS; 
 
         if (isPreview) {
             if (previewCam != null) overlayGame.cameras = [previewCam];

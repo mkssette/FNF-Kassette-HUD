@@ -97,11 +97,11 @@ class CleanHealthBar extends KassetteHUDElement {
 		previewIconP2.scrollFactor.set(0, 0);
 		safeAdd(previewIconP2, cam);
 
-		previewHealthBarFillP2.zIndex = 6;
-		previewHealthBarFillP1.zIndex = 6;
-		previewHealthBarBG.zIndex = 5;
-		previewIconP1.zIndex = 7;
-		previewIconP2.zIndex = 7;
+		previewHealthBarBG.zIndex = KassetteHUDElement.Z_HUD_BASE;
+		previewHealthBarFillP2.zIndex = KassetteHUDElement.Z_HUD_MID;
+		previewHealthBarFillP1.zIndex = KassetteHUDElement.Z_HUD_MID;
+		previewIconP1.zIndex = KassetteHUDElement.Z_HUD_FRONT;
+		previewIconP2.zIndex = KassetteHUDElement.Z_HUD_FRONT;
 	}
 
 	var _cPosPref:String = "Center";
@@ -136,12 +136,12 @@ class CleanHealthBar extends KassetteHUDElement {
 			iconHunter = KassetteHUDDatahunter.icon;
 
 		if (state.healthBarBG != null) {
-			state.healthBarBG.zIndex = 110;
+			state.healthBarBG.zIndex = KassetteHUDElement.Z_HUD_BASE;
 			state.remove(state.healthBarBG, true);
 			state.add(state.healthBarBG);
 		}
 		if (state.healthBar != null) {
-			state.healthBar.zIndex = 111;
+			state.healthBar.zIndex = KassetteHUDElement.Z_HUD_MID;
 			state.remove(state.healthBar, true);
 			state.add(state.healthBar);
 		}
@@ -149,12 +149,12 @@ class CleanHealthBar extends KassetteHUDElement {
 		_lastP1Id = "";
 		_lastP2Id = "";
 		if (state.iconP1 != null) {
-			state.iconP1.zIndex = 112;
+			state.iconP1.zIndex = KassetteHUDElement.Z_HUD_FRONT;
 			state.remove(state.iconP1, true);
 			state.add(state.iconP1);
 		}
 		if (state.iconP2 != null) {
-			state.iconP2.zIndex = 112;
+			state.iconP2.zIndex = KassetteHUDElement.Z_HUD_FRONT;
 			state.remove(state.iconP2, true);
 			state.add(state.iconP2);
 		}
@@ -342,8 +342,7 @@ class CleanHealthBar extends KassetteHUDElement {
 			var hbY = downscroll ? FlxG.height * 0.11 : FlxG.height * 0.89;
 
 			state.healthBarBG.y = hbY;
-			state.healthBarBG.zIndex = 1499;
-			state.healthBarBG.zIndex = 1499;
+			state.healthBarBG.zIndex = KassetteHUDElement.Z_HUD_BASE;
 			barX = state.healthBarBG.x;
 			barY = state.healthBarBG.y;
 		}
@@ -355,8 +354,7 @@ class CleanHealthBar extends KassetteHUDElement {
 			}
 			state.healthBar.x = barX;
 			state.healthBar.y = barY + ((state.healthBarBG.height - state.healthBar.height) / 2);
-			state.healthBar.zIndex = 1500;
-			state.healthBar.zIndex = 1500;
+			state.healthBar.zIndex = KassetteHUDElement.Z_HUD_MID;
 
 			if (state.currentStage != null) {
 				var dadObj = state.currentStage.getDad();

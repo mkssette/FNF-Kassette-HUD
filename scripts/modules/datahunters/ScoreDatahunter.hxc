@@ -24,6 +24,12 @@ class ScoreDatahunter extends KassetteHUDDatahunter {
 
     public var totalNotes:Int = 0;
     
+    public var antiCheatTriggered:Bool = false;
+    
+    public function triggerAntiCheat() {
+        antiCheatTriggered = true;
+    }
+    
     public var displayedAcc:Float = 0.0;
     public var targetAcc:Float = 0.0;
     
@@ -112,6 +118,7 @@ class ScoreDatahunter extends KassetteHUDDatahunter {
     }
 
     public function getRankID(state:PlayState):String {
+        if (antiCheatTriggered) return "Unranked";
         var t = Highscore.tallies;
         if (t == null || (t.totalNotesHit + t.missed) <= 0) return "?";
         
@@ -137,6 +144,7 @@ class ScoreDatahunter extends KassetteHUDDatahunter {
     }
 
     public function getComboTier(state:PlayState):String {
+        if (antiCheatTriggered) return "N/A";
         var t = Highscore.tallies;
         if (t == null) return "N/A";
         
@@ -158,6 +166,7 @@ class ScoreDatahunter extends KassetteHUDDatahunter {
     }
 
     public function getAccuracy(state:PlayState):Float {
+        if (antiCheatTriggered) return 0.0;
         var t = Highscore.tallies;
         if (t == null) return 0.0;
         var total:Int = t.totalNotesHit + t.missed;
@@ -234,6 +243,7 @@ class ScoreDatahunter extends KassetteHUDDatahunter {
     }
 
     public function getScore(state:PlayState):String {
+        if (antiCheatTriggered) return "0";
         if (state == null) return "0";
         var rawScore = Math.floor(state.songScore);
         var scoreStr = Std.string(rawScore);

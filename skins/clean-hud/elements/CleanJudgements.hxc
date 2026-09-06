@@ -76,13 +76,13 @@ class CleanJudgements extends KassetteHUDElement {
         sickTxt = createText(FlxG.width - 210, FlxG.height * 0.1, 200, "Sick: 0", 20, 0xFFFFFFFF, "right");
         sickTxt.scrollFactor.set(0, 0);
         sickTxt.cameras = [state.camHUD];
-        sickTxt.zIndex = 1500;
+        sickTxt.zIndex = KassetteHUDElement.Z_HUD_MID;
         state.add(sickTxt);
 
         missTxt = createText(FlxG.width - 210, sickTxt.y + 24, 200, "Miss: 0", 20, 0xFFFFFFFF, "right");
         missTxt.scrollFactor.set(0, 0);
         missTxt.cameras = [state.camHUD];
-        missTxt.zIndex = 1500;
+        missTxt.zIndex = KassetteHUDElement.Z_HUD_MID;
         state.add(missTxt);
     }
 

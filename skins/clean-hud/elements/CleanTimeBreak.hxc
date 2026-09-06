@@ -100,31 +100,31 @@ class CleanTimeBreak extends KassetteHUDElement {
         timeTxt = createText(0, 10, 0, "[0:00]", 18, 0xFFFFFFFF, "left");
         timeTxt.scrollFactor.set(0, 0);
         timeTxt.cameras = [state.camHUD];
-        timeTxt.zIndex = 1500;
+        timeTxt.zIndex = KassetteHUDElement.Z_HUD_FRONT;
         state.add(timeTxt);
 
         timeBarBG = new FlxSprite(0, 0).makeGraphic(100, 10, FlxColor.BLACK);
         timeBarBG.scrollFactor.set(0, 0);
         timeBarBG.cameras = [state.camHUD];
-        timeBarBG.zIndex = 1499;
+        timeBarBG.zIndex = KassetteHUDElement.Z_HUD_BASE;
         state.add(timeBarBG);
 
         timeBarFill = new FlxSprite(0, 0).makeGraphic(96, 6, 0xFFFFFFFF);
         timeBarFill.scrollFactor.set(0, 0);
         timeBarFill.cameras = [state.camHUD];
-        timeBarFill.zIndex = 1500;
+        timeBarFill.zIndex = KassetteHUDElement.Z_HUD_MID;
         state.add(timeBarFill);
 
         breakBarBG = new FlxSprite(0, 0).makeGraphic(100, 4, 0xFF000000);
         breakBarBG.scrollFactor.set(0, 0);
         breakBarBG.cameras = [state.camHUD];
-        breakBarBG.zIndex = 1499;
+        breakBarBG.zIndex = KassetteHUDElement.Z_HUD_BASE;
         state.add(breakBarBG);
 
         breakBarFill = new FlxSprite(0, 0).makeGraphic(96, 2, 0xFFFFFFFF);
         breakBarFill.scrollFactor.set(0, 0);
         breakBarFill.cameras = [state.camHUD];
-        breakBarFill.zIndex = 1500;
+        breakBarFill.zIndex = KassetteHUDElement.Z_HUD_MID;
         state.add(breakBarFill);
     }
 

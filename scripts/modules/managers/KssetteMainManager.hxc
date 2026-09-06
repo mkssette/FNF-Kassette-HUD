@@ -1,6 +1,7 @@
 package kassettehud.util;
 
 import funkin.modding.module.Module;
+import funkin.modding.module.ModuleHandler;
 import funkin.modding.events.UpdateScriptEvent;
 import funkin.modding.events.StateChangeScriptEvent;
 import funkin.play.PlayState;
@@ -8,12 +9,15 @@ import flixel.FlxG;
 import flixel.text.FlxText;
 import flixel.text.FlxTextBorderStyle;
 import flixel.util.FlxColor;
+import kassettehud.util.KssetteFontManager;
 import Std;
 
 class KssetteMainManager extends Module {
     public static var instance:Dynamic = null;
     public var isMobileMode:Bool = false;
     public var _isInPlayState:Bool = false;
+    public var modeText:FlxText = null;
+    var cachedModeMsg:String = "";
 
     public function new() {
         super("KssetteMainManager", 1000);
@@ -33,6 +37,52 @@ class KssetteMainManager extends Module {
 
         if (_isInPlayState) {
             if (state.scoreText != null) state.scoreText.visible = false;
+            
+            var songHunter = KassetteHUDDatahunter.song;
+            var chartHunter = KassetteHUDDatahunter.chartData;
+            var gammodHunter = KassetteHUDDatahunter.gammod;
+            
+            var isBot = false;
+            var isAuto = false;
+            
+            if (chartHunter != null && chartHunter.isNativeBotplay()) isBot = true;
+            if (gammodHunter != null && gammodHunter.gammodAutoPlay) isAuto = true;
+            
+            if (isBot || isAuto) {
+                var songName = songHunter != null ? songHunter.getSongTitle() : "Unknown";
+                cachedModeMsg = 'Watching "' + songName + '" with ' + (isAuto ? "AutoPlay" : "Botplay");
+            } else {
+                cachedModeMsg = "";
+            }
+            
+            if (modeText != null && modeText.exists) {
+                if (cachedModeMsg != "") {
+                    if (modeText.text != cachedModeMsg) modeText.text = cachedModeMsg;
+                    if (!modeText.visible) modeText.visible = true;
+                    if (modeText.alpha != 1) modeText.alpha = 1;
+                    
+                    modeText.x -= 200 * event.elapsed;
+                    if (modeText.x + modeText.textWidth < 0) modeText.x = FlxG.width;
+                } else {
+                    if (modeText.visible) modeText.visible = false;
+                }
+                
+                if (isBot || isAuto) {
+                    if (!state.startingSong && !state.isEndingSong) {
+                        if (!modeText.exists || !modeText.visible || modeText.alpha <= 0 || modeText.text != cachedModeMsg) {
+                            var scoreHunter = KassetteHUDDatahunter.score;
+                            if (scoreHunter != null && !scoreHunter.antiCheatTriggered) {
+                                scoreHunter.triggerAntiCheat();
+                                
+                                var strumlinesMod:Dynamic = ModuleHandler.getModule("KssetteStrumlines");
+                                if (strumlinesMod != null) {
+                                    strumlinesMod.applyAntiCheatPenalty();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -43,9 +93,33 @@ class KssetteMainManager extends Module {
         if (Std.isOfType(target, PlayState)) {
             _isInPlayState = true;
             createHUDWatermark(target);
+            
+            if (modeText != null) {
+                modeText.destroy();
+                modeText = null;
+            }
+            modeText = new FlxText(FlxG.width, 200, 0, "", 24);
+            var hudFont = "VCR OSD Mono";
+            var fontManager = KssetteFontManager.instance;
+            if (fontManager != null) {
+                var f = fontManager.getHudFont();
+                if (f != null && f != "null" && f != "") hudFont = f;
+            }
+            modeText.setFormat(hudFont, 22, FlxColor.WHITE, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+            modeText.scrollFactor.set(0, 0);
+            modeText.zIndex = KassetteHUDElement.Z_HUD_MID;
+            modeText.alpha = 0;
+            if (target.camHUD != null) modeText.cameras = [target.camHUD];
+            target.add(modeText);
+            cachedModeMsg = "";
+            
         } else {
             if (_isInPlayState) {
                 _isInPlayState = false;
+                if (modeText != null) {
+                    modeText.destroy();
+                    modeText = null;
+                }
                 FlxG.bitmap.clearUnused();
             }
         }

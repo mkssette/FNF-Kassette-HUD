@@ -126,13 +126,13 @@ class CleanScoreAcc extends KassetteHUDElement {
         scoreTxt = createText(10, FlxG.height * 0.1, 0, "S: 0", 20, 0xFFFFFFFF, "left");
         scoreTxt.scrollFactor.set(0, 0);
         scoreTxt.cameras = [state.camHUD];
-        scoreTxt.zIndex = 1500;
+        scoreTxt.zIndex = KassetteHUDElement.Z_HUD_MID;
         state.add(scoreTxt);
 
         accTxt = createText(10, scoreTxt.y + 24, 0, "A: 0.00%", 20, 0xFFFFFFFF, "left");
         accTxt.scrollFactor.set(0, 0);
         accTxt.cameras = [state.camHUD];
-        accTxt.zIndex = 1500;
+        accTxt.zIndex = KassetteHUDElement.Z_HUD_MID;
         state.add(accTxt);
     }
 

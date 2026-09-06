@@ -148,8 +148,8 @@ class KssetteTimeBar extends KassetteHUDElement {
 
         var zIdx:Int = isBorder ? 1018 : (timeBarPos == "In Health" ? 109 : 15);
 
-        timeBarBG = makeBar(0, Std.int(barSize + 4), 0xFF000000, zIdx, targetCam);
-        timeBar = makeBar(2, Std.int(barSize), 0xFFFFFFFF, zIdx + 1, targetCam);
+        timeBarBG = makeBar(0, Std.int(barSize + 4), 0xFF000000, KassetteHUDElement.Z_HUD_BASE, targetCam);
+        timeBar = makeBar(2, Std.int(barSize), 0xFFFFFFFF, KassetteHUDElement.Z_HUD_MID, targetCam);
         FlxG.state.refresh();
     }
 

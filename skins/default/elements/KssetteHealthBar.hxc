@@ -125,11 +125,11 @@ class KssetteHealthBar extends KassetteHUDElement {
 		previewIconP2.scrollFactor.set(0, 0);
 		safeAdd(previewIconP2, cam);
 
-		previewHealthBarFillP2.zIndex = 111;
-		previewHealthBarFillP1.zIndex = 111;
-		previewHealthBarBG.zIndex = 110;
-		previewIconP1.zIndex = 112;
-		previewIconP2.zIndex = 112;
+		previewHealthBarBG.zIndex = KassetteHUDElement.Z_HUD_BASE;
+		previewHealthBarFillP2.zIndex = KassetteHUDElement.Z_HUD_MID;
+		previewHealthBarFillP1.zIndex = KassetteHUDElement.Z_HUD_MID;
+		previewIconP1.zIndex = KassetteHUDElement.Z_HUD_FRONT;
+		previewIconP2.zIndex = KassetteHUDElement.Z_HUD_FRONT;
 	}
 
 	var _cPosPref:String = "Center";
@@ -167,22 +167,22 @@ class KssetteHealthBar extends KassetteHUDElement {
 
 		// Re-add health bar components to the end to ensure correct draw order.
 		if (state.healthBarBG != null) {
-			state.healthBarBG.zIndex = 110;
+			state.healthBarBG.zIndex = KassetteHUDElement.Z_HUD_BASE;
 			state.remove(state.healthBarBG, true);
 			state.add(state.healthBarBG);
 		}
 		if (state.healthBar != null) {
-			state.healthBar.zIndex = 111;
+			state.healthBar.zIndex = KassetteHUDElement.Z_HUD_MID;
 			state.remove(state.healthBar, true);
 			state.add(state.healthBar);
 		}
 		if (state.iconP1 != null) {
-			state.iconP1.zIndex = 112;
+			state.iconP1.zIndex = KassetteHUDElement.Z_HUD_FRONT;
 			state.remove(state.iconP1, true);
 			state.add(state.iconP1);
 		}
 		if (state.iconP2 != null) {
-			state.iconP2.zIndex = 112;
+			state.iconP2.zIndex = KassetteHUDElement.Z_HUD_FRONT;
 			state.remove(state.iconP2, true);
 			state.add(state.iconP2);
 		}

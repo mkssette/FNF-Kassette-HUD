@@ -7,6 +7,9 @@ import Math;
 import funkin.modding.events.ScriptEvent;
 import funkin.modding.events.UpdateScriptEvent;
 
+import funkin.save.Save;
+import funkin.modding.module.ModuleHandler;
+
 class ChartDatahunter extends KassetteHUDDatahunter {
     public var playerNoteTimes:Array<Dynamic> = [];
     public var currentNoteIndex:Int = 0;
@@ -23,7 +26,36 @@ class ChartDatahunter extends KassetteHUDDatahunter {
         KassetteHUDDatahunter.chartData = this;
     }
 
+    public var _cachedNativeBotplay:Bool = false;
+    public var _checkedNativeBotplay:Bool = false;
+
+    public function isNativeBotplay():Bool {
+        var state = PlayState.instance;
+        if (state == null) return false;
+        
+        if (!_checkedNativeBotplay) {
+            _checkedNativeBotplay = true;
+            _cachedNativeBotplay = state.isBotPlayMode;
+            if (Save.instance != null && Save.instance.modOptions != null) {
+                if (Save.instance.modOptions.get("BotMode") == true) _cachedNativeBotplay = true;
+            }
+            
+            var songId = (state.currentSong != null && state.currentSong.id != null) ? state.currentSong.id : ((state.currentChart != null && state.currentChart.songName != null) ? state.currentChart.songName : "");
+            
+            if (songId != null && songId.toLowerCase() == "termination") {
+                var qtModule = ModuleHandler.getModule("QTdodgeModule");
+                if (qtModule != null && qtModule.scriptGet != null) {
+                    var scriptGetFn:Dynamic = qtModule.scriptGet;
+                    if (scriptGetFn != null && scriptGetFn("qtBotplay") == true) _cachedNativeBotplay = true;
+                }
+            }
+        }
+        
+        return _cachedNativeBotplay;
+    }
+
     override public function onCountdownStart(event:ScriptEvent) {
+        _checkedNativeBotplay = false;
         playerNoteTimes = [];
         currentNoteIndex = 0;
         currentBreakData = { active: false, progress: 0.0, timeLeft: 0.0 };

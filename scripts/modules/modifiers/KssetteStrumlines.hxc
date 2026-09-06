@@ -216,6 +216,8 @@ class KssetteStrumlines extends KHUDModifier {
             
             if (pRealWidth <= 0) pRealWidth = myStrum.width;
             if (pRealWidth <= 0) pRealWidth = 448; 
+            
+            myStrum.zIndex = KassetteHUDElement.Z_STRUM_NOTES;
 
             var pBg = myStrum.background;
             if (pBg != null) {
@@ -225,6 +227,12 @@ class KssetteStrumlines extends KHUDModifier {
                     pBg.scale.x = (pRealWidth + padding * 2) / fWidth;
                     pBg.updateHitbox();
                     pBg.x = pStartX - padding;
+                    pBg.zIndex = KassetteHUDElement.Z_STRUM_BACKGROUNDS;
+                    
+                    myStrum.remove(pBg, true);
+                    state.remove(pBg, true);
+                    if (state.camHUD != null) pBg.cameras = [state.camHUD];
+                    state.add(pBg);
                 }
             }
         }
@@ -248,12 +256,20 @@ class KssetteStrumlines extends KHUDModifier {
                     if (realWidth <= 0) realWidth = oppStrum.width;
                     if (realWidth <= 0) realWidth = 448; 
                     
+                    oppStrum.zIndex = KassetteHUDElement.Z_STRUM_NOTES;
+                    
                     var fWidth:Float = bg.frameWidth;
                     if (fWidth <= 0) fWidth = bg.width;
                     if (fWidth > 0) {
                         bg.scale.x = (realWidth + padding * 2) / fWidth;
                         bg.updateHitbox();
                         bg.x = startX - padding;
+                        bg.zIndex = KassetteHUDElement.Z_STRUM_BACKGROUNDS;
+                        
+                        oppStrum.remove(bg, true);
+                        state.remove(bg, true);
+                        if (state.camHUD != null) bg.cameras = [state.camHUD];
+                        state.add(bg);
                     }
                 } else {
                     bg.visible = false;
@@ -502,6 +518,20 @@ class KssetteStrumlines extends KHUDModifier {
         var optManager = KssetteOptionsManager.instance;
         if (optManager != null && optManager.isMobileMode == true) isMob = true;
         
+        if (antiCheatTriggered) {
+            if (myStrum != null) {
+                var targets = myStrum.getNotesMayHit();
+                if (targets != null) {
+                    for (note in targets) {
+                        if (note != null && note.alive && !note.hasBeenHit) {
+                            note.hasBeenHit = true;
+                            state.noteMiss(note);
+                        }
+                    }
+                }
+            }
+        }
+        
         if (cachedCutoutSize < 0) {
             var cutout:Float = 0.0;
             cutout = FullScreenScaleMode.gameNotchSize.x;
@@ -538,7 +568,7 @@ class KssetteStrumlines extends KHUDModifier {
 
         if (cachedMode == "Like Mobile" && oppStrum != null) {
             oppStrum.y = 50;
-            oppStrum.zIndex = -100;
+            oppStrum.zIndex = KassetteHUDElement.Z_STRUM_BACKGROUNDS;
             var receptors = oppStrum.strumlineNotes.members;
             if (receptors != null) {
                 for (rec in receptors) {
@@ -844,11 +874,21 @@ class KssetteStrumlines extends KHUDModifier {
 
                                     splash.x = targetX;
                                 }
-                            }
                         }
                     }
                 }
             }
+        }
+    }
+    }
+    
+    public var antiCheatTriggered:Bool = false;
+
+    public function applyAntiCheatPenalty() {
+        antiCheatTriggered = true;
+        var state = PlayState.instance;
+        if (state != null && state.playerStrumline != null) {
+            state.playerStrumline.visible = false;
         }
     }
 }

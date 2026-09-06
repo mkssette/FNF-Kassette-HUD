@@ -253,7 +253,7 @@ class KssetteBreakBar extends KassetteHUDElement {
             borders = [bTop, bBot, bLeft, bRight];
             for (b in borders) {
                 b.scrollFactor.set(0, 0);
-                b.zIndex = 1010;
+                b.zIndex = KassetteHUDElement.Z_HUD_BASE;
                 b.alpha = 0;
                 b.cameras = [cam];
                 safeAdd(b, cam);
@@ -261,14 +261,14 @@ class KssetteBreakBar extends KassetteHUDElement {
             
             barFill = new FlxSprite(startX + thick, centerY + thick).makeGraphic(Std.int(barWidth - thick * 2), Std.int(barHeight - thick * 2), 0xFFFFFFFF);
             barFill.scrollFactor.set(0, 0);
-            barFill.zIndex = 1011;
+            barFill.zIndex = KassetteHUDElement.Z_HUD_MID;
             barFill.origin.set(0, 0);
             barFill.alpha = 0;
             safeAdd(barFill, cam);
 
             breakText = createText(startX, centerY - 28, barWidth, "BREAK", 20, 0xFFFFFFFF, "center");
             breakText.scrollFactor.set(0, 0);
-            breakText.zIndex = 1012;
+            breakText.zIndex = KassetteHUDElement.Z_HUD_FRONT;
             breakText.alpha = 0;
             safeAdd(breakText, cam);
 
@@ -280,14 +280,14 @@ class KssetteBreakBar extends KassetteHUDElement {
             border = new FlxSprite(cX, cY);
             drawRoundedRect(border, radius*2, radius*2, radius, 0xFFFFFFFF, true, 3);
             border.scrollFactor.set(0, 0);
-            border.zIndex = 1010;
+            border.zIndex = KassetteHUDElement.Z_HUD_BASE;
             border.alpha = 0;
             safeAdd(border, cam);
             
             barFill = new FlxSprite(cX + 3, cY + 3);
             barFill.makeGraphic(radius*2 - 6, radius*2 - 6, 0x00000000);
             barFill.scrollFactor.set(0, 0);
-            barFill.zIndex = 1011;
+            barFill.zIndex = KassetteHUDElement.Z_HUD_MID;
             barFill.origin.set(0, 0);
             barFill.alpha = 0;
             lastFillW = -1;
@@ -309,7 +309,7 @@ class KssetteBreakBar extends KassetteHUDElement {
             breakIcon.x = centerX - (breakIcon.width / 2);
             breakIcon.y = centerY - (breakIcon.height / 2);
             breakIcon.scrollFactor.set(0, 0);
-            breakIcon.zIndex = 1012;
+            breakIcon.zIndex = KassetteHUDElement.Z_HUD_FRONT;
             breakIcon.alpha = 0;
             safeAdd(breakIcon, cam);
 
@@ -317,14 +317,14 @@ class KssetteBreakBar extends KassetteHUDElement {
             border = new FlxSprite(startX, centerY);
             drawRoundedRect(border, Std.int(barWidth), Std.int(barHeight), 5, 0xFFFFFFFF, true, 3);
             border.scrollFactor.set(0, 0);
-            border.zIndex = 1010;
+            border.zIndex = KassetteHUDElement.Z_HUD_BASE;
             border.alpha = 0;
             safeAdd(border, cam);
             
             barFill = new FlxSprite(startX + 5, centerY + 5);
             drawRoundedRect(barFill, Std.int(barWidth - 10), Std.int(barHeight - 10), 2, 0xFF999999, false, 0);
             barFill.scrollFactor.set(0, 0);
-            barFill.zIndex = 1011;
+            barFill.zIndex = KassetteHUDElement.Z_HUD_MID;
             barFill.origin.set(0, 0);
             barFill.alpha = 0;
             lastFillW = -1;
@@ -348,7 +348,7 @@ class KssetteBreakBar extends KassetteHUDElement {
             breakIcon.y = centerY + (barHeight - breakIcon.height) / 2 + iconOffsetY;
             
             breakIcon.scrollFactor.set(0, 0);
-            breakIcon.zIndex = 1012;
+            breakIcon.zIndex = KassetteHUDElement.Z_HUD_FRONT;
             breakIcon.alpha = 0;
             breakIcon.cameras = [cam];
             if (state != null && !isPreview) state.add(breakIcon);
