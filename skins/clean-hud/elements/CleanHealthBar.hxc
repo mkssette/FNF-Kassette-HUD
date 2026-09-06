@@ -12,6 +12,8 @@ import flixel.tweens.FlxTween;
 import flixel.tweens.FlxEase;
 import funkin.Conductor;
 import flixel.util.FlxColor;
+import Std;
+import Math;
 
 class CleanHealthBar extends KassetteHUDElement {
 	var previewHealthBarBG:FlxSprite;

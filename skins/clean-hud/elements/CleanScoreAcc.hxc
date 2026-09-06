@@ -15,6 +15,7 @@ import kassettehud.util.KassetteHUDDatahunter;
 import funkin.modding.module.ModuleHandler;
 import StringTools;
 import Std;
+import Math;
 
 class CleanScoreAcc extends KassetteHUDElement {
     var scoreTxt:FlxText;
