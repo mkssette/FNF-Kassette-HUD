@@ -57,6 +57,14 @@
           "defaultValue": "On"
         },
         {
+          "id": "kssette_judge_pos",
+          "name": "JUDGEMENT COUNTER",
+          "description": "Shows a counter for Sicks, Goods, Bads, etc. Choose where to place it.",
+          "type": "choice",
+          "options": ["Off", "Left", "Right", "Top Left", "Top Right"],
+          "defaultValue": "Off"
+        },
+        {
           "id": "kssette_show_misses",
           "name": "MISSES DISPLAY",
           "description": "Show a counter for how many notes you've missed.",
@@ -238,14 +246,6 @@
           "description": "Adjust the volume of the hitsound.",
           "type": "volume",
           "defaultValue": "100%"
-        },
-        {
-          "id": "kssette_judge_pos",
-          "name": "JUDGEMENT COUNTER",
-          "description": "Shows a counter for Sicks, Goods, Bads, etc. Choose where to place it.",
-          "type": "choice",
-          "options": ["Off", "Left", "Right", "Top Left", "Top Right"],
-          "defaultValue": "Off"
         },
         {
           "id": "kssette_incoming_fade",

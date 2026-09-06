@@ -19,6 +19,7 @@ import funkin.modding.module.ModuleHandler;
 import kassettehud.util.KassetteSkinManager;
 import kassettehud.util.KassetteHUDSkin;
 import kassettehud.util.KssetteOptionsManager;
+import funkin.mobile.ui.FunkinBackButton;
 
 class KssetteSkinSelectorSubState extends ScriptedMusicBeatSubState {
     var lowDetailMenu:Bool = false;
@@ -36,6 +37,7 @@ class KssetteSkinSelectorSubState extends ScriptedMusicBeatSubState {
     var skinBgGroup:FlxSpriteGroup;
     var skinListGroup:FlxSpriteGroup;
     var skinDescGroup:FlxSpriteGroup;
+    var skinBtnGroup:FlxSpriteGroup;
     var skinSelectedIndex:Int = 0;
     var skinLastSelectedIndex:Int = -1;
     var currentSkinSaveKey:String = "";
@@ -47,6 +49,14 @@ class KssetteSkinSelectorSubState extends ScriptedMusicBeatSubState {
     var skinInfoAuthor:FlxText = null;
     var skinInfoDesc:FlxText = null;
     var skinInfoThumb:FlxSprite = null;
+
+    var btnUpBg:FlxSprite = null;
+    var btnDownBg:FlxSprite = null;
+    var btnBackBg:FlxSprite = null;
+    
+    var btnUp:FlxText = null;
+    var btnDown:FlxText = null;
+    var btnBack:FlxText = null;
 
     var holdTimer:Float = 0.0;
     var sndScroll:Dynamic;
@@ -118,8 +128,6 @@ class KssetteSkinSelectorSubState extends ScriptedMusicBeatSubState {
 
         var sY:Float = 0;
         var listW:Float = screenW * 0.45;
-        var skinMod:Dynamic = KassetteSkinManager.instance;
-        if (skinMod == null) skinMod = ModuleHandler.getModule("KassetteSkinManager");
         var skinsArray:Array<Dynamic> = skinMod != null ? skinMod.skinList : [];
         if (skinsArray == null) skinsArray = [];
 
@@ -154,7 +162,7 @@ class KssetteSkinSelectorSubState extends ScriptedMusicBeatSubState {
         var infoX = listW + 20;
         var infoW = screenW - listW - 60;
         
-        var panelBg = new FlxSprite(infoX, 0).makeGraphic(Std.int(infoW), Std.int(screenH - 120), 0xFF222222);
+        var panelBg = new FlxSprite(infoX, 0).makeGraphic(Std.int(infoW), Std.int(screenH - 200), 0xFF222222);
         panelBg.alpha = 0.8;
         skinDescGroup.add(panelBg);
 
@@ -171,6 +179,44 @@ class KssetteSkinSelectorSubState extends ScriptedMusicBeatSubState {
         skinDescGroup.add(skinInfoDesc);
 
         changeSkinSelection(0);
+
+        if (FlxG.onMobile) {
+            skinBtnGroup = new FlxSpriteGroup(0, 0);
+            skinBtnGroup.cameras = [optionCam];
+            add(skinBtnGroup);
+
+            btnBackBg = new FlxSprite(screenW - 200, screenH - 100).makeGraphic(180, 80, 0xFFFF0000);
+            btnBackBg.alpha = 0.5;
+            btnBackBg.scrollFactor.set(0, 0);
+            skinBtnGroup.add(btnBackBg);
+
+            btnBack = new FlxText(btnBackBg.x, btnBackBg.y + 20, 180, "BACK", 40);
+            btnBack.setFormat(menuFont, 40, 0xFFFFFFFF, "center");
+            btnBack.scrollFactor.set(0, 0);
+            skinBtnGroup.add(btnBack);
+            
+            var listW = screenW * 0.45;
+            
+            btnUpBg = new FlxSprite(listW + 20, screenH - 100).makeGraphic(120, 80, 0xFF808080);
+            btnUpBg.alpha = 0.5;
+            btnUpBg.scrollFactor.set(0, 0);
+            skinBtnGroup.add(btnUpBg);
+
+            btnUp = new FlxText(btnUpBg.x, btnUpBg.y + 10, 120, "/\\", 60);
+            btnUp.setFormat(menuFont, 60, 0xFFFFFF00, "center", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+            btnUp.scrollFactor.set(0, 0);
+            skinBtnGroup.add(btnUp);
+
+            btnDownBg = new FlxSprite(listW + 160, screenH - 100).makeGraphic(120, 80, 0xFF808080);
+            btnDownBg.alpha = 0.5;
+            btnDownBg.scrollFactor.set(0, 0);
+            skinBtnGroup.add(btnDownBg);
+
+            btnDown = new FlxText(btnDownBg.x, btnDownBg.y + 10, 120, "\\/", 60);
+            btnDown.setFormat(menuFont, 60, 0xFFFFFF00, "center", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+            btnDown.scrollFactor.set(0, 0);
+            skinBtnGroup.add(btnDown);
+        }
     }
 
     function moveGroup(group:FlxSpriteGroup, targetX:Float, elapsed:Float, speed:Float) {
@@ -284,18 +330,54 @@ class KssetteSkinSelectorSubState extends ScriptedMusicBeatSubState {
     }
 
     function handleSkinInput(elapsed:Float) {
-        var tJustPressed = false;
         var swipeU = SwipeUtil.swipeUp;
         var swipeD = SwipeUtil.swipeDown;
         var swipeL = SwipeUtil.swipeLeft;
         var swipeR = SwipeUtil.swipeRight;
         
+        var tJustPressed = false;
         if (FlxG.onMobile) tJustPressed = TouchUtil.justPressed;
-        else tJustPressed = FlxG.mouse.justPressed;
+        else if (FlxG.mouse != null) tJustPressed = FlxG.mouse.justPressed;
+
+        if (tJustPressed) {
+            var inputHandled = false;
+            
+            var overlapUp = FlxG.onMobile ? TouchUtil.overlaps(btnUpBg) : (FlxG.mouse != null && FlxG.mouse.overlaps(btnUpBg));
+            var overlapDown = FlxG.onMobile ? TouchUtil.overlaps(btnDownBg) : (FlxG.mouse != null && FlxG.mouse.overlaps(btnDownBg));
+            var overlapBack = FlxG.onMobile ? TouchUtil.overlaps(btnBackBg) : (FlxG.mouse != null && FlxG.mouse.overlaps(btnBackBg));
+            
+            if (btnUpBg != null && overlapUp) {
+                changeSkinSelection(-1); holdTimer = 0.5;
+                inputHandled = true;
+            } else if (btnDownBg != null && overlapDown) {
+                changeSkinSelection(1); holdTimer = 0.5;
+                inputHandled = true;
+            } else if (btnBackBg != null && overlapBack) {
+                closeSkinSelector();
+                inputHandled = true;
+            } else {
+                for (i in 0...skinItems.length) {
+                    var item = skinItems[i];
+                    if (item == null || item.bg == null) continue;
+                    
+                    var itemOverlap = FlxG.onMobile ? TouchUtil.overlaps(item.bg) : (FlxG.mouse != null && FlxG.mouse.overlaps(item.bg));
+                    if (itemOverlap) {
+                        if (skinSelectedIndex == i) {
+                            selectCurrentSkin();
+                        } else {
+                            changeSkinSelection(i - skinSelectedIndex);
+                        }
+                        inputHandled = true;
+                        break;
+                    }
+                }
+            }
+            if (inputHandled) return;
+        }
 
         if (controls.UI_UP_P || swipeD) { changeSkinSelection(-1); holdTimer = 0.5; }
         if (controls.UI_DOWN_P || swipeU) { changeSkinSelection(1); holdTimer = 0.5; }
-        if (FlxG.mouse != null && FlxG.mouse.wheel != 0) changeSkinSelection(-FlxG.mouse.wheel);
+        if (FlxG.mouse != null && FlxG.mouse.wheel != 0) changeSkinSelection(-Std.int(FlxG.mouse.wheel));
         
         if (controls.UI_UP || controls.UI_DOWN) {
             holdTimer -= elapsed;
@@ -305,7 +387,7 @@ class KssetteSkinSelectorSubState extends ScriptedMusicBeatSubState {
             }
         }
 
-        if (controls.ACCEPT_P || (FlxG.onMobile && tJustPressed && SwipeUtil.swipeDistance < 10)) {
+        if (controls.ACCEPT_P) {
             selectCurrentSkin();
         }
         
@@ -335,6 +417,7 @@ class KssetteSkinSelectorSubState extends ScriptedMusicBeatSubState {
             moveGroup(skinBgGroup, targetX, elapsed, 12);
             moveGroup(skinListGroup, targetX, elapsed, 12);
             moveGroup(skinDescGroup, targetX, elapsed, 12);
+            if (skinBtnGroup != null) moveGroup(skinBtnGroup, targetX, elapsed, 12);
             
             if (Math.abs(skinBgGroup.x - targetX) < 1) {
                 close();
@@ -344,6 +427,7 @@ class KssetteSkinSelectorSubState extends ScriptedMusicBeatSubState {
         
         moveGroup(skinBgGroup, targetX, elapsed, 12);
         moveGroup(skinDescGroup, targetX, elapsed, 12);
+        if (skinBtnGroup != null) moveGroup(skinBtnGroup, targetX, elapsed, 12);
 
         if (skinListGroup != null) {
             moveGroup(skinListGroup, targetX, elapsed, 12);

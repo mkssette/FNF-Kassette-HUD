@@ -318,7 +318,7 @@ class KssetteStrumlines extends KHUDModifier {
             if (isArrows && cachedMobileOppNotes) {
                 oppStrum.notes.visible = true;
                 oppStrum.holdNotes.visible = true;
-                oppStrum.isDownscroll = false;
+                if (!cachedIsMobPC) oppStrum.isDownscroll = false;
                 
                 if (lastNudgedStrum != oppStrum) {
                     if (cachedIsMobPC) {
