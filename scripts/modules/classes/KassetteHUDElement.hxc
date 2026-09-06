@@ -63,6 +63,7 @@ class KassetteHUDElement {
     /** Returns true if the global HUD visibility option is enabled */
     public function isHudVisible():Bool {
         var val = getSetting("kssette_show_hud");
+        if (val == null) return true; // Default to visible on fresh saves!
         return (val == true || Std.string(val) == "On" || Std.string(val) == "true");
     }
 

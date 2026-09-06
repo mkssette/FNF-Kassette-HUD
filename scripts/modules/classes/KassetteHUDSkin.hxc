@@ -92,8 +92,10 @@ class KassetteHUDSkin extends Module {
         if (!active) return;
         ensureElements();
         for (el in elements) {
-            if (el != null) el.isPreview = false;
-            el.onCountdownStart(event);
+            if (el != null) {
+                el.isPreview = false;
+                el.onCountdownStart(event);
+            }
         }
     }
 
@@ -102,12 +104,16 @@ class KassetteHUDSkin extends Module {
         
         var inPlayState = (PlayState.instance != null && FlxG.state == PlayState.instance);
         if (inPlayState) {
-            for (el in elements) el.onUpdate(event);
+            for (el in elements) {
+                if (el != null) el.onUpdate(event);
+            }
         } else {
             var elapsed:Float = (Std.isOfType(event, Float)) ? event : (event != null ? event.elapsed : 0);
             _previewUpdateTimer += elapsed;
             if (_previewUpdateTimer >= 0.033) {
-                for (el in elements) el.onUpdate(_previewUpdateTimer);
+                for (el in elements) {
+                    if (el != null) el.onUpdate(_previewUpdateTimer);
+                }
                 _previewUpdateTimer = 0.0;
             }
         }
@@ -115,32 +121,44 @@ class KassetteHUDSkin extends Module {
 
     override public function onNoteHit(event:Dynamic) {
         if (!active) return;
-        for (el in elements) el.onNoteHit(event);
+        for (el in elements) {
+            if (el != null) el.onNoteHit(event);
+        }
     }
 
     override public function onSongEnd(event:Dynamic) {
         if (!active) return;
-        for (el in elements) el.onSongEnd(event);
+        for (el in elements) {
+            if (el != null) el.onSongEnd(event);
+        }
     }
 
     override public function onSongRetry(event:Dynamic) {
         if (!active) return;
-        for (el in elements) el.onSongRetry(event);
+        for (el in elements) {
+            if (el != null) el.onSongRetry(event);
+        }
     }
 
     override public function onStepHit(event:Dynamic) {
         if (!active) return;
-        for (el in elements) el.onStepHit(event);
+        for (el in elements) {
+            if (el != null) el.onStepHit(event);
+        }
     }
 
     override public function onBeatHit(event:Dynamic) {
         if (!active) return;
-        for (el in elements) el.onBeatHit(event);
+        for (el in elements) {
+            if (el != null) el.onBeatHit(event);
+        }
     }
 
     override public function onSongStart(event:Dynamic) {
         if (!active) return;
-        for (el in elements) el.onSongStart(event);
+        for (el in elements) {
+            if (el != null) el.onSongStart(event);
+        }
     }
 
     override public function onResume(event:Dynamic) {

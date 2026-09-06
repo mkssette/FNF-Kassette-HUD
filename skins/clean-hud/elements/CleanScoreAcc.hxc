@@ -77,7 +77,7 @@ class CleanScoreAcc extends KassetteHUDElement {
     var _fmtMult:FlxTextFormat;
 
     function updateSettings() {
-        _cShowScore = getSettingBool("kssette_show_score");
+        _cShowScore = getSettingString("kssette_score_pos", "Default") != "Off";
         _cShowRank = getSettingBool("kssette_show_rank");
         _cAccMode = getSettingString("kssette_acc_mode", "Complex");
         _cScorePos = getSettingString("kssette_score_pos", "Default");
@@ -145,6 +145,12 @@ class CleanScoreAcc extends KassetteHUDElement {
         var atTop = inverted ? !downscroll : downscroll;
 
         var targetY = atTop ? FlxG.height * 0.1 : FlxG.height * 0.9 - 48;
+        
+        var isMobPC = true;
+        if (KssetteOptionsManager.instance != null) isMobPC = KssetteOptionsManager.instance.isMobileLikePC();
+        if (!isMobPC && atTop) {
+            targetY += 80; // Push down to avoid top-left opponent receptors
+        }
 
         var cachedFont = _cFont;
 
@@ -156,11 +162,13 @@ class CleanScoreAcc extends KassetteHUDElement {
                 if (fontChanged) previewScoreTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
                 previewScoreTxt.visible = showHud;
                 previewScoreTxt.y = targetY;
+                previewScoreTxt.x = 10;
             }
             if (previewAccTxt != null) {
                 if (fontChanged) previewAccTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
                 previewAccTxt.visible = showHud;
                 previewAccTxt.y = previewScoreTxt != null ? targetY + previewScoreTxt.height : targetY + 24;
+                previewAccTxt.x = 10;
             }
             return;
         }
@@ -174,6 +182,9 @@ class CleanScoreAcc extends KassetteHUDElement {
 
         scoreTxt.visible = showHud;
         accTxt.visible = showHud;
+        
+        scoreTxt.x = 10;
+        accTxt.x = 10;
         scoreTxt.y = targetY;
         
         var hasMult = _lastMult != 1.0;

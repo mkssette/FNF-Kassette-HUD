@@ -188,11 +188,16 @@ class CleanHealthBar extends KassetteHUDElement {
 			if (previewHealthBarFillP2 != null)
 				previewHealthBarFillP2.y = hbY + 2;
 
+			var isMobPC = true;
+			if (KssetteOptionsManager.instance != null) isMobPC = KssetteOptionsManager.instance.isMobileLikePC();
+
 			var posPref = _cPosPref;
+			var mobPadding = !isMobPC ? 180 : 90;
+			
 			if (posPref == "Left") {
-				previewHealthBarBG.x = 90;
+				previewHealthBarBG.x = mobPadding;
 			} else if (posPref == "Right") {
-				previewHealthBarBG.x = FlxG.width - previewHealthBarBG.width - 90;
+				previewHealthBarBG.x = FlxG.width - previewHealthBarBG.width - mobPadding;
 			} else {
 				previewHealthBarBG.screenCenter(0x01);
 			}
@@ -292,11 +297,28 @@ class CleanHealthBar extends KassetteHUDElement {
 				state.healthBarBG.updateHitbox();
 			}
 
+			var isMobPC = true;
+			if (KssetteOptionsManager.instance != null) isMobPC = KssetteOptionsManager.instance.isMobileLikePC();
+
 			var posPref = _cPosPref;
+			var mobPaddingLeft = !isMobPC ? 180.0 : 90.0;
+			var mobPaddingRight = !isMobPC ? 180.0 : 90.0;
+
+			if (!isMobPC && state != null && state.opponentStrumline != null && state.opponentStrumline.strumlineNotes != null) {
+				var maxOppX = 90.0;
+				for (strum in state.opponentStrumline.strumlineNotes.members) {
+					if (strum != null && strum.exists && strum.visible) {
+						var edge = strum.x + strum.width;
+						if (edge > maxOppX) maxOppX = edge;
+					}
+				}
+				if (maxOppX > 90.0) mobPaddingLeft = maxOppX + 30; // Dynamic padding from rightmost receptor
+			}
+			
 			if (posPref == "Left") {
-				state.healthBarBG.x = 90;
+				state.healthBarBG.x = mobPaddingLeft;
 			} else if (posPref == "Right") {
-				state.healthBarBG.x = FlxG.width - state.healthBarBG.width - 90;
+				state.healthBarBG.x = FlxG.width - state.healthBarBG.width - mobPaddingRight;
 			} else {
 				state.healthBarBG.screenCenter(0x01);
 			}

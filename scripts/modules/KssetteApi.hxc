@@ -31,6 +31,7 @@ class KssetteApi extends Module {
 		if (optManager == null)
 			return true;
 		var val = optManager.getKssValue("kssette_show_hud");
+		if (val == null) return true; // Default to visible on fresh saves!
 		return val == true || val == "true" || val == "On";
 	}
 
