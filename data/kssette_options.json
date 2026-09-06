@@ -409,7 +409,7 @@
               "options": ["Above Arrows", "Bottom Left"]
             }
           ],
-          "defaultValue": "Above Arrows"
+          "defaultValue": "Below Score"
         },
         {
           "id": "kssette_intro_pos",

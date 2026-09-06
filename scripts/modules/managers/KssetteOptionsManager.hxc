@@ -38,6 +38,7 @@ class KssetteOptionsManager extends Module {
         forcedValues = ["__dummy__" => null];
         forcedValues.remove("__dummy__");
         loadOptionsJSON();
+        initSettings();
     }
 
     function loadOptionsJSON() {
@@ -87,17 +88,29 @@ class KssetteOptionsManager extends Module {
     public function initSettings() {
         var changed:Bool = false;
 
-        if (optionsData == null || optionsData.categories == null) return;
-        
-        for (cat in optionsData.categories) {
-            if (cat.options == null) continue;
-            for (opt in cat.options) {
-                var key = opt.id;
-                if (key != null && !Save.instance.modOptions.exists(key)) {
-                    var defaultVal:Dynamic = opt.defaultValue != null ? opt.defaultValue : "Off";
-                    Save.instance.modOptions.set(key, defaultVal);
-                    changed = true;
+        for (key in optionKeys) {
+            if (!Save.instance.modOptions.exists(key)) {
+                var defaultVal:Dynamic = "Off";
+                var opt = getOptionDefinition(key);
+
+                if (opt != null) {
+                    var parsedDef = opt?.defaultValue;
+                    if (parsedDef != null) {
+                        defaultVal = parsedDef;
+                    } else {
+                        var opts = opt?.options;
+                        if (opts != null && opts.length > 0) {
+                            defaultVal = opts[0];
+                        }
+                    }
                 }
+
+                if (key == "kssette_ghost_tapping" && FlxG.onMobile) {
+                    defaultVal = "Off";
+                }
+
+                Save.instance.modOptions.set(key, defaultVal);
+                changed = true;
             }
         }
         if (changed) Save.instance.flush();
