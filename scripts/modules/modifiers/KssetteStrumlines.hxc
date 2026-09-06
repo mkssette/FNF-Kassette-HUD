@@ -312,10 +312,8 @@ class KssetteStrumlines extends KHUDModifier {
                 oppStrum.isDownscroll = false;
                 
                 if (lastNudgedStrum != oppStrum) {
-                    var nudgeY:Float = -15.0; 
-                    if (!cachedIsMobPC) {
-                        oppStrum.y += nudgeY;
-                    } else {
+                    if (cachedIsMobPC) {
+                        var nudgeY:Float = -15.0;
                         var nudgeX:Float = -65.0; 
                         oppStrum.y += nudgeY; 
                         oppStrum.x += nudgeX; 
@@ -433,7 +431,7 @@ class KssetteStrumlines extends KHUDModifier {
                     var defaultScale:Float = pixel ? 6.0 : 0.7;
                     targetScale = defaultScale * sizeRatio;
                 } else {
-                    var noteScaleMul:Float = pixel ? 6.0 : 0.8;
+                    var noteScaleMul:Float = pixel ? 6.0 : 0.7;
                     targetScale = opp.strumlineScale.x * noteScaleMul;
                 }
                 
@@ -599,20 +597,81 @@ class KssetteStrumlines extends KHUDModifier {
                 var gammodHunter = KassetteHUDDatahunter.gammod;
                 if (gammodHunter != null && gammodHunter.gammodPlayerSide != null) gSide = gammodHunter.gammodPlayerSide;
                 
-                var oppRealWidth:Float = oppStrum.width;
-                var oNotes = oppStrum.strumlineNotes.members;
-                if (oNotes != null && oNotes.length > 0 && oNotes[0] != null && oNotes[oNotes.length - 1] != null) {
-                    oppRealWidth = (oNotes[oNotes.length - 1].x + oNotes[oNotes.length - 1].width) - oNotes[0].x;
+                var pLeft:Float = FlxG.width / 2;
+                var pRight:Float = FlxG.width;
+                if (myStrum != null) {
+                    pLeft = myStrum.x;
+                    pRight = myStrum.x + 448;
+                    var pNotes = myStrum.strumlineNotes.members;
+                    if (pNotes != null && pNotes.length > 0 && pNotes[0] != null) {
+                        pLeft = pNotes[0].x;
+                        var lastN = pNotes[pNotes.length - 1];
+                        if (lastN != null) pRight = lastN.x + lastN.width;
+                    }
                 }
-                if (oppRealWidth <= 0) oppRealWidth = 300; 
 
-                var safeLeft:Float = marginLeft;
-                var safeRight:Float = FlxG.width - oppRealWidth - marginRight;
+                var oNotes = oppStrum.strumlineNotes.members;
+                if (oNotes != null && oNotes.length > 0 && oNotes[0] != null) {
+                    var firstN = oNotes[0];
+                    
+                    var baseScale:Float = 0.7; 
+                    var currentScale:Float = oppStrum.strumlineScale.x;
+                    if (currentScale <= 0) currentScale = baseScale;
+                    
+                    var constantSpacing:Float = Strumline.NOTE_SPACING * baseScale; 
+                    
+                    var simulatedWidth:Float = (constantSpacing * (oNotes.length - 1)) + (firstN.frameWidth * baseScale);
+                    
+                    var margin:Float = 10;
+                    var trueAvailable = gSide == "OPPOSITE" ? (FlxG.width - margin) - (pRight + margin) : (pLeft - margin) - margin;
+                    
+                    var scaleMul = 1.0;
+                    if (trueAvailable < simulatedWidth && trueAvailable > 0) {
+                         scaleMul = trueAvailable / simulatedWidth;
+                         if (scaleMul < 0.6) scaleMul = 0.6;
+                    }
+                    
+                    var targetScale = baseScale * scaleMul;
+                    var applySpacing:Float = Strumline.NOTE_SPACING * targetScale;
+                    
+                    if (Math.abs(currentScale - targetScale) > 0.01) {
+                        oppStrum.strumlineScale.set(targetScale, targetScale);
+                    }
+                    
+                    var targetWidth = (applySpacing * (oNotes.length - 1)) + (firstN.frameWidth * targetScale);
+                    
+                    var safeLeft:Float = marginLeft;
+                    var safeRight:Float = FlxG.width - targetWidth - marginRight;
+                    
+                    var targetX:Float = gSide == "OPPOSITE" ? safeRight : safeLeft;
+                    
+                    if (gSide == "OPPOSITE") {
+                        if (targetX < pRight + margin) {
+                            targetX = pRight + margin;
+                            if (targetX + targetWidth > FlxG.width - margin) {
+                                targetX = FlxG.width - margin - targetWidth;
+                                if (targetX < pRight + margin) targetX = pRight + margin;
+                            }
+                        }
+                    } else {
+                        if (targetX + targetWidth > pLeft - margin) {
+                            targetX = pLeft - margin - targetWidth;
+                            if (targetX < margin) {
+                                targetX = margin;
+                                if (targetX + targetWidth > pLeft - margin) {
+                                    targetX = pLeft - margin - targetWidth;
+                                }
+                            }
+                        }
+                    }
 
-                if (gSide == "OPPOSITE") {
-                    oppStrum.x = safeRight;
-                } else {
-                    oppStrum.x = safeLeft;
+                    oppStrum.x = targetX;
+                    
+                    for (i in 0...oNotes.length) {
+                        if (oNotes[i] != null) {
+                            oNotes[i].x = targetX + (applySpacing * i);
+                        }
+                    }
                 }
             }
             
