@@ -566,7 +566,7 @@ class KssetteStrumlines extends KHUDModifier {
                     if (receptor != null) {
                         if (cachedMode == "Glass") receptor.alpha = 0.7;
                         else if (cachedMode == "P Style") receptor.alpha = 0.6 * cachedOppOpacity;
-                        else if (cachedMode == "Hidden Notes" || cachedMode == "Like Mobile") receptor.alpha = 0.0;
+                        else if (cachedMode == "Hidden Notes") receptor.alpha = 0.0;
                         else receptor.alpha = cachedOppOpacity;
                     }
                 }

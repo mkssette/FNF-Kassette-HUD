@@ -188,11 +188,17 @@ class CleanHealthBar extends KassetteHUDElement {
 			if (previewHealthBarFillP2 != null)
 				previewHealthBarFillP2.y = hbY + 2;
 
-			var isMobPC = true;
-			if (KssetteOptionsManager.instance != null) isMobPC = KssetteOptionsManager.instance.isMobileLikePC();
+			var isMobileLayout = false;
+			if (KssetteOptionsManager.instance != null) {
+				if (!KssetteOptionsManager.instance.isMobileLikePC()) {
+					isMobileLayout = true;
+				} else if (KssetteOptionsManager.instance.getKssValue("kssette_middlescroll") == "Like Mobile") {
+					isMobileLayout = true;
+				}
+			}
 
 			var posPref = _cPosPref;
-			var mobPadding = !isMobPC ? 180 : 90;
+			var mobPadding = isMobileLayout ? 180 : 90;
 			
 			if (posPref == "Left") {
 				previewHealthBarBG.x = mobPadding;
@@ -297,14 +303,20 @@ class CleanHealthBar extends KassetteHUDElement {
 				state.healthBarBG.updateHitbox();
 			}
 
-			var isMobPC = true;
-			if (KssetteOptionsManager.instance != null) isMobPC = KssetteOptionsManager.instance.isMobileLikePC();
+			var isMobileLayout = false;
+			if (KssetteOptionsManager.instance != null) {
+				if (!KssetteOptionsManager.instance.isMobileLikePC()) {
+					isMobileLayout = true;
+				} else if (KssetteOptionsManager.instance.getKssValue("kssette_middlescroll") == "Like Mobile") {
+					isMobileLayout = true;
+				}
+			}
 
 			var posPref = _cPosPref;
-			var mobPaddingLeft = !isMobPC ? 180.0 : 90.0;
-			var mobPaddingRight = !isMobPC ? 180.0 : 90.0;
+			var mobPaddingLeft = isMobileLayout ? 180.0 : 90.0;
+			var mobPaddingRight = isMobileLayout ? 180.0 : 90.0;
 
-			if (!isMobPC && state != null && state.opponentStrumline != null && state.opponentStrumline.strumlineNotes != null) {
+			if (isMobileLayout && state != null && state.opponentStrumline != null && state.opponentStrumline.strumlineNotes != null) {
 				var maxOppX = 90.0;
 				for (strum in state.opponentStrumline.strumlineNotes.members) {
 					if (strum != null && strum.exists && strum.visible) {

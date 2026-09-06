@@ -146,9 +146,16 @@ class CleanScoreAcc extends KassetteHUDElement {
 
         var targetY = atTop ? FlxG.height * 0.1 : FlxG.height * 0.9 - 48;
         
-        var isMobPC = true;
-        if (KssetteOptionsManager.instance != null) isMobPC = KssetteOptionsManager.instance.isMobileLikePC();
-        if (!isMobPC && atTop) {
+        var isMobileLayout = false;
+        if (KssetteOptionsManager.instance != null) {
+            if (!KssetteOptionsManager.instance.isMobileLikePC()) {
+                isMobileLayout = true;
+            } else if (KssetteOptionsManager.instance.getKssValue("kssette_middlescroll") == "Like Mobile") {
+                isMobileLayout = true;
+            }
+        }
+        
+        if (isMobileLayout && atTop) {
             targetY += 80; // Push down to avoid top-left opponent receptors
         }
 
