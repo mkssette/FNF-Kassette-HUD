@@ -62,7 +62,7 @@ class KssetteMainManager extends Module {
                     if (modeText.alpha != 1) modeText.alpha = 1;
                     
                     modeText.x -= 200 * event.elapsed;
-                    if (modeText.x + modeText.textWidth < 0) modeText.x = FlxG.width;
+                    if (modeText.x + modeText.width < 0) modeText.x = FlxG.width;
                 } else {
                     if (modeText.visible) modeText.visible = false;
                 }

@@ -482,13 +482,14 @@ class CleanHealthBar extends KassetteHUDElement {
 		var targetAlpha = 1.0;
 		if (cachedActive) {
 			var checkOverlap = false;
-			var hbRect = state.healthBarBG.getScreenBounds();
+			var hbRect = (state.healthBarBG != null && state.camHUD != null) ? state.healthBarBG.getScreenBounds(null, state.camHUD) : null;
 			if (hbRect != null) {
 				// Check Strumlines
 				if (state != null && state.strumLineNotes != null) {
 					for (strum in state.strumLineNotes.members) {
 						if (strum != null && strum.exists && strum.visible) {
-							var strumRect = strum.getScreenBounds();
+							if (state.camHUD == null) continue;
+							var strumRect = strum.getScreenBounds(null, state.camHUD);
 							if (strumRect != null && hbRect.overlaps(strumRect)) {
 								checkOverlap = true;
 								break;
