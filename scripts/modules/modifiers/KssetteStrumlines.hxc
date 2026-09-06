@@ -431,7 +431,7 @@ class KssetteStrumlines extends KHUDModifier {
                     var defaultScale:Float = pixel ? 6.0 : 0.7;
                     targetScale = defaultScale * sizeRatio;
                 } else {
-                    var noteScaleMul:Float = pixel ? 6.0 : 0.7;
+                    var noteScaleMul:Float = pixel ? 6.0 : (!cachedIsMobPC ? 0.7 : 0.8);
                     targetScale = opp.strumlineScale.x * noteScaleMul;
                 }
                 
