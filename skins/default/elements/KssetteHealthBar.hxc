@@ -26,7 +26,6 @@ package kassettehud.util;
  *   - KssetteApi.extractIconColor() - samples dominant color from icon sprite
  *   - KssetteApi.cachedP1Scale/P2Scale/P1Bop/P2Bop - icon scale and bop data
  */
-
 import funkin.modding.module.ModuleHandler;
 import funkin.play.PlayState;
 import flixel.FlxG;
@@ -46,421 +45,476 @@ import kassettehud.util.KssetteOptionsManager;
 import kassettehud.util.KassetteHUDDatahunter;
 
 class KssetteHealthBar extends KassetteHUDElement {
-    /** Last known character ID for P1 icon; used to detect icon changes. */
-    var _lastP1Id:String = "";
-    /** Last known character ID for P2 icon; used to detect icon changes. */
-    var _lastP2Id:String = "";
-    /** Cached dominant color for P1 (player) health bar half. */
-    var _p1Color:Int = 0xFF66FF33;
-    /** Cached dominant color for P2 (opponent) health bar half. */
-    var _p2Color:Int = 0xFFFF0000;
+	/** Last known character ID for P1 icon; used to detect icon changes. */
+	var _lastP1Id:String = "";
 
-    var previewHealthBarBG:FlxSprite;
-    var previewHealthBarFillP1:FlxSprite;
-    var previewHealthBarFillP2:FlxSprite;
-    var previewIconP1:FlxSprite;
-    var previewIconP2:FlxSprite;
-    var previewCam:FlxCamera;
-    var previewBopTimer:Float = 0;
-    var _lastPreviewBeat:Int = -1;
-    
-    // Datahunters
-    var songHunter:Dynamic = null;
-    var gammodHunter:Dynamic = null;
-    var iconHunter:Dynamic = null;
-    var optManager:Dynamic = null;
-    
-    public function new() {
-        super("KssetteHealthBar");
-        this.name = "KssetteHealthBar";
-    }
+	/** Last known character ID for P2 icon; used to detect icon changes. */
+	var _lastP2Id:String = "";
 
-    override public function buildPreview(cam:FlxCamera) {
-        isPreview = true;
-        previewCam = cam;
+	/** Cached dominant color for P1 (player) health bar half. */
+	var _p1Color:Int = 0xFF66FF33;
 
-        previewHealthBarBG = new FlxSprite(0, FlxG.height * 0.89);
-        try {
-            previewHealthBarBG.loadGraphic(Paths.image('healthBar'));
-        } catch(e:Dynamic) {
-            previewHealthBarBG.makeGraphic(601, 19, 0xFF000000);
-        }
-        previewHealthBarBG.screenCenter(0x01);
-        previewHealthBarBG.scrollFactor.set(0, 0);
-        safeAdd(previewHealthBarBG, cam);
+	/** Cached dominant color for P2 (opponent) health bar half. */
+	var _p2Color:Int = 0xFFFF0000;
 
-        var fw = Std.int((previewHealthBarBG.width - 8) / 2);
-        var fh = Std.int(previewHealthBarBG.height - 8);
+	var previewHealthBarBG:FlxSprite;
+	var previewHealthBarFillP1:FlxSprite;
+	var previewHealthBarFillP2:FlxSprite;
+	var previewIconP1:FlxSprite;
+	var previewIconP2:FlxSprite;
+	var previewCam:FlxCamera;
+	var previewBopTimer:Float = 0;
+	var _lastPreviewBeat:Int = -1;
 
-        previewHealthBarFillP2 = new FlxSprite(previewHealthBarBG.x + 4, previewHealthBarBG.y + 4).makeGraphic(fw, fh, 0xFFFFFFFF);
-        previewHealthBarFillP2.color = 0xFFFF0000;
-        previewHealthBarFillP2.scrollFactor.set(0, 0);
-        safeAdd(previewHealthBarFillP2, cam);
+	// Datahunters
+	var songHunter:Dynamic = null;
+	var gammodHunter:Dynamic = null;
+	var iconHunter:Dynamic = null;
+	var optManager:Dynamic = null;
 
-        previewHealthBarFillP1 = new FlxSprite(previewHealthBarBG.x + 4 + fw, previewHealthBarBG.y + 4).makeGraphic(fw, fh, 0xFFFFFFFF);
-        previewHealthBarFillP1.color = 0xFF66FF33;
-        previewHealthBarFillP1.scrollFactor.set(0, 0);
-        safeAdd(previewHealthBarFillP1, cam);
+	public function new() {
+		super("KssetteHealthBar");
+		this.name = "KssetteHealthBar";
+	}
 
-        previewIconP1 = new FlxSprite();
-        try {
-            previewIconP1.loadGraphic(Paths.image('icons/icon-bf'), true, 150, 150);
-            previewIconP1.animation.add('icon', [0, 1], 0, false, false);
-            previewIconP1.animation.play('icon');
-            previewIconP1.updateHitbox();
-        } catch(e:Dynamic) {}
-        previewIconP1.flipX = true;
-        previewIconP1.scrollFactor.set(0, 0);
-        safeAdd(previewIconP1, cam);
+	override public function buildPreview(cam:FlxCamera) {
+		isPreview = true;
+		previewCam = cam;
 
-        previewIconP2 = new FlxSprite();
-        try {
-            previewIconP2.loadGraphic(Paths.image('icons/icon-dad'), true, 150, 150);
-            previewIconP2.animation.add('icon', [0, 1], 0, false, false);
-            previewIconP2.animation.play('icon');
-            previewIconP2.updateHitbox();
-        } catch(e:Dynamic) {}
-        previewIconP2.scrollFactor.set(0, 0);
-        safeAdd(previewIconP2, cam);
-        
-        previewHealthBarFillP2.zIndex = 111;
-        previewHealthBarFillP1.zIndex = 111;
-        previewHealthBarBG.zIndex = 110;
-        previewIconP1.zIndex = 112;
-        previewIconP2.zIndex = 112;
-    }
-    
-    var _cPosPref:String = "Center";
-    var _cColored:Bool = true;
-    var _cIsCorners:Bool = false;
-    
-    function updateSettings() {
-        _cPosPref = getSettingString("kssette_healthbar_position", "Center");
-        _cColored = getSettingBool("kssette_colored_healthbar");
-        _cIsCorners = getSettingString("kssette_icon_pos", "Vanilla") == "Corners";
-    }
+		previewHealthBarBG = new FlxSprite(0, FlxG.height * 0.89);
+		try {
+			previewHealthBarBG.loadGraphic(Paths.image('healthBar'));
+		} catch (e:Dynamic) {
+			previewHealthBarBG.makeGraphic(601, 19, 0xFF000000);
+		}
+		previewHealthBarBG.screenCenter(0x01);
+		previewHealthBarBG.scrollFactor.set(0, 0);
+		safeAdd(previewHealthBarBG, cam);
 
-    override public function updatePreview() {
-        updateSettings();
-        onUpdate(0);
-    }
-    override function onCountdownStart(event) {
-        isPreview = false;
-        updateSettings();
-        
-        var optManager = KssetteOptionsManager.instance;
-        if (optManager == null) return;
-        
-        iconHunter = KassetteHUDDatahunter.icon;
-        gammodHunter = KassetteHUDDatahunter.gammod;
+		var fw = Std.int((previewHealthBarBG.width - 8) / 2);
+		var fh = Std.int(previewHealthBarBG.height - 8);
 
-        _lastP1Id = "";
-        _lastP2Id = "";
+		previewHealthBarFillP2 = new FlxSprite(previewHealthBarBG.x + 4, previewHealthBarBG.y + 4).makeGraphic(fw, fh, 0xFFFFFFFF);
+		previewHealthBarFillP2.color = 0xFFFF0000;
+		previewHealthBarFillP2.scrollFactor.set(0, 0);
+		safeAdd(previewHealthBarFillP2, cam);
 
-        var state = PlayState.instance;
-        if (state == null) return;
+		previewHealthBarFillP1 = new FlxSprite(previewHealthBarBG.x + 4 + fw, previewHealthBarBG.y + 4).makeGraphic(fw, fh, 0xFFFFFFFF);
+		previewHealthBarFillP1.color = 0xFF66FF33;
+		previewHealthBarFillP1.scrollFactor.set(0, 0);
+		safeAdd(previewHealthBarFillP1, cam);
 
-        // Re-add health bar components to the end to ensure correct draw order.
-        if (state.healthBarBG != null) { state.healthBarBG.zIndex = 110; state.remove(state.healthBarBG, true); state.add(state.healthBarBG); }
-        if (state.healthBar   != null) { state.healthBar.zIndex   = 111; state.remove(state.healthBar,   true); state.add(state.healthBar);   }
-        if (state.iconP1      != null) { state.iconP1.zIndex      = 112; state.remove(state.iconP1,      true); state.add(state.iconP1);      }
-        if (state.iconP2      != null) { state.iconP2.zIndex      = 112; state.remove(state.iconP2,      true); state.add(state.iconP2);      }
-    }
+		previewIconP1 = new FlxSprite();
+		try {
+			previewIconP1.loadGraphic(Paths.image('icons/icon-bf'), true, 150, 150);
+			previewIconP1.animation.add('icon', [0, 1], 0, false, false);
+			previewIconP1.animation.play('icon');
+			previewIconP1.updateHitbox();
+		} catch (e:Dynamic) {}
+		previewIconP1.flipX = true;
+		previewIconP1.scrollFactor.set(0, 0);
+		safeAdd(previewIconP1, cam);
 
-    /**
-     * Per-frame update. Handles three responsibilities:
-     *   1. Health bar coloring — recolors the bar when icon IDs change.
-     *   2. Solo mode — hides P2 icon and flips the bar if there is no opponent.
-     *   3. Icon positioning — manages "Corners" placement and scale interpolation.
-     */
-    override function onUpdate(event:Dynamic) {
-        var elapsed:Float = (Std.isOfType(event, Float)) ? event : (event != null ? event.elapsed : 0);
-        
-        if (isPreview) {
-            if (previewHealthBarBG == null || !previewHealthBarBG.exists) return;
-            
-            var cachedActive = isHudVisible();
-            previewHealthBarBG.visible = cachedActive;
-            if (previewHealthBarFillP1 != null) previewHealthBarFillP1.visible = cachedActive;
-            if (previewHealthBarFillP2 != null) previewHealthBarFillP2.visible = cachedActive;
-            if (previewIconP1 != null) previewIconP1.visible = cachedActive;
-            if (previewIconP2 != null) previewIconP2.visible = cachedActive;
+		previewIconP2 = new FlxSprite();
+		try {
+			previewIconP2.loadGraphic(Paths.image('icons/icon-dad'), true, 150, 150);
+			previewIconP2.animation.add('icon', [0, 1], 0, false, false);
+			previewIconP2.animation.play('icon');
+			previewIconP2.updateHitbox();
+		} catch (e:Dynamic) {}
+		previewIconP2.scrollFactor.set(0, 0);
+		safeAdd(previewIconP2, cam);
 
-            var hbY = isDownscroll() ? FlxG.height * 0.11 : FlxG.height * 0.89;
-            previewHealthBarBG.y = hbY;
-            if (previewHealthBarFillP1 != null) previewHealthBarFillP1.y = hbY + 4;
-            if (previewHealthBarFillP2 != null) previewHealthBarFillP2.y = hbY + 4;
+		previewHealthBarFillP2.zIndex = 111;
+		previewHealthBarFillP1.zIndex = 111;
+		previewHealthBarBG.zIndex = 110;
+		previewIconP1.zIndex = 112;
+		previewIconP2.zIndex = 112;
+	}
 
-            var posPref = _cPosPref;
-            if (posPref == "Left") {
-                previewHealthBarBG.x = 90;
-            } else if (posPref == "Right") {
-                previewHealthBarBG.x = FlxG.width - previewHealthBarBG.width - 90;
-            } else {
-                previewHealthBarBG.screenCenter(0x01); // X-axis
-            }
+	var _cPosPref:String = "Center";
+	var _cColored:Bool = true;
+	var _cIsCorners:Bool = false;
 
-            var coloredHB = _cColored;
-            var p1Color = 0xFF66FF33; 
-            var p2Color = 0xFFFF0000;
-            
-            if (coloredHB) {
-                p1Color = 0xFF31B0D1; 
-                p2Color = 0xFFAF66CE; 
-            }
+	function updateSettings() {
+		_cPosPref = getSettingString("kssette_healthbar_position", "Center");
+		_cColored = getSettingBool("kssette_colored_healthbar");
+		_cIsCorners = getSettingString("kssette_icon_pos", "Vanilla") == "Corners";
+	}
 
-            if (previewHealthBarFillP1 != null) previewHealthBarFillP1.color = p1Color;
-            if (previewHealthBarFillP2 != null) previewHealthBarFillP2.color = p2Color;
-            
-            var fw = Std.int((previewHealthBarBG.width - 8) / 2);
-            if (previewHealthBarFillP1 != null) previewHealthBarFillP1.x = previewHealthBarBG.x + 4 + fw;
-            if (previewHealthBarFillP2 != null) previewHealthBarFillP2.x = previewHealthBarBG.x + 4;
-            
-            var centerY = previewHealthBarBG.y + (previewHealthBarBG.height / 2);
-            
-            if (previewIconP1 != null && previewIconP2 != null) {
-                // Use a clean timer for preview beats to avoid Conductor songPosition jitter causing double-bops.
-                previewBopTimer += elapsed;
-                
-                var beatSeconds = 60.0 / 102.0; // Fallback to 102 BPM
-                if (Conductor.instance != null && Conductor.instance.crochet > 0) {
-                    beatSeconds = Conductor.instance.crochet / 1000.0; // Conductor.crochet is in ms
-                }
-                
-                var currentBeat = Math.floor(previewBopTimer / (beatSeconds * 2.0));
-                
-                if (currentBeat != _lastPreviewBeat) {
-                    _lastPreviewBeat = currentBeat;
-                    previewIconP1.scale.set(1.2, 1.2);
-                    previewIconP2.scale.set(1.2, 1.2);
-                    
-                    try {
-                        FlxTween.cancelTweensOf(previewIconP1.scale);
-                        FlxTween.cancelTweensOf(previewIconP2.scale);
-                        FlxTween.tween(previewIconP1.scale, {x: 1.0, y: 1.0}, 0.35, {ease: FlxEase.quadOut});
-                        FlxTween.tween(previewIconP2.scale, {x: 1.0, y: 1.0}, 0.35, {ease: FlxEase.quadOut});
-                    } catch(e:Dynamic) {}
-                }
-            }
-            
-            if (previewIconP1 != null && previewIconP2 != null) {
-                // Do NOT call updateHitbox() here, as it shifts the sprite's X/Y coordinates
-                // on raw FlxSprites during scaling, causing a "weird bounce".
-                
-                // Use a constant width/height for positioning calculations (150 is standard icon frame size)
-                var iconSize = 150.0;
-                
-                if (_cIsCorners) {
-                    previewIconP1.x = previewHealthBarBG.x + previewHealthBarBG.width + 75 - iconSize;
-                    previewIconP1.flipX = true;
-                    previewIconP1.y = centerY + 75 - iconSize;
-                    
-                    previewIconP2.x = previewHealthBarBG.x + 75 - iconSize;
-                    previewIconP2.flipX = false;
-                    previewIconP2.y = centerY + 75 - iconSize;
-                } else {
-                    previewIconP1.x = previewHealthBarBG.x + fw - 26;
-                    previewIconP1.flipX = true;
-                    previewIconP1.y = previewHealthBarBG.y - (iconSize / 2) + 10;
-                    
-                    previewIconP2.x = previewHealthBarBG.x + fw - (iconSize - 26);
-                    previewIconP2.flipX = false;
-                    previewIconP2.y = previewHealthBarBG.y - (iconSize / 2) + 10;
-                }
-            }
-            return;
-        }
+	override public function updatePreview() {
+		updateSettings();
+		onUpdate(0);
+	}
 
-        var state = PlayState.instance;
-        if (state == null || optManager == null) return;
+	override function onCountdownStart(event) {
+		isPreview = false;
+		updateSettings();
 
-        var p1 = state.iconP1;
-        var p2 = state.iconP2;
-        var curP1:String = "none1";
-        var curP2:String = "none2";
+		var optManager = KssetteOptionsManager.instance;
+		if (optManager == null)
+			return;
 
-        // Read character IDs from current icons using safe access `?`.
-        var id1 = p1?.characterId;
-        if (id1 == null) id1 = p1?.iconId;
-        if (id1 != null) curP1 = Std.string(id1);
+		iconHunter = KassetteHUDDatahunter.icon;
+		gammodHunter = KassetteHUDDatahunter.gammod;
 
-        var id2 = p2?.characterId;
-        if (id2 == null) id2 = p2?.iconId;
-        if (id2 != null) curP2 = Std.string(id2);
+		_lastP1Id = "";
+		_lastP2Id = "";
 
-        // --- HEALTH BAR COLORING LOGIC ---
-        var gammodPlayerSide:String = (gammodHunter != null && gammodHunter.gammodPlayerSide != null) ? gammodHunter.gammodPlayerSide : "NORMAL";
-        
-        // Determine solo mode: no opponent, opponent is "none", or P1 and P2 share the same icon.
-        var dadObj = state.currentStage?.getDad();
-        var isSolo:Bool = (dadObj == null) || (dadObj?.characterId == "none");
-        if (curP1 == curP2 && curP1 != "none1" && curP1 != "") isSolo = true;
+		var state = PlayState.instance;
+		if (state == null)
+			return;
 
-        if (state.iconP2 != null) {
-            state.iconP2.visible = !isSolo;
-            if (isSolo) state.iconP2.alpha = 0;
-        }
-        
-        var hb = state.healthBar;
-        if (hb != null && state.healthBarBG != null) {
-            var posPref = _cPosPref;
-            if (posPref == "Left") {
-                state.healthBarBG.x = 90;
-            } else if (posPref == "Right") {
-                state.healthBarBG.x = FlxG.width - state.healthBarBG.width - 90;
-            } else {
-                state.healthBarBG.screenCenter(0x01);
-            }
-            hb.x = state.healthBarBG.x + 4;
-            
-            if (isSolo) {
-                hb.flipX = true;
-            } else {
-                hb.flipX = false;
-            }
-        }
+		// Re-add health bar components to the end to ensure correct draw order.
+		if (state.healthBarBG != null) {
+			state.healthBarBG.zIndex = 110;
+			state.remove(state.healthBarBG, true);
+			state.add(state.healthBarBG);
+		}
+		if (state.healthBar != null) {
+			state.healthBar.zIndex = 111;
+			state.remove(state.healthBar, true);
+			state.add(state.healthBar);
+		}
+		if (state.iconP1 != null) {
+			state.iconP1.zIndex = 112;
+			state.remove(state.iconP1, true);
+			state.add(state.iconP1);
+		}
+		if (state.iconP2 != null) {
+			state.iconP2.zIndex = 112;
+			state.remove(state.iconP2, true);
+			state.add(state.iconP2);
+		}
+	}
 
-        if (_cColored) {
-            
-            if (p1 != null && p2 != null && hb != null) {
-                // Only resample colors when the active icons change.
-                if (curP1 != _lastP1Id || curP2 != _lastP2Id) {
-                    _lastP1Id = curP1;
-                    _lastP2Id = curP2;
-                    
-                    _p1Color = iconHunter != null ? iconHunter.extractIconColor(p1, true, curP1) : 0xFF66FF33;
-                    _p2Color = iconHunter != null ? iconHunter.extractIconColor(p2, false, curP2) : 0xFFFF0000;
-                    
-                    // Apply colors centrally via Datahunter
-                    if (iconHunter != null) {
-                        iconHunter.applyHealthBarColors(hb, isSolo, _p1Color, _p2Color);
-                    } else {
-                        if (isSolo) hb.createFilledBar(FlxColor.BLACK, _p1Color);
-                        else hb.createFilledBar(_p2Color, _p1Color);
-                    }
-                    hb.updateBar();
-                }
-            }
-        } else if (_lastP1Id != "") {
-            // The feature was disabled — restore default green/red colors.
+	/**
+	 * Per-frame update. Handles three responsibilities:
+	 *   1. Health bar coloring — recolors the bar when icon IDs change.
+	 *   2. Solo mode — hides P2 icon and flips the bar if there is no opponent.
+	 *   3. Icon positioning — manages "Corners" placement and scale interpolation.
+	 */
+	override function onUpdate(event:Dynamic) {
+		var elapsed:Float = (Std.isOfType(event, Float)) ? event : (event != null ? event.elapsed : 0);
 
-            _lastP1Id = "";
-            _lastP2Id = "";
-            if (hb != null) {
-                var defP1 = iconHunter != null ? iconHunter.getIconColor(null, 0xFF66FF33, true) : 0xFF66FF33;
-                var defP2 = iconHunter != null ? iconHunter.getIconColor(null, 0xFFFF0000, false) : 0xFFFF0000;
-                
-                if (iconHunter != null) {
-                    iconHunter.applyHealthBarColors(hb, isSolo, defP1, defP2);
-                } else {
-                    if (isSolo) hb.createFilledBar(FlxColor.BLACK, defP1);
-                    else hb.createFilledBar(defP2, defP1);
-                }
-                hb.updateBar();
-            }
+		if (isPreview) {
+			if (previewHealthBarBG == null || !previewHealthBarBG.exists)
+				return;
+
+			var cachedActive = isHudVisible();
+			previewHealthBarBG.visible = cachedActive;
+			if (previewHealthBarFillP1 != null)
+				previewHealthBarFillP1.visible = cachedActive;
+			if (previewHealthBarFillP2 != null)
+				previewHealthBarFillP2.visible = cachedActive;
+			if (previewIconP1 != null)
+				previewIconP1.visible = cachedActive;
+			if (previewIconP2 != null)
+				previewIconP2.visible = cachedActive;
+
+			var hbY = isDownscroll() ? FlxG.height * 0.11 : FlxG.height * 0.89;
+			previewHealthBarBG.y = hbY;
+			if (previewHealthBarFillP1 != null)
+				previewHealthBarFillP1.y = hbY + 4;
+			if (previewHealthBarFillP2 != null)
+				previewHealthBarFillP2.y = hbY + 4;
+
+			var posPref = _cPosPref;
+			if (posPref == "Left") {
+				previewHealthBarBG.x = 90;
+			} else if (posPref == "Right") {
+				previewHealthBarBG.x = FlxG.width - previewHealthBarBG.width - 90;
+			} else {
+				previewHealthBarBG.screenCenter(0x01); // X-axis
+			}
+
+			var coloredHB = _cColored;
+			var p1Color = 0xFF66FF33;
+			var p2Color = 0xFFFF0000;
+
+			if (coloredHB) {
+				p1Color = 0xFF31B0D1;
+				p2Color = 0xFFAF66CE;
+			}
+
+			if (previewHealthBarFillP1 != null)
+				previewHealthBarFillP1.color = p1Color;
+			if (previewHealthBarFillP2 != null)
+				previewHealthBarFillP2.color = p2Color;
+
+			var fw = Std.int((previewHealthBarBG.width - 8) / 2);
+			if (previewHealthBarFillP1 != null)
+				previewHealthBarFillP1.x = previewHealthBarBG.x + 4 + fw;
+			if (previewHealthBarFillP2 != null)
+				previewHealthBarFillP2.x = previewHealthBarBG.x + 4;
+
+			var centerY = previewHealthBarBG.y + (previewHealthBarBG.height / 2);
+
+			if (previewIconP1 != null && previewIconP2 != null) {
+				// Use a clean timer for preview beats to avoid Conductor songPosition jitter causing double-bops.
+				previewBopTimer += elapsed;
+
+				var beatSeconds = 60.0 / 102.0; // Fallback to 102 BPM
+				if (Conductor.instance != null && Conductor.instance.crochet > 0) {
+					beatSeconds = Conductor.instance.crochet / 1000.0; // Conductor.crochet is in ms
+				}
+
+				var currentBeat = Math.floor(previewBopTimer / (beatSeconds * 2.0));
+
+				if (currentBeat != _lastPreviewBeat) {
+					_lastPreviewBeat = currentBeat;
+					previewIconP1.scale.set(1.2, 1.2);
+					previewIconP2.scale.set(1.2, 1.2);
+
+					try {
+						FlxTween.cancelTweensOf(previewIconP1.scale);
+						FlxTween.cancelTweensOf(previewIconP2.scale);
+						FlxTween.tween(previewIconP1.scale, {x: 1.0, y: 1.0}, 0.35, {ease: FlxEase.quadOut});
+						FlxTween.tween(previewIconP2.scale, {x: 1.0, y: 1.0}, 0.35, {ease: FlxEase.quadOut});
+					} catch (e:Dynamic) {}
+				}
+			}
+
+			if (previewIconP1 != null && previewIconP2 != null) {
+				// Do NOT call updateHitbox() here, as it shifts the sprite's X/Y coordinates
+				// on raw FlxSprites during scaling, causing a "weird bounce".
+
+				// Use a constant width/height for positioning calculations (150 is standard icon frame size)
+				var iconSize = 150.0;
+
+				if (_cIsCorners) {
+					previewIconP1.x = previewHealthBarBG.x + previewHealthBarBG.width + 75 - iconSize;
+					previewIconP1.flipX = true;
+					previewIconP1.y = centerY + 75 - iconSize;
+
+					previewIconP2.x = previewHealthBarBG.x + 75 - iconSize;
+					previewIconP2.flipX = false;
+					previewIconP2.y = centerY + 75 - iconSize;
+				} else {
+					previewIconP1.x = previewHealthBarBG.x + fw - 26;
+					previewIconP1.flipX = true;
+					previewIconP1.y = previewHealthBarBG.y - (iconSize / 2) + 10;
+
+					previewIconP2.x = previewHealthBarBG.x + fw - (iconSize - 26);
+					previewIconP2.flipX = false;
+					previewIconP2.y = previewHealthBarBG.y - (iconSize / 2) + 10;
+				}
+			}
+			return;
+		}
+
+		var state = PlayState.instance;
+		if (state == null || optManager == null)
+			return;
+
+		var p1 = state.iconP1;
+		var p2 = state.iconP2;
+		var curP1:String = "none1";
+		var curP2:String = "none2";
+
+		// Read character IDs from current icons using safe access `?`.
+		var id1 = p1?.characterId;
+		if (id1 == null)
+			id1 = p1?.iconId;
+		if (id1 != null)
+			curP1 = Std.string(id1);
+
+		var id2 = p2?.characterId;
+		if (id2 == null)
+			id2 = p2?.iconId;
+		if (id2 != null)
+			curP2 = Std.string(id2);
+
+		// --- HEALTH BAR COLORING LOGIC ---
+		var gammodPlayerSide:String = (gammodHunter != null && gammodHunter.gammodPlayerSide != null) ? gammodHunter.gammodPlayerSide : "NORMAL";
+
+        var isSolo:Bool = false;
+        if (KassetteHUDDatahunter.song != null) {
+            isSolo = KassetteHUDDatahunter.song.isSoloMode();
         }
 
-        // --- ICON POSITIONING LOGIC ---
-        var isCorners = _cIsCorners;
-        
-        if ((isCorners || isSolo) && state.healthBarBG != null && state.healthBar != null && state.iconP1 != null) {
-            state.iconP1.autoUpdate = false;
-            if (state.iconP2 != null) state.iconP2.autoUpdate = false;
-            
-            state.iconP1.isLegacyStyle = false;
-            if (state.iconP2 != null) state.iconP2.isLegacyStyle = false;
+		if (state.iconP2 != null) {
+			state.iconP2.visible = !isSolo;
+			if (isSolo)
+				state.iconP2.alpha = 0;
+		}
 
-            var lerpFactor = 1.0 - (elapsed * 15.0);
-            if (lerpFactor < 0) lerpFactor = 0;
-            
-            var p1Scale:Float = 1.0;
-            if (iconHunter != null) p1Scale = iconHunter.cachedP1Scale;
-            state.iconP1.scale.x = p1Scale + ((state.iconP1.scale.x - p1Scale) * lerpFactor);
-            state.iconP1.scale.y = p1Scale + ((state.iconP1.scale.y - p1Scale) * lerpFactor);
-            
-            if (state.iconP2 != null) {
-                var p2Scale:Float = 1.0;
-                if (iconHunter != null) p2Scale = iconHunter.cachedP2Scale;
-                state.iconP2.scale.x = p2Scale + ((state.iconP2.scale.x - p2Scale) * lerpFactor);
-                state.iconP2.scale.y = p2Scale + ((state.iconP2.scale.y - p2Scale) * lerpFactor);
-            }
+		var hb = state.healthBar;
+		if (hb != null && state.healthBarBG != null) {
+			var posPref = _cPosPref;
+			if (posPref == "Left") {
+				state.healthBarBG.x = 90;
+			} else if (posPref == "Right") {
+				state.healthBarBG.x = FlxG.width - state.healthBarBG.width - 90;
+			} else {
+				state.healthBarBG.screenCenter(0x01);
+			}
+			hb.x = state.healthBarBG.x + 4;
 
-            var hp1 = state.health;
-            var hp2 = 2.0 - state.health;
-            
-            if (gammodPlayerSide == "OPPOSITE") {
-                hp1 = 2.0 - state.health;
-                hp2 = state.health;
-            }
+			if (isSolo) {
+				hb.flipX = true;
+			} else {
+				hb.flipX = false;
+			}
+		}
 
-            state.iconP1.updateHealthIcon(hp1);
-            if (state.iconP2 != null) state.iconP2.updateHealthIcon(hp2);
+		if (_cColored) {
+			if (p1 != null && p2 != null && hb != null) {
+				// Only resample colors when the active icons change.
+				if (curP1 != _lastP1Id || curP2 != _lastP2Id) {
+					_lastP1Id = curP1;
+					_lastP2Id = curP2;
 
-            state.iconP1.updateHitbox();
-            if (state.iconP2 != null) state.iconP2.updateHitbox();
+					_p1Color = iconHunter != null ? iconHunter.extractIconColor(p1, true, curP1) : 0xFF66FF33;
+					_p2Color = iconHunter != null ? iconHunter.extractIconColor(p2, false, curP2) : 0xFFFF0000;
 
-            var centerY = state.healthBar.y + (state.healthBar.height / 2);
-            
-            if (isSolo) {
-                state.iconP1.x = state.healthBarBG.x - (state.iconP1.width / 2);
-                state.iconP1.flipX = false;
-            } else if (isCorners) {
-                state.iconP1.x = state.healthBarBG.x + state.healthBarBG.width - (state.iconP1.width / 2);
-                state.iconP1.flipX = true;
-            }
-            
-            if (state.iconP2 != null) {
-                state.iconP2.x = state.healthBarBG.x - (state.iconP2.width / 2);
-                state.iconP2.y = centerY - (state.iconP2.height / 2);
-            }
-            
-            state.iconP1.y = centerY - (state.iconP1.height / 2);
-            
-            if (isSolo && hp1 < 0.4) {
-                // Show the loss animation frame when health is critical in solo mode.
-                var curAnim = state.iconP1?.animation?.curAnim;
-                if (curAnim != null) curAnim.curFrame = 1;
-            }
-        } else if (state.iconP1 != null && state.iconP2 != null) {
-            if (state.iconP1.autoUpdate == false) state.iconP1.autoUpdate = true;
-            if (state.iconP2.autoUpdate == false) state.iconP2.autoUpdate = true;
-            state.iconP1.isLegacyStyle = true;
-            state.iconP2.isLegacyStyle = true;
-        }
-    }
+					// Apply colors centrally via Datahunter
+					if (iconHunter != null) {
+						iconHunter.applyHealthBarColors(hb, isSolo, _p1Color, _p2Color);
+					} else {
+						if (isSolo)
+							hb.createFilledBar(FlxColor.BLACK, _p1Color);
+						else
+							hb.createFilledBar(_p2Color, _p1Color);
+					}
+					hb.updateBar();
+				}
+			}
+		} else if (_lastP1Id != "") {
+			// The feature was disabled — restore default green/red colors.
 
-    /**
-     * Called on every musical step. Triggers a brief scale increase ("bop") on each
-     * health icon when the step matches the icon's configured bop interval.
-     * Only active when "Corners" icon positioning mode is enabled.
-     *
-     * @param event Script event carrying the current step number.
-     */
-    override function onStepHit(event) {
-        var state = PlayState.instance;
-        if (state == null) return;
-        
-        if (_cIsCorners && state.iconP1 != null && state.iconP2 != null) {
-            var iconHunter = KassetteHUDDatahunter.icon;
-            var bop1 = 4;
-            var bop2 = 4;
-            if (iconHunter != null) {
-                bop1 = iconHunter.cachedP1Bop;
-                bop2 = iconHunter.cachedP2Bop;
-            }
-            
-            // Increase scale by 20% on the bop interval; interpolates back to normal in onUpdate.
-            if (bop1 > 0 && event.step % bop1 == 0) {
-                var p1Scale:Float = 1.0;
-                if (iconHunter != null) p1Scale = iconHunter.cachedP1Scale;
-                state.iconP1.scale.set(p1Scale * 1.2, p1Scale * 1.2);
-            }
-            if (bop2 > 0 && event.step % bop2 == 0) {
-                var iconHunter = KassetteHUDDatahunter.icon;
-                var p2Scale:Float = 1.0;
-                if (iconHunter != null) p2Scale = iconHunter.cachedP2Scale;
-                state.iconP2.scale.set(p2Scale * 1.2, p2Scale * 1.2);
-            }
-        }
-    }
+			_lastP1Id = "";
+			_lastP2Id = "";
+			if (hb != null) {
+				var defP1 = iconHunter != null ? iconHunter.getIconColor(null, 0xFF66FF33, true) : 0xFF66FF33;
+				var defP2 = iconHunter != null ? iconHunter.getIconColor(null, 0xFFFF0000, false) : 0xFFFF0000;
+
+				if (iconHunter != null) {
+					iconHunter.applyHealthBarColors(hb, isSolo, defP1, defP2);
+				} else {
+					if (isSolo)
+						hb.createFilledBar(FlxColor.BLACK, defP1);
+					else
+						hb.createFilledBar(defP2, defP1);
+				}
+				hb.updateBar();
+			}
+		}
+
+		// --- ICON POSITIONING LOGIC ---
+		var isCorners = _cIsCorners;
+
+		if ((isCorners || isSolo) && state.healthBarBG != null && state.healthBar != null && state.iconP1 != null) {
+			state.iconP1.autoUpdate = false;
+			if (state.iconP2 != null)
+				state.iconP2.autoUpdate = false;
+
+			state.iconP1.isLegacyStyle = false;
+			if (state.iconP2 != null)
+				state.iconP2.isLegacyStyle = false;
+
+			var lerpFactor = 1.0 - (elapsed * 15.0);
+			if (lerpFactor < 0)
+				lerpFactor = 0;
+
+			var p1Scale:Float = 1.0;
+			if (iconHunter != null)
+				p1Scale = iconHunter.cachedP1Scale;
+			state.iconP1.scale.x = p1Scale + ((state.iconP1.scale.x - p1Scale) * lerpFactor);
+			state.iconP1.scale.y = p1Scale + ((state.iconP1.scale.y - p1Scale) * lerpFactor);
+
+			if (state.iconP2 != null) {
+				var p2Scale:Float = 1.0;
+				if (iconHunter != null)
+					p2Scale = iconHunter.cachedP2Scale;
+				state.iconP2.scale.x = p2Scale + ((state.iconP2.scale.x - p2Scale) * lerpFactor);
+				state.iconP2.scale.y = p2Scale + ((state.iconP2.scale.y - p2Scale) * lerpFactor);
+			}
+
+			var hp1 = state.health;
+			var hp2 = 2.0 - state.health;
+
+			if (gammodPlayerSide == "OPPOSITE") {
+				hp1 = 2.0 - state.health;
+				hp2 = state.health;
+			}
+
+			state.iconP1.updateHealthIcon(hp1);
+			if (state.iconP2 != null)
+				state.iconP2.updateHealthIcon(hp2);
+
+			state.iconP1.updateHitbox();
+			if (state.iconP2 != null)
+				state.iconP2.updateHitbox();
+
+			var centerY = state.healthBar.y + (state.healthBar.height / 2);
+
+			if (isSolo) {
+				state.iconP1.x = state.healthBarBG.x - (state.iconP1.width / 2);
+				state.iconP1.flipX = false;
+			} else if (isCorners) {
+				state.iconP1.x = state.healthBarBG.x + state.healthBarBG.width - (state.iconP1.width / 2);
+				state.iconP1.flipX = true;
+			}
+
+			if (state.iconP2 != null) {
+				state.iconP2.x = state.healthBarBG.x - (state.iconP2.width / 2);
+				state.iconP2.y = centerY - (state.iconP2.height / 2);
+			}
+
+			state.iconP1.y = centerY - (state.iconP1.height / 2);
+
+			if (isSolo && hp1 < 0.4) {
+				// Show the loss animation frame when health is critical in solo mode.
+				var curAnim = state.iconP1?.animation?.curAnim;
+				if (curAnim != null)
+					curAnim.curFrame = 1;
+			}
+		} else if (state.iconP1 != null && state.iconP2 != null) {
+			if (state.iconP1.autoUpdate == false)
+				state.iconP1.autoUpdate = true;
+			if (state.iconP2.autoUpdate == false)
+				state.iconP2.autoUpdate = true;
+			state.iconP1.isLegacyStyle = true;
+			state.iconP2.isLegacyStyle = true;
+		}
+	}
+
+	/**
+	 * Called on every musical step. Triggers a brief scale increase ("bop") on each
+	 * health icon when the step matches the icon's configured bop interval.
+	 * Only active when "Corners" icon positioning mode is enabled.
+	 *
+	 * @param event Script event carrying the current step number.
+	 */
+	override function onStepHit(event) {
+		var state = PlayState.instance;
+		if (state == null)
+			return;
+
+		if (_cIsCorners && state.iconP1 != null && state.iconP2 != null) {
+			var iconHunter = KassetteHUDDatahunter.icon;
+			var bop1 = 4;
+			var bop2 = 4;
+			if (iconHunter != null) {
+				bop1 = iconHunter.cachedP1Bop;
+				bop2 = iconHunter.cachedP2Bop;
+			}
+
+			// Increase scale by 20% on the bop interval; interpolates back to normal in onUpdate.
+			if (bop1 > 0 && event.step % bop1 == 0) {
+				var p1Scale:Float = 1.0;
+				if (iconHunter != null)
+					p1Scale = iconHunter.cachedP1Scale;
+				state.iconP1.scale.set(p1Scale * 1.2, p1Scale * 1.2);
+			}
+			if (bop2 > 0 && event.step % bop2 == 0) {
+				var iconHunter = KassetteHUDDatahunter.icon;
+				var p2Scale:Float = 1.0;
+				if (iconHunter != null)
+					p2Scale = iconHunter.cachedP2Scale;
+				state.iconP2.scale.set(p2Scale * 1.2, p2Scale * 1.2);
+			}
+		}
+	}
 }

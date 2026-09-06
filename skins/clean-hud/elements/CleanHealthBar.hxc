@@ -199,7 +199,7 @@ class CleanHealthBar extends KassetteHUDElement {
 
 			var posPref = _cPosPref;
 			var mobPadding = isMobileLayout ? 180 : 90;
-			
+
 			if (posPref == "Left") {
 				previewHealthBarBG.x = mobPadding;
 			} else if (posPref == "Right") {
@@ -321,12 +321,14 @@ class CleanHealthBar extends KassetteHUDElement {
 				for (strum in state.opponentStrumline.strumlineNotes.members) {
 					if (strum != null && strum.exists && strum.visible) {
 						var edge = strum.x + strum.width;
-						if (edge > maxOppX) maxOppX = edge;
+						if (edge > maxOppX)
+							maxOppX = edge;
 					}
 				}
-				if (maxOppX > 90.0) mobPaddingLeft = maxOppX + 30; // Dynamic padding from rightmost receptor
+				if (maxOppX > 90.0)
+					mobPaddingLeft = maxOppX + 30; // Dynamic padding from rightmost receptor
 			}
-			
+
 			if (posPref == "Left") {
 				state.healthBarBG.x = mobPaddingLeft;
 			} else if (posPref == "Right") {
@@ -355,11 +357,55 @@ class CleanHealthBar extends KassetteHUDElement {
 			state.healthBar.y = barY + ((state.healthBarBG.height - state.healthBar.height) / 2);
 			state.healthBar.zIndex = 1500;
 			state.healthBar.zIndex = 1500;
+
+			if (state.currentStage != null) {
+				var dadObj = state.currentStage.getDad();
+				var p1 = state.iconP1;
+				var p2 = state.iconP2;
+				var curP1:String = "none1";
+				var curP2:String = "none2";
+
+				var id1 = p1 != null ? p1.characterId : null;
+				if (id1 == null && p1 != null)
+					id1 = p1.iconId;
+				if (id1 != null)
+					curP1 = Std.string(id1);
+
+				var id2 = p2 != null ? p2.characterId : null;
+				if (id2 == null && p2 != null)
+					id2 = p2.iconId;
+				if (id2 != null)
+					curP2 = Std.string(id2);
+
+				var isCurrentSolo:Bool = false;
+				if (KassetteHUDDatahunter.song != null) {
+					isCurrentSolo = KassetteHUDDatahunter.song.isSoloMode();
+				}
+				
+				state.healthBar.flipX = isCurrentSolo;
+			}
 		}
 
-		var isSolo = false;
-		if (KassetteHUDDatahunter.gammod != null) {
-			isSolo = KassetteHUDDatahunter.gammod.gammodPlayerSide == "SOLO";
+		var p1 = state.iconP1;
+		var p2 = state.iconP2;
+		var curP1:String = "none1";
+		var curP2:String = "none2";
+
+		var id1 = p1 != null ? p1.characterId : null;
+		if (id1 == null && p1 != null)
+			id1 = p1.iconId;
+		if (id1 != null)
+			curP1 = Std.string(id1);
+
+		var id2 = p2 != null ? p2.characterId : null;
+		if (id2 == null && p2 != null)
+			id2 = p2.iconId;
+		if (id2 != null)
+			curP2 = Std.string(id2);
+
+		var isSolo:Bool = false;
+		if (KassetteHUDDatahunter.song != null) {
+			isSolo = KassetteHUDDatahunter.song.isSoloMode();
 		}
 
 		var centerY = barY + (state.healthBarBG.height / 2);
@@ -410,7 +456,7 @@ class CleanHealthBar extends KassetteHUDElement {
 				state.iconP2.updateHitbox();
 
 			if (isSolo) {
-				state.iconP1.x = barX + (state.healthBarBG.width / 2) - (state.iconP1.width / 2);
+				state.iconP1.x = barX - (state.iconP1.width / 2);
 				state.iconP1.flipX = false;
 			} else {
 				state.iconP1.x = barX + state.healthBarBG.width - (state.iconP1.width / 2);
