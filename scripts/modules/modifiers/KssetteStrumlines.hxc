@@ -175,17 +175,17 @@ class KssetteStrumlines extends KHUDModifier {
         if (state == null) return;
 
         cachedIsArrows = false;
-        var ctrlScheme = "Arrows"; // Fallback like Preferences.hx
-        try { 
+        if (isMobLayout) {
+            var ctrlScheme = "Arrows"; // Fallback like Preferences.hx
             if (Save.instance != null && Save.instance.mobileOptions != null) {
                 if (Save.instance.mobileOptions.controlsScheme != null) {
                     ctrlScheme = Std.string(Save.instance.mobileOptions.controlsScheme);
                 }
             }
-        } catch(e:Dynamic) {}
-        
-        if (ctrlScheme == 'Arrows') {
-            cachedIsArrows = true; // Use true, because we want it to work on PC as well when testing layouts
+            
+            if (ctrlScheme == 'Arrows') {
+                cachedIsArrows = true; // Use true, because we want it to work on PC as well when testing layouts
+            }
         }
 
         cachedIsPixelStyle = false;

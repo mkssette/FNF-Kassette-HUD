@@ -112,16 +112,16 @@ class KassetteHUDElement {
     public static var Z_BACKGROUND_OVERLAYS:Int = 10;  // Vignettes, dark backgrounds (e.g. KassetteNight)
     public static var Z_STRUM_BACKGROUNDS:Int = 20;    // Lane backgrounds (behind HUD)
 
-    // Layer 2: Main HUD Elements
-    public static var Z_HUD_BASE:Int = 30;             // Base panels, backgrounds
-    public static var Z_HUD_MID:Int = 40;              // Standard HUD text, bars, score
-    public static var Z_HUD_FRONT:Int = 50;            // Health icons, important popups
+    // Layer 2: Main HUD Elements (Must be above notes!)
+    public static var Z_HUD_BASE:Int = 1000;             // Base panels, backgrounds
+    public static var Z_HUD_MID:Int = 1100;              // Standard HUD text, bars, score
+    public static var Z_HUD_FRONT:Int = 1200;            // Health icons, important popups
 
-    // Layer 3: Notes (In front of HUD)
+    // Layer 3: Notes (Behind HUD but above backgrounds)
     public static var Z_STRUM_NOTES:Int = 100;         // Receptors and falling notes
 
     // Layer 4: Top Overlays
-    public static var Z_SCREEN_OVERLAYS:Int = 200;     // Intro text, title cards, watermarks
+    public static var Z_SCREEN_OVERLAYS:Int = 2000;     // Intro text, title cards, watermarks
 
     // ==========================================
     // STANDARDIZED UTILITY FUNCTIONS
