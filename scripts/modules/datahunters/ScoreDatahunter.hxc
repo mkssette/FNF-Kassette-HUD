@@ -100,14 +100,10 @@ class ScoreDatahunter extends KassetteHUDDatahunter {
         if (state != null && state.currentChart != null && state.currentChart.notes != null) {
             var count:Int = 0;
             for (note in state.currentChart.notes) {
-                var isPlayer = false;
-                try {
-                    if (note.getMustHitNote() == true) isPlayer = true;
-                } catch(e:Dynamic) {
-                    var d = note?.data;
-                    if (d == null) d = note?.d;
+                var isPlayer = note?.getMustHitNote() ?? note?.mustHitNote ?? false;
+                if (!isPlayer) {
+                    var d = note?.data ?? note?.d;
                     if (d != null && Std.parseInt(Std.string(d)) >= 4) isPlayer = true;
-                    if (note?.mustHitNote == true) isPlayer = true;
                 }
                 if (isPlayer) count++;
             }
@@ -202,44 +198,33 @@ class ScoreDatahunter extends KassetteHUDDatahunter {
     }
 
     public function getSicks():Int {
-        if (Highscore.tallies != null) return Highscore.tallies.sick;
-        return 0;
+        return Highscore.tallies?.sick ?? 0;
     }
     public function getGoods():Int {
-        if (Highscore.tallies != null) return Highscore.tallies.good;
-        return 0;
+        return Highscore.tallies?.good ?? 0;
     }
     public function getBads():Int {
-        if (Highscore.tallies != null) return Highscore.tallies.bad;
-        return 0;
+        return Highscore.tallies?.bad ?? 0;
     }
     public function getShits():Int {
-        if (Highscore.tallies != null) return Highscore.tallies.shit;
-        return 0;
+        return Highscore.tallies?.shit ?? 0;
     }
     public function getMisses():Int {
-        if (Highscore.tallies != null) return Highscore.tallies.missed;
-        return 0;
+        return Highscore.tallies?.missed ?? 0;
     }
     public function getMaxCombo():Int {
-        if (Highscore.tallies != null) return Highscore.tallies.maxCombo;
-        return 0;
+        return Highscore.tallies?.maxCombo ?? 0;
     }
     public function getCombo():Int {
-        if (Highscore.tallies != null) return Highscore.tallies.combo;
-        return 0;
+        return Highscore.tallies?.combo ?? 0;
     }
     public function getTotalNotesHit():Int {
-        if (Highscore.tallies != null) return Highscore.tallies.totalNotesHit;
-        return 0;
+        return Highscore.tallies?.totalNotesHit ?? 0;
     }
     
     public function getTotalNotes():Int {
-        if (Highscore.tallies != null) {
-            var tn = Highscore.tallies?.totalNotes;
-            if (tn != null && tn > 0) return Std.int(tn);
-        }
-        return totalNotes;
+        var tn = Highscore.tallies?.totalNotes ?? 0;
+        return (tn > 0) ? Std.int(tn) : totalNotes;
     }
 
     public function getScore(state:PlayState):String {

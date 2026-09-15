@@ -1,0 +1,57 @@
+package kassettehud.objects;
+
+import flixel.group.FlxSpriteGroup;
+import flixel.FlxSprite;
+import flixel.text.FlxText;
+import flixel.text.FlxTextBorderStyle;
+import flixel.util.FlxColor;
+import funkin.play.PlayState;
+import flixel.FlxG;
+import kassettehud.util.KssetteFontManager;
+import kassettehud.util.KassetteHUDDatahunter;
+
+/**
+ * KHUDObject
+ * 
+ * Clase base para crear objetos visuales complejos y reutilizables en múltiples skins
+ * (como textos de tiempo, barras, íconos de vida, etc.).
+ * Extiende FlxSpriteGroup para poder agrupar sprites y textos fácilmente.
+ */
+class KHUDObject {
+    public var objectName:String = "KHUDObject";
+    public var isPreview:Bool = false;
+
+    public var x:Float = 0;
+    public var y:Float = 0;
+    public var zIndex:Int = 0;
+    public var visible:Bool = true;
+
+    public function new(x:Float = 0, y:Float = 0) {
+        this.x = x;
+        this.y = y;
+    }
+
+    /**
+     * Función genérica para crear y formatear un FlxText estandarizado.
+     */
+    public function createSharedText(x:Float, y:Float, width:Float, text:String, size:Int, color:FlxColor = FlxColor.WHITE, align:String = "left"):FlxText {
+        var txt = new FlxText(x, y, width, text, size);
+        txt.setFormat("VCR OSD Mono", size, color, align, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        txt.scrollFactor.set(0, 0);
+        return txt;
+    }
+
+    /**
+     * Función llamada por el KassetteHUDElement padre en cada frame
+     */
+    public function updateObject(elapsed:Float) {
+        // A ser sobrescrito por clases hijas (KHUDTimeText, KHUDHealthIcon, etc.)
+    }
+
+    /**
+     * Función llamada para limpiar recursos
+     */
+    public function destroy() {
+        // A ser sobrescrito por clases hijas
+    }
+}

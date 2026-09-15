@@ -31,6 +31,8 @@ class CleanScoreAcc extends KassetteHUDElement {
     var _fmtGood:FlxTextFormat;
     var _fmtShit:FlxTextFormat;
 
+    var _uiUpdateTimer:Float = 0;
+
     function getRankFormat(rank:String):FlxTextFormat {
         var fmt:FlxTextFormat = null;
         if (rank == null) return null;
@@ -72,6 +74,7 @@ class CleanScoreAcc extends KassetteHUDElement {
     var _cDownscroll:Bool = false;
     var _cScorePos:String = "Default";
     var _cFont:String = "VCR OSD Mono";
+    var _cIsMobileLayout:Bool = false;
 
     var _fmtUnranked:FlxTextFormat;
     var _fmtMult:FlxTextFormat;
@@ -84,6 +87,15 @@ class CleanScoreAcc extends KassetteHUDElement {
         _cHudVisible = isHudVisible();
         _cDownscroll = isDownscroll();
         _cFont = getHudFont();
+        
+        _cIsMobileLayout = false;
+        if (KssetteOptionsManager.instance != null) {
+            if (!KssetteOptionsManager.instance.isMobileLikePC()) {
+                _cIsMobileLayout = true;
+            } else if (KssetteOptionsManager.instance.getKssValue("kssette_middlescroll") == "Like Mobile") {
+                _cIsMobileLayout = true;
+            }
+        }
     }
 
     public function new() {
@@ -137,6 +149,9 @@ class CleanScoreAcc extends KassetteHUDElement {
     }
 
     override public function onUpdate(event:Dynamic) {
+        var elapsed:Float = (Std.isOfType(event, Float)) ? event : (event != null ? event.elapsed : 0);
+        _uiUpdateTimer += elapsed;
+        
         var state = PlayState.instance;
         var showHud = _cHudVisible;
         var downscroll = _cDownscroll;
@@ -146,14 +161,7 @@ class CleanScoreAcc extends KassetteHUDElement {
 
         var targetY = atTop ? FlxG.height * 0.1 : FlxG.height * 0.9 - 48;
         
-        var isMobileLayout = false;
-        if (KssetteOptionsManager.instance != null) {
-            if (!KssetteOptionsManager.instance.isMobileLikePC()) {
-                isMobileLayout = true;
-            } else if (KssetteOptionsManager.instance.getKssValue("kssette_middlescroll") == "Like Mobile") {
-                isMobileLayout = true;
-            }
-        }
+        var isMobileLayout = _cIsMobileLayout;
         
         if (isMobileLayout && atTop) {
             targetY += 80; // Push down to avoid top-left opponent receptors
@@ -220,7 +228,11 @@ class CleanScoreAcc extends KassetteHUDElement {
             scoreStr = Std.string(Math.floor(state.songScore));
         }
 
-        if (_lastScore != scoreStr || _lastRank != rankID || _lastUnranked != isUnranked || _lastMult != multiplierValue) {
+        var updateThreshold:Float = this.isMobile == true ? 0.1 : 0.033;
+        var pendingUpdate = (_lastScore != scoreStr || _lastRank != rankID || _lastUnranked != isUnranked || _lastMult != multiplierValue);
+
+        if (pendingUpdate && _uiUpdateTimer >= updateThreshold) {
+            _uiUpdateTimer = 0.0;
             _lastScore = scoreStr;
             _lastRank = rankID;
             _lastUnranked = isUnranked;

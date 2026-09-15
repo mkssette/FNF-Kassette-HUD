@@ -17,13 +17,13 @@ import Std;
 import Math;
 
 class CleanTimeBreak extends KassetteHUDElement {
-    var timeTxt:FlxText;
+    var timeTxtObj:KHUDTimeText;
     var timeBarBG:FlxSprite;
     var timeBarFill:FlxSprite;
     var breakBarBG:FlxSprite;
     var breakBarFill:FlxSprite;
 
-    var pTimeTxt:FlxText;
+    var pTimeTxtObj:KHUDTimeText;
     var pTimeBarBG:FlxSprite;
     var pTimeBarFill:FlxSprite;
     var pBreakBarBG:FlxSprite;
@@ -57,9 +57,8 @@ class CleanTimeBreak extends KassetteHUDElement {
     override public function buildPreview(cam:FlxCamera) {
         isPreview = true;
         
-        pTimeTxt = createText(0, 10, 0, "[1:30]", 18, 0xFFFFFFFF, "left");
-        pTimeTxt.scrollFactor.set(0, 0);
-        safeAdd(pTimeTxt, cam);
+        pTimeTxtObj = new KHUDTimeText(0, 10, 0, 18, 0xFFFFFFFF, "left", true);
+        safeAdd(pTimeTxtObj.timeText, cam);
 
         pTimeBarBG = new FlxSprite(0, 0).makeGraphic(100, 10, FlxColor.BLACK);
         pTimeBarBG.scrollFactor.set(0, 0);
@@ -91,17 +90,16 @@ class CleanTimeBreak extends KassetteHUDElement {
         var state = PlayState.instance;
         if (state == null) return;
         
-        safeDestroy(timeTxt);
+        safeDestroy(timeTxtObj);
         safeDestroy(timeBarBG);
         safeDestroy(timeBarFill);
         safeDestroy(breakBarBG);
         safeDestroy(breakBarFill);
 
-        timeTxt = createText(0, 10, 0, "[0:00]", 18, 0xFFFFFFFF, "left");
-        timeTxt.scrollFactor.set(0, 0);
-        timeTxt.cameras = [state.camHUD];
-        timeTxt.zIndex = KassetteHUDElement.Z_HUD_FRONT;
-        state.add(timeTxt);
+        timeTxtObj = new KHUDTimeText(0, 10, 0, 18, 0xFFFFFFFF, "left", true);
+        timeTxtObj.timeText.cameras = [state.camHUD];
+        timeTxtObj.timeText.zIndex = KassetteHUDElement.Z_HUD_FRONT;
+        state.add(timeTxtObj.timeText);
 
         timeBarBG = new FlxSprite(0, 0).makeGraphic(100, 10, FlxColor.BLACK);
         timeBarBG.scrollFactor.set(0, 0);
@@ -142,8 +140,8 @@ class CleanTimeBreak extends KassetteHUDElement {
         var hasMult = gammodHunter != null && gammodHunter.gammodMultiplier != null && gammodHunter.gammodMultiplier != 1.0;
         
         var lineH:Float = 24.0;
-        if (timeTxt != null && timeTxt.height > 10) lineH = timeTxt.height * (20.0 / 18.0);
-        else if (pTimeTxt != null && pTimeTxt.height > 10) lineH = pTimeTxt.height * (20.0 / 18.0);
+        if (timeTxtObj != null && timeTxtObj.timeText.height > 10) lineH = timeTxtObj.timeText.height * (20.0 / 18.0);
+        else if (pTimeTxtObj != null && pTimeTxtObj.timeText.height > 10) lineH = pTimeTxtObj.timeText.height * (20.0 / 18.0);
 
         // Stack TimeBreak vertically underneath the Score block on the left
         // Default spacing if neither Acc nor Mult are present
@@ -169,15 +167,15 @@ class CleanTimeBreak extends KassetteHUDElement {
         if (fontChanged) _lastFont = cachedFont;
 
         if (isPreview) {
-            if (pTimeTxt != null) {
-                if (fontChanged) pTimeTxt.setFormat(cachedFont, 18, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
-                pTimeTxt.visible = showHud && _cShowTime;
-                pTimeTxt.x = startX;
-                pTimeTxt.y = targetY;
+            if (pTimeTxtObj != null) {
+                if (fontChanged) pTimeTxtObj.timeText.setFormat(cachedFont, 18, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+                pTimeTxtObj.timeText.visible = showHud && _cShowTime;
+                pTimeTxtObj.timeText.x = startX;
+                pTimeTxtObj.timeText.y = targetY;
             }
-            if (pTimeBarBG != null && pTimeTxt != null) {
+            if (pTimeBarBG != null && pTimeTxtObj != null) {
                 pTimeBarBG.visible = showHud && _cShowTime;
-                pTimeBarBG.x = pTimeTxt.x + pTimeTxt.width + 6;
+                pTimeBarBG.x = pTimeTxtObj.timeText.x + pTimeTxtObj.timeText.width + 6;
                 pTimeBarBG.y = targetY + 8;
             }
             if (pTimeBarFill != null && pTimeBarBG != null) {
@@ -198,20 +196,20 @@ class CleanTimeBreak extends KassetteHUDElement {
             return;
         }
 
-        if (state == null || timeTxt == null || timeBarBG == null || timeBarFill == null || breakBarBG == null || breakBarFill == null) return;
+        if (state == null || timeTxtObj == null || timeBarBG == null || timeBarFill == null || breakBarBG == null || breakBarFill == null) return;
 
         if (fontChanged) {
-            timeTxt.setFormat(cachedFont, 18, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+            timeTxtObj.timeText.setFormat(cachedFont, 18, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
         }
 
-        timeTxt.visible = showHud && _cShowTime;
+        timeTxtObj.timeText.visible = showHud && _cShowTime;
         timeBarBG.visible = showHud && _cShowTime;
         timeBarFill.visible = showHud && _cShowTime;
         
-        timeTxt.x = startX;
-        timeTxt.y = targetY;
+        timeTxtObj.timeText.x = startX;
+        timeTxtObj.timeText.y = targetY;
 
-        timeBarBG.x = timeTxt.x + timeTxt.width + 6;
+        timeBarBG.x = timeTxtObj.timeText.x + timeTxtObj.timeText.width + 6;
         timeBarBG.y = targetY + 8;
         
         timeBarFill.x = timeBarBG.x + 2;
@@ -223,7 +221,7 @@ class CleanTimeBreak extends KassetteHUDElement {
         breakBarFill.x = breakBarBG.x;
         breakBarFill.y = breakBarBG.y;
         
-        timeTxt.alpha = 1.0;
+        timeTxtObj.timeText.alpha = 1.0;
         timeBarBG.alpha = 1.0;
         timeBarFill.alpha = 1.0;
         breakBarBG.alpha = 1.0;
@@ -242,13 +240,10 @@ class CleanTimeBreak extends KassetteHUDElement {
         timeBarFill.scale.x = timeRatio;
         timeBarFill.updateHitbox();
 
-        var secondsTotal = Math.floor(curTime / 1000);
-        if (_lastSecondsTotal != secondsTotal) {
-            _lastSecondsTotal = secondsTotal;
-            var mins = Math.floor(secondsTotal / 60);
-            var secs = secondsTotal % 60;
-            var secsStr = (secs < 10) ? "0" + secs : "" + secs;
-            timeTxt.text = "[" + mins + ":" + secsStr + "]";
+        // Delegar la actualización del texto a KHUDTimeText
+        if (_cShowTime) {
+            timeTxtObj.updateTimeFromState();
+            timeTxtObj.updateObject(event.elapsed);
         }
 
         // Break bar logic

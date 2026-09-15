@@ -68,6 +68,7 @@ class KssetteNight extends KHUDModifier {
     public function new() {
         super('KssetteNight');
         elementType = "modifier";
+        
     }
 
     /**

@@ -45,6 +45,7 @@ class KssGhostTapping extends KHUDModifier {
     public function new() {
         super('KssGhostTapping');
         elementType = "modifier";
+        
     }
 
     /**

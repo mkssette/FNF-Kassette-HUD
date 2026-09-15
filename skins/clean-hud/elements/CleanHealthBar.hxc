@@ -19,8 +19,10 @@ class CleanHealthBar extends KassetteHUDElement {
 	var previewHealthBarBG:FlxSprite;
 	var previewHealthBarFillP1:FlxSprite;
 	var previewHealthBarFillP2:FlxSprite;
-	var previewIconP1:FlxSprite;
-	var previewIconP2:FlxSprite;
+	var previewIconP1Obj:KHUDHealthIcon;
+	var previewIconP2Obj:KHUDHealthIcon;
+	var gameIconP1Obj:KHUDHealthIcon;
+	var gameIconP2Obj:KHUDHealthIcon;
 	var previewCam:FlxCamera;
 	var previewBopTimer:Float = 0;
 	var _lastPreviewBeat:Int = -1;
@@ -70,38 +72,24 @@ class CleanHealthBar extends KassetteHUDElement {
 		previewHealthBarFillP1.scrollFactor.set(0, 0);
 		safeAdd(previewHealthBarFillP1, cam);
 
-		previewIconP1 = new FlxSprite();
-		var p1Graphic = Paths.image('icons/icon-bf');
-		if (p1Graphic != null) {
-			previewIconP1.loadGraphic(p1Graphic, true, 150, 150);
-			previewIconP1.animation.add('icon', [0, 1], 0, false, false);
-			previewIconP1.animation.play('icon');
-			previewIconP1.updateHitbox();
-		}
-		previewIconP1.scale.set(0.7, 0.7);
-		previewIconP1.updateHitbox();
-		previewIconP1.flipX = true;
-		previewIconP1.scrollFactor.set(0, 0);
-		safeAdd(previewIconP1, cam);
+		previewIconP1Obj = new KHUDHealthIcon("bf", true);
+		previewIconP1Obj.icon.scale.set(0.7, 0.7);
+		previewIconP1Obj.icon.updateHitbox();
+		previewIconP1Obj.icon.flipX = true;
+		previewIconP1Obj.icon.scrollFactor.set(0, 0);
+		safeAdd(previewIconP1Obj.icon, cam);
 
-		previewIconP2 = new FlxSprite();
-		var p2Graphic = Paths.image('icons/icon-dad');
-		if (p2Graphic != null) {
-			previewIconP2.loadGraphic(p2Graphic, true, 150, 150);
-			previewIconP2.animation.add('icon', [0, 1], 0, false, false);
-			previewIconP2.animation.play('icon');
-			previewIconP2.updateHitbox();
-		}
-		previewIconP2.scale.set(0.7, 0.7);
-		previewIconP2.updateHitbox();
-		previewIconP2.scrollFactor.set(0, 0);
-		safeAdd(previewIconP2, cam);
+		previewIconP2Obj = new KHUDHealthIcon("dad", false);
+		previewIconP2Obj.icon.scale.set(0.7, 0.7);
+		previewIconP2Obj.icon.updateHitbox();
+		previewIconP2Obj.icon.scrollFactor.set(0, 0);
+		safeAdd(previewIconP2Obj.icon, cam);
 
 		previewHealthBarBG.zIndex = KassetteHUDElement.Z_HUD_BASE;
 		previewHealthBarFillP2.zIndex = KassetteHUDElement.Z_HUD_MID;
 		previewHealthBarFillP1.zIndex = KassetteHUDElement.Z_HUD_MID;
-		previewIconP1.zIndex = KassetteHUDElement.Z_HUD_FRONT;
-		previewIconP2.zIndex = KassetteHUDElement.Z_HUD_FRONT;
+		previewIconP1Obj.zIndex = KassetteHUDElement.Z_HUD_FRONT;
+		previewIconP2Obj.zIndex = KassetteHUDElement.Z_HUD_FRONT;
 	}
 
 	var _cPosPref:String = "Center";
@@ -109,6 +97,9 @@ class CleanHealthBar extends KassetteHUDElement {
 	var _cIsCorners:Bool = false;
 	var _cHudVisible:Bool = true;
 	var _cDownscroll:Bool = false;
+
+	var _overlapTimer:Float = 0.0;
+	var _cachedOverlap:Bool = false;
 
 	// Opposite logic moved to GammodDatahunter check in onUpdate
 	var _lastOpposite:Bool = false;
@@ -152,11 +143,17 @@ class CleanHealthBar extends KassetteHUDElement {
 			state.iconP1.zIndex = KassetteHUDElement.Z_HUD_FRONT;
 			state.remove(state.iconP1, true);
 			state.add(state.iconP1);
+            
+            gameIconP1Obj = new KHUDHealthIcon(null, true, 0, 0, state.iconP1);
+            gameIconP1Obj.autoBop = true;
 		}
 		if (state.iconP2 != null) {
 			state.iconP2.zIndex = KassetteHUDElement.Z_HUD_FRONT;
 			state.remove(state.iconP2, true);
 			state.add(state.iconP2);
+            
+            gameIconP2Obj = new KHUDHealthIcon(null, false, 0, 0, state.iconP2);
+            gameIconP2Obj.autoBop = true;
 		}
 	}
 
@@ -172,10 +169,14 @@ class CleanHealthBar extends KassetteHUDElement {
 				previewHealthBarFillP1.visible = cachedActive;
 			if (previewHealthBarFillP2 != null)
 				previewHealthBarFillP2.visible = cachedActive;
-			if (previewIconP1 != null)
-				previewIconP1.visible = cachedActive;
-			if (previewIconP2 != null)
-				previewIconP2.visible = cachedActive;
+			if (previewIconP1Obj != null) {
+				previewIconP1Obj.visible = cachedActive;
+				previewIconP1Obj.updateObject(elapsed);
+			}
+			if (previewIconP2Obj != null) {
+				previewIconP2Obj.visible = cachedActive;
+				previewIconP2Obj.updateObject(elapsed);
+			}
 
 			var downscroll = isDownscroll();
 
@@ -244,7 +245,7 @@ class CleanHealthBar extends KassetteHUDElement {
 
 			var centerY = previewHealthBarBG.y + (previewHealthBarBG.height / 2);
 
-			if (previewIconP1 != null && previewIconP2 != null) {
+			if (previewIconP1Obj != null && previewIconP2Obj != null) {
 				previewBopTimer += elapsed;
 
 				var beatSeconds = 60.0 / 102.0;
@@ -256,28 +257,20 @@ class CleanHealthBar extends KassetteHUDElement {
 
 				if (currentBeat != _lastPreviewBeat) {
 					_lastPreviewBeat = currentBeat;
-					previewIconP1.scale.set(p1Scale * 1.2, p1Scale * 1.2);
-					previewIconP2.scale.set(p2Scale * 1.2, p2Scale * 1.2);
-
-					if (previewIconP1 != null && previewIconP1.scale != null) {
-						FlxTween.cancelTweensOf(previewIconP1.scale);
-						FlxTween.tween(previewIconP1.scale, {x: p1Scale, y: p1Scale}, 0.35, {ease: FlxEase.quadOut});
-					}
-					if (previewIconP2 != null && previewIconP2.scale != null) {
-						FlxTween.cancelTweensOf(previewIconP2.scale);
-						FlxTween.tween(previewIconP2.scale, {x: p2Scale, y: p2Scale}, 0.35, {ease: FlxEase.quadOut});
-					}
+					previewIconP1Obj.bop(1.05);
+					previewIconP2Obj.bop(1.05);
 				}
-			}
+				
+				previewIconP1Obj.targetScale = 0.7;
+				previewIconP2Obj.targetScale = 0.7;
 
-			if (previewIconP1 != null && previewIconP2 != null) {
-				previewIconP1.x = previewHealthBarBG.x + previewHealthBarBG.width - (previewIconP1.width / 2);
-				previewIconP1.flipX = true;
-				previewIconP1.y = centerY - (previewIconP1.height / 2);
+				previewIconP1Obj.x = previewHealthBarBG.x + previewHealthBarBG.width - (previewIconP1Obj.icon.width / 2);
+				previewIconP1Obj.icon.flipX = true;
+				previewIconP1Obj.y = centerY - (previewIconP1Obj.icon.height / 2);
 
-				previewIconP2.x = previewHealthBarBG.x - (previewIconP2.width / 2);
-				previewIconP2.flipX = false;
-				previewIconP2.y = centerY - (previewIconP2.height / 2);
+				previewIconP2Obj.x = previewHealthBarBG.x - (previewIconP2Obj.icon.width / 2);
+				previewIconP2Obj.icon.flipX = false;
+				previewIconP2Obj.y = centerY - (previewIconP2Obj.icon.height / 2);
 			}
 			return;
 		}
@@ -417,24 +410,8 @@ class CleanHealthBar extends KassetteHUDElement {
 			if (state.iconP2 != null)
 				state.iconP2.isLegacyStyle = false;
 
-			var lerpFactor = 1.0 - (elapsed * 15.0);
-			if (lerpFactor < 0)
-				lerpFactor = 0;
-
-			var targetScaleP1 = 0.55;
-			var targetScaleP2 = 0.55;
-			if (iconHunter != null) {
-				targetScaleP1 = iconHunter.cachedP1Scale * 0.55;
-				targetScaleP2 = iconHunter.cachedP2Scale * 0.55;
-			}
-
-			state.iconP1.scale.x = targetScaleP1 + ((state.iconP1.scale.x - targetScaleP1) * lerpFactor);
-			state.iconP1.scale.y = targetScaleP1 + ((state.iconP1.scale.y - targetScaleP1) * lerpFactor);
-
-			if (state.iconP2 != null) {
-				state.iconP2.scale.x = targetScaleP2 + ((state.iconP2.scale.x - targetScaleP2) * lerpFactor);
-				state.iconP2.scale.y = targetScaleP2 + ((state.iconP2.scale.y - targetScaleP2) * lerpFactor);
-			}
+            if (gameIconP1Obj != null) gameIconP1Obj.updateObject(elapsed);
+            if (gameIconP2Obj != null) gameIconP2Obj.updateObject(elapsed);
 
 			var gammodPlayerSide = KassetteHUDDatahunter.gammod != null ? KassetteHUDDatahunter.gammod.gammodPlayerSide : "NORMAL";
 			var hp1 = state.health;
@@ -479,60 +456,44 @@ class CleanHealthBar extends KassetteHUDElement {
 		}
 
 		// Anti-Overlap System
-		var targetAlpha = 1.0;
 		if (cachedActive) {
-			var checkOverlap = false;
-			var hbRect = (state.healthBarBG != null && state.camHUD != null) ? state.healthBarBG.getScreenBounds(null, state.camHUD) : null;
-			if (hbRect != null) {
-				// Check Strumlines
-				if (state != null && state.strumLineNotes != null) {
-					for (strum in state.strumLineNotes.members) {
-						if (strum != null && strum.exists && strum.visible) {
-							if (state.camHUD == null) continue;
-							var strumRect = strum.getScreenBounds(null, state.camHUD);
-							if (strumRect != null && hbRect.overlaps(strumRect)) {
-								checkOverlap = true;
-								break;
+			_overlapTimer += FlxG.elapsed;
+			if (_overlapTimer >= 0.1) {
+				_overlapTimer = 0.0;
+				var checkOverlap = false;
+				var hb = state.healthBarBG;
+				if (hb != null) {
+					var hbX = hb.x;
+					var hbY = hb.y;
+					var hbR = hbX + hb.width;
+					var hbB = hbY + hb.height;
+					
+					// Check Strumlines
+					if (state != null && state.strumLineNotes != null) {
+						for (strum in state.strumLineNotes.members) {
+							if (strum != null && strum.exists && strum.visible) {
+								if (strum.x < hbR && strum.x + strum.width > hbX && strum.y < hbB && strum.y + strum.height > hbY) {
+									checkOverlap = true;
+									break;
+								}
 							}
 						}
 					}
+					// Check Notes removed for performance (HScript iteration over thousands of notes causes lag spikes)
 				}
-				// Check Notes
-				if (!checkOverlap && state.notes != null) {
-					for (note in state.notes.members) {
-						if (note != null && note.exists && note.visible) {
-							var noteRect = note.getScreenBounds();
-							if (noteRect != null && hbRect.overlaps(noteRect)) {
-								checkOverlap = true;
-								break;
-							}
-						}
-					}
-				}
+				_cachedOverlap = checkOverlap;
 			}
-			if (checkOverlap)
-				targetAlpha = 0.35;
 		}
 
-		state.healthBarBG.alpha = targetAlpha;
-		state.healthBar.alpha = targetAlpha;
+		var targetAlpha = _cachedOverlap ? 0.35 : 1.0;
+		if (state.healthBarBG != null) state.healthBarBG.alpha = targetAlpha;
+		if (state.healthBar != null) state.healthBar.alpha = targetAlpha;
 		if (state.iconP1 != null)
 			state.iconP1.alpha = targetAlpha;
 		if (state.iconP2 != null)
 			state.iconP2.alpha = targetAlpha;
 
-		if (state.iconP1 != null && state.iconP2 != null) {
-			state.iconP1.shouldBop = false;
-			state.iconP2.shouldBop = false;
-			if (state.iconP1.bopTween != null) {
-				state.iconP1.bopTween.cancel();
-				state.iconP1.bopTween = null;
-			}
-			if (state.iconP2.bopTween != null) {
-				state.iconP2.bopTween.cancel();
-				state.iconP2.bopTween = null;
-			}
-		}
+
 
 		var coloredHB = _cColored;
 		if (coloredHB) {
@@ -566,33 +527,8 @@ class CleanHealthBar extends KassetteHUDElement {
 		}
 	}
 
-	override function onStepHit(event) {
-		var state = PlayState.instance;
-		if (state == null)
-			return;
-
-		if (state.iconP1 != null && state.iconP2 != null) {
-			var iconHunter = KassetteHUDDatahunter.icon;
-			var bop1 = 4;
-			var bop2 = 4;
-			if (iconHunter != null) {
-				bop1 = iconHunter.cachedP1Bop;
-				bop2 = iconHunter.cachedP2Bop;
-			}
-
-			var targetScaleP1 = 0.55;
-			var targetScaleP2 = 0.55;
-			if (iconHunter != null) {
-				targetScaleP1 = iconHunter.cachedP1Scale * 0.55;
-				targetScaleP2 = iconHunter.cachedP2Scale * 0.55;
-			}
-
-			if (bop1 > 0 && event.step % bop1 == 0) {
-				state.iconP1.scale.set(targetScaleP1 * 1.2, targetScaleP1 * 1.2);
-			}
-			if (bop2 > 0 && event.step % bop2 == 0) {
-				state.iconP2.scale.set(targetScaleP2 * 1.2, targetScaleP2 * 1.2);
-			}
-		}
+	override function onStepHit(event:Dynamic) {
+		if (gameIconP1Obj != null) gameIconP1Obj.onStepHit(event.step);
+		if (gameIconP2Obj != null) gameIconP2Obj.onStepHit(event.step);
 	}
 }

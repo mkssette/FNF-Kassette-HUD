@@ -86,7 +86,6 @@ class GammodDatahunter extends KassetteHUDDatahunter {
             if (gPlay.scoreTxtFX != null) gPlay.scoreTxtFX.visible = false;
             if (gPlay.scoreTxtFXOut != null) gPlay.scoreTxtFXOut.visible = false;
             gammodHighscoreActive = (gPlay.didHighscoreEvents == true);
-            setHealthBarOverride(false);
         } else {
             gammodHighscoreActive = false;
         }

@@ -95,6 +95,7 @@ class KssetteStrumlines extends KHUDModifier {
     public function new() {
         super('KssetteStrumlines'); 
         elementType = "modifier";
+        
     }
 
     /** Returns true if the Dynamic value represents an "on" state. */

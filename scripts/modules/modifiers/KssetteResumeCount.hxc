@@ -84,6 +84,7 @@ class KssetteResumeCount extends KHUDModifier {
     public function new() {
         super("KssetteResumeCount");
         elementType = "modifier";
+        
     }
 
     /**

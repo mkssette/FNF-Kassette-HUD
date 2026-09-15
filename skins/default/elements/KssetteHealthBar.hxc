@@ -60,8 +60,10 @@ class KssetteHealthBar extends KassetteHUDElement {
 	var previewHealthBarBG:FlxSprite;
 	var previewHealthBarFillP1:FlxSprite;
 	var previewHealthBarFillP2:FlxSprite;
-	var previewIconP1:FlxSprite;
-	var previewIconP2:FlxSprite;
+	var previewIconP1Obj:KHUDHealthIcon;
+	var previewIconP2Obj:KHUDHealthIcon;
+	var gameIconP1Obj:KHUDHealthIcon;
+	var gameIconP2Obj:KHUDHealthIcon;
 	var previewCam:FlxCamera;
 	var previewBopTimer:Float = 0;
 	var _lastPreviewBeat:Int = -1;
@@ -104,32 +106,24 @@ class KssetteHealthBar extends KassetteHUDElement {
 		previewHealthBarFillP1.scrollFactor.set(0, 0);
 		safeAdd(previewHealthBarFillP1, cam);
 
-		previewIconP1 = new FlxSprite();
-		try {
-			previewIconP1.loadGraphic(Paths.image('icons/icon-bf'), true, 150, 150);
-			previewIconP1.animation.add('icon', [0, 1], 0, false, false);
-			previewIconP1.animation.play('icon');
-			previewIconP1.updateHitbox();
-		} catch (e:Dynamic) {}
-		previewIconP1.flipX = true;
-		previewIconP1.scrollFactor.set(0, 0);
-		safeAdd(previewIconP1, cam);
+		previewIconP1Obj = new KHUDHealthIcon("bf", true);
+		previewIconP1Obj.icon.scale.set(1.0, 1.0);
+		previewIconP1Obj.icon.updateHitbox();
+		previewIconP1Obj.icon.flipX = true;
+		previewIconP1Obj.icon.scrollFactor.set(0, 0);
+		safeAdd(previewIconP1Obj.icon, cam);
 
-		previewIconP2 = new FlxSprite();
-		try {
-			previewIconP2.loadGraphic(Paths.image('icons/icon-dad'), true, 150, 150);
-			previewIconP2.animation.add('icon', [0, 1], 0, false, false);
-			previewIconP2.animation.play('icon');
-			previewIconP2.updateHitbox();
-		} catch (e:Dynamic) {}
-		previewIconP2.scrollFactor.set(0, 0);
-		safeAdd(previewIconP2, cam);
+		previewIconP2Obj = new KHUDHealthIcon("dad", false);
+		previewIconP2Obj.icon.scale.set(1.0, 1.0);
+		previewIconP2Obj.icon.updateHitbox();
+		previewIconP2Obj.icon.scrollFactor.set(0, 0);
+		safeAdd(previewIconP2Obj.icon, cam);
 
 		previewHealthBarBG.zIndex = KassetteHUDElement.Z_HUD_BASE;
 		previewHealthBarFillP2.zIndex = KassetteHUDElement.Z_HUD_MID;
 		previewHealthBarFillP1.zIndex = KassetteHUDElement.Z_HUD_MID;
-		previewIconP1.zIndex = KassetteHUDElement.Z_HUD_FRONT;
-		previewIconP2.zIndex = KassetteHUDElement.Z_HUD_FRONT;
+		previewIconP1Obj.zIndex = KassetteHUDElement.Z_HUD_FRONT;
+		previewIconP2Obj.zIndex = KassetteHUDElement.Z_HUD_FRONT;
 	}
 
 	var _cPosPref:String = "Center";
@@ -180,11 +174,15 @@ class KssetteHealthBar extends KassetteHUDElement {
 			state.iconP1.zIndex = KassetteHUDElement.Z_HUD_FRONT;
 			state.remove(state.iconP1, true);
 			state.add(state.iconP1);
+            
+            gameIconP1Obj = new KHUDHealthIcon(null, true, 0, 0, state.iconP1);
 		}
 		if (state.iconP2 != null) {
 			state.iconP2.zIndex = KassetteHUDElement.Z_HUD_FRONT;
 			state.remove(state.iconP2, true);
 			state.add(state.iconP2);
+            
+            gameIconP2Obj = new KHUDHealthIcon(null, false, 0, 0, state.iconP2);
 		}
 	}
 
@@ -263,41 +261,36 @@ class KssetteHealthBar extends KassetteHUDElement {
 
 				if (currentBeat != _lastPreviewBeat) {
 					_lastPreviewBeat = currentBeat;
-					previewIconP1.scale.set(1.2, 1.2);
-					previewIconP2.scale.set(1.2, 1.2);
-
-					try {
-						FlxTween.cancelTweensOf(previewIconP1.scale);
-						FlxTween.cancelTweensOf(previewIconP2.scale);
-						FlxTween.tween(previewIconP1.scale, {x: 1.0, y: 1.0}, 0.35, {ease: FlxEase.quadOut});
-						FlxTween.tween(previewIconP2.scale, {x: 1.0, y: 1.0}, 0.35, {ease: FlxEase.quadOut});
-					} catch (e:Dynamic) {}
+					previewIconP1Obj.bop(1.2);
+					previewIconP2Obj.bop(1.2);
 				}
 			}
 
-			if (previewIconP1 != null && previewIconP2 != null) {
-				// Do NOT call updateHitbox() here, as it shifts the sprite's X/Y coordinates
-				// on raw FlxSprites during scaling, causing a "weird bounce".
+			if (previewIconP1Obj != null && previewIconP2Obj != null) {
+				previewIconP1Obj.targetScale = 1.0;
+				previewIconP2Obj.targetScale = 1.0;
+				previewIconP1Obj.updateObject(elapsed);
+				previewIconP2Obj.updateObject(elapsed);
 
 				// Use a constant width/height for positioning calculations (150 is standard icon frame size)
 				var iconSize = 150.0;
 
 				if (_cIsCorners) {
-					previewIconP1.x = previewHealthBarBG.x + previewHealthBarBG.width + 75 - iconSize;
-					previewIconP1.flipX = true;
-					previewIconP1.y = centerY + 75 - iconSize;
+					previewIconP1Obj.icon.x = previewHealthBarBG.x + previewHealthBarBG.width + 75 - iconSize;
+					previewIconP1Obj.icon.flipX = true;
+					previewIconP1Obj.icon.y = centerY + 75 - iconSize;
 
-					previewIconP2.x = previewHealthBarBG.x + 75 - iconSize;
-					previewIconP2.flipX = false;
-					previewIconP2.y = centerY + 75 - iconSize;
+					previewIconP2Obj.icon.x = previewHealthBarBG.x + 75 - iconSize;
+					previewIconP2Obj.icon.flipX = false;
+					previewIconP2Obj.icon.y = centerY + 75 - iconSize;
 				} else {
-					previewIconP1.x = previewHealthBarBG.x + fw - 26;
-					previewIconP1.flipX = true;
-					previewIconP1.y = previewHealthBarBG.y - (iconSize / 2) + 10;
+					previewIconP1Obj.icon.x = previewHealthBarBG.x + fw - 26;
+					previewIconP1Obj.icon.flipX = true;
+					previewIconP1Obj.icon.y = previewHealthBarBG.y - (iconSize / 2) + 10;
 
-					previewIconP2.x = previewHealthBarBG.x + fw - (iconSize - 26);
-					previewIconP2.flipX = false;
-					previewIconP2.y = previewHealthBarBG.y - (iconSize / 2) + 10;
+					previewIconP2Obj.icon.x = previewHealthBarBG.x + fw - (iconSize - 26);
+					previewIconP2Obj.icon.flipX = false;
+					previewIconP2Obj.icon.y = previewHealthBarBG.y - (iconSize / 2) + 10;
 				}
 			}
 			return;
@@ -413,22 +406,13 @@ class KssetteHealthBar extends KassetteHUDElement {
 			if (state.iconP2 != null)
 				state.iconP2.isLegacyStyle = false;
 
-			var lerpFactor = 1.0 - (elapsed * 15.0);
-			if (lerpFactor < 0)
-				lerpFactor = 0;
-
-			var p1Scale:Float = 1.0;
-			if (iconHunter != null)
-				p1Scale = iconHunter.cachedP1Scale;
-			state.iconP1.scale.x = p1Scale + ((state.iconP1.scale.x - p1Scale) * lerpFactor);
-			state.iconP1.scale.y = p1Scale + ((state.iconP1.scale.y - p1Scale) * lerpFactor);
-
-			if (state.iconP2 != null) {
-				var p2Scale:Float = 1.0;
-				if (iconHunter != null)
-					p2Scale = iconHunter.cachedP2Scale;
-				state.iconP2.scale.x = p2Scale + ((state.iconP2.scale.x - p2Scale) * lerpFactor);
-				state.iconP2.scale.y = p2Scale + ((state.iconP2.scale.y - p2Scale) * lerpFactor);
+			if (gameIconP1Obj != null) {
+				gameIconP1Obj.autoBop = true;
+				gameIconP1Obj.updateObject(elapsed);
+			}
+			if (gameIconP2Obj != null) {
+				gameIconP2Obj.autoBop = true;
+				gameIconP2Obj.updateObject(elapsed);
 			}
 
 			var hp1 = state.health;
@@ -477,6 +461,9 @@ class KssetteHealthBar extends KassetteHUDElement {
 				state.iconP2.autoUpdate = true;
 			state.iconP1.isLegacyStyle = true;
 			state.iconP2.isLegacyStyle = true;
+            
+            if (gameIconP1Obj != null) gameIconP1Obj.autoBop = false;
+            if (gameIconP2Obj != null) gameIconP2Obj.autoBop = false;
 		}
 	}
 
@@ -493,28 +480,8 @@ class KssetteHealthBar extends KassetteHUDElement {
 			return;
 
 		if (_cIsCorners && state.iconP1 != null && state.iconP2 != null) {
-			var iconHunter = KassetteHUDDatahunter.icon;
-			var bop1 = 4;
-			var bop2 = 4;
-			if (iconHunter != null) {
-				bop1 = iconHunter.cachedP1Bop;
-				bop2 = iconHunter.cachedP2Bop;
-			}
-
-			// Increase scale by 20% on the bop interval; interpolates back to normal in onUpdate.
-			if (bop1 > 0 && event.step % bop1 == 0) {
-				var p1Scale:Float = 1.0;
-				if (iconHunter != null)
-					p1Scale = iconHunter.cachedP1Scale;
-				state.iconP1.scale.set(p1Scale * 1.2, p1Scale * 1.2);
-			}
-			if (bop2 > 0 && event.step % bop2 == 0) {
-				var iconHunter = KassetteHUDDatahunter.icon;
-				var p2Scale:Float = 1.0;
-				if (iconHunter != null)
-					p2Scale = iconHunter.cachedP2Scale;
-				state.iconP2.scale.set(p2Scale * 1.2, p2Scale * 1.2);
-			}
+			if (gameIconP1Obj != null) gameIconP1Obj.onStepHit(event.step);
+			if (gameIconP2Obj != null) gameIconP2Obj.onStepHit(event.step);
 		}
 	}
 }

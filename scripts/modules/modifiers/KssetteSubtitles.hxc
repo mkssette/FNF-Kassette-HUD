@@ -271,6 +271,7 @@ var triviaArray:Array<String> = [
     public function new() {
         super("KssetteSubtitles");
         elementType = "modifier";
+        
     }
 
 

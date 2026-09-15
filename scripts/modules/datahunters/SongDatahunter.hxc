@@ -113,19 +113,12 @@ class SongDatahunter extends KassetteHUDDatahunter {
         if (state == null) return "Unknown";
         
         var titleStr = "Unknown";
-        if (state.currentChart != null && state.currentChart.songName != null) {
-            var s = Std.string(state.currentChart.songName);
-            if (s != "" && s != "null") titleStr = s;
-        }
+        var cName = state.currentChart?.songName;
+        if (cName != null && cName != "") titleStr = Std.string(cName);
 
         if (titleStr == "Unknown" || titleStr == "null") {
-            if (state.currentSong != null && state.currentSong.songName != null) {
-                var s = Std.string(state.currentSong.songName);
-                if (s != "" && s != "null") titleStr = s;
-            } else if (state.currentSong != null && state.currentSong.id != null) {
-                var s = Std.string(state.currentSong.id);
-                if (s != "" && s != "null") titleStr = s;
-            }
+            var sName = state.currentSong?.songName ?? state.currentSong?.id;
+            if (sName != null && sName != "") titleStr = Std.string(sName);
         }
         
         if (titleStr != "Unknown" && titleStr != "null") _cachedSongName = titleStr;
@@ -143,13 +136,8 @@ class SongDatahunter extends KassetteHUDDatahunter {
         
         var artistStr = "Unknown Artist";
         if (state.currentChart != null) {
-            var cArtist = state.currentChart?.songArtist;
-            if (cArtist == null) cArtist = state.currentChart?.artist;
-            
-            var meta = state.currentChart?.metadata;
-            if (cArtist == null && meta != null) cArtist = meta?.artist;
-
-            if (cArtist != null && Std.string(cArtist) != "" && Std.string(cArtist) != "null") {
+            var cArtist = state.currentChart?.songArtist ?? state.currentChart?.artist ?? state.currentChart?.metadata?.artist;
+            if (cArtist != null && cArtist != "" && cArtist != "null") {
                 _cachedSongArtist = Std.string(cArtist);
                 return _cachedSongArtist;
             }
@@ -157,12 +145,9 @@ class SongDatahunter extends KassetteHUDDatahunter {
 
         if (artistStr == "Unknown Artist" || artistStr == "null") {
             if (state.currentSong != null) {
-                var sArtist = Std.string(state.currentSong.artist);
-                if (sArtist != "" && sArtist != "null") {
-                    artistStr = sArtist;
-                } else if (state.currentSong.metadata != null && state.currentSong.metadata.artist != null) {
-                    var mArtist = Std.string(state.currentSong.metadata.artist);
-                    if (mArtist != "" && mArtist != "null") artistStr = mArtist;
+                var sArtist = state.currentSong?.artist ?? state.currentSong?.metadata?.artist;
+                if (sArtist != null && sArtist != "" && sArtist != "null") {
+                    artistStr = Std.string(sArtist);
                 }
             }
         }
@@ -175,8 +160,8 @@ class SongDatahunter extends KassetteHUDDatahunter {
         if (KssetteOptionsManager.instance != null && KssetteOptionsManager.instance.getKssValue("kssette_show_song_diff") != true) return "";
         var state = PlayState.instance;
         if (state == null) return "NORMAL";
-        var diff:String = Std.string(state.currentDifficulty);
-        return (diff == null || diff == "" || diff == "null") ? "NORMAL" : diff.toUpperCase();
+        var diff:String = Std.string(state.currentDifficulty ?? "NORMAL");
+        return (diff == "" || diff == "null") ? "NORMAL" : diff.toUpperCase();
     }
 
     public function getTimeRemaining():String {
@@ -200,14 +185,10 @@ class SongDatahunter extends KassetteHUDDatahunter {
         if (state == null || state.currentChart == null || state.currentChart.notes == null) return 0;
         var count:Int = 0;
         for (note in state.currentChart.notes) {
-            var isPlayer = false;
-            try {
-                if (note.getMustHitNote() == true) isPlayer = true;
-            } catch(e:Dynamic) {
-                var d = note?.data;
-                if (d == null) d = note?.d;
+            var isPlayer = note?.getMustHitNote() ?? note?.mustHitNote ?? false;
+            if (!isPlayer) {
+                var d = note?.data ?? note?.d;
                 if (d != null && Std.parseInt(Std.string(d)) >= 4) isPlayer = true;
-                if (note?.mustHitNote == true) isPlayer = true;
             }
             if (isPlayer) count++;
         }
@@ -216,11 +197,7 @@ class SongDatahunter extends KassetteHUDDatahunter {
 
     public function getNoteStyle():String {
         var state = PlayState.instance;
-        if (state == null) return "funkin";
-        if (state.currentChart != null && state.currentChart.playData != null && state.currentChart.playData.noteStyle != null) {
-            return state.currentChart.playData.noteStyle;
-        }
-        return "funkin";
+        return state.currentChart?.playData?.noteStyle ?? "funkin";
     }
 
     public function getModeMessage():String {
