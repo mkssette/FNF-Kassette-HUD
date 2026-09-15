@@ -72,14 +72,14 @@ class CleanHealthBar extends KassetteHUDElement {
 		previewHealthBarFillP1.scrollFactor.set(0, 0);
 		safeAdd(previewHealthBarFillP1, cam);
 
-		previewIconP1Obj = new KHUDHealthIcon("bf", true);
+		previewIconP1Obj = new KHUDHealthIcon({ char: "bf", isPlayer: true, skinScale: 0.7 });
 		previewIconP1Obj.icon.scale.set(0.7, 0.7);
 		previewIconP1Obj.icon.updateHitbox();
 		previewIconP1Obj.icon.flipX = true;
 		previewIconP1Obj.icon.scrollFactor.set(0, 0);
 		safeAdd(previewIconP1Obj.icon, cam);
 
-		previewIconP2Obj = new KHUDHealthIcon("dad", false);
+		previewIconP2Obj = new KHUDHealthIcon({ char: "dad", isPlayer: false, skinScale: 0.7 });
 		previewIconP2Obj.icon.scale.set(0.7, 0.7);
 		previewIconP2Obj.icon.updateHitbox();
 		previewIconP2Obj.icon.scrollFactor.set(0, 0);
@@ -144,7 +144,7 @@ class CleanHealthBar extends KassetteHUDElement {
 			state.remove(state.iconP1, true);
 			state.add(state.iconP1);
             
-            gameIconP1Obj = new KHUDHealthIcon(null, true, 0, 0, state.iconP1);
+            gameIconP1Obj = new KHUDHealthIcon({ existingIcon: state.iconP1, isPlayer: true, skinScale: 0.7 });
             gameIconP1Obj.autoBop = true;
 		}
 		if (state.iconP2 != null) {
@@ -152,12 +152,13 @@ class CleanHealthBar extends KassetteHUDElement {
 			state.remove(state.iconP2, true);
 			state.add(state.iconP2);
             
-            gameIconP2Obj = new KHUDHealthIcon(null, false, 0, 0, state.iconP2);
+            gameIconP2Obj = new KHUDHealthIcon({ existingIcon: state.iconP2, isPlayer: false, skinScale: 0.7 });
             gameIconP2Obj.autoBop = true;
 		}
 	}
 
 	override function onUpdate(event:Dynamic) {
+		updateSettings();
 		var elapsed:Float = (Std.isOfType(event, Float)) ? event : (event != null ? event.elapsed : 0);
 		var state = PlayState.instance;
 		if (isPreview) {
@@ -263,14 +264,17 @@ class CleanHealthBar extends KassetteHUDElement {
 				
 				previewIconP1Obj.targetScale = 0.7;
 				previewIconP2Obj.targetScale = 0.7;
+				
+				var iconSize = 150.0; // Base icon size in V-Slice
+				var scaledSize = iconSize * 0.7;
 
-				previewIconP1Obj.x = previewHealthBarBG.x + previewHealthBarBG.width - (previewIconP1Obj.icon.width / 2);
+				previewIconP1Obj.icon.x = previewHealthBarBG.x + previewHealthBarBG.width - (scaledSize / 2);
 				previewIconP1Obj.icon.flipX = true;
-				previewIconP1Obj.y = centerY - (previewIconP1Obj.icon.height / 2);
+				previewIconP1Obj.icon.y = centerY - (scaledSize / 2);
 
-				previewIconP2Obj.x = previewHealthBarBG.x - (previewIconP2Obj.icon.width / 2);
+				previewIconP2Obj.icon.x = previewHealthBarBG.x - (scaledSize / 2);
 				previewIconP2Obj.icon.flipX = false;
-				previewIconP2Obj.y = centerY - (previewIconP2Obj.icon.height / 2);
+				previewIconP2Obj.icon.y = centerY - (scaledSize / 2);
 			}
 			return;
 		}
@@ -406,10 +410,6 @@ class CleanHealthBar extends KassetteHUDElement {
 			if (state.iconP2 != null)
 				state.iconP2.autoUpdate = false;
 
-			state.iconP1.isLegacyStyle = false;
-			if (state.iconP2 != null)
-				state.iconP2.isLegacyStyle = false;
-
             if (gameIconP1Obj != null) gameIconP1Obj.updateObject(elapsed);
             if (gameIconP2Obj != null) gameIconP2Obj.updateObject(elapsed);
 
@@ -426,9 +426,7 @@ class CleanHealthBar extends KassetteHUDElement {
 			if (state.iconP2 != null)
 				state.iconP2.updateHealthIcon(hp2);
 
-			state.iconP1.updateHitbox();
-			if (state.iconP2 != null)
-				state.iconP2.updateHitbox();
+			// Removed updateHitbox() calls to prevent jittering / teleporting
 
 			if (isSolo) {
 				state.iconP1.x = barX - (state.iconP1.width / 2);

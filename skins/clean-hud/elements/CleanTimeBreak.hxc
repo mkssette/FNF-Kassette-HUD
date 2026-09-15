@@ -57,7 +57,7 @@ class CleanTimeBreak extends KassetteHUDElement {
     override public function buildPreview(cam:FlxCamera) {
         isPreview = true;
         
-        pTimeTxtObj = new KHUDTimeText(0, 10, 0, 18, 0xFFFFFFFF, "left", true);
+        pTimeTxtObj = new KHUDTimeText({ x: 0, y: 10, w: 0, size: 18, color: 0xFFFFFFFF, align: "left", brackets: true });
         safeAdd(pTimeTxtObj.timeText, cam);
 
         pTimeBarBG = new FlxSprite(0, 0).makeGraphic(100, 10, FlxColor.BLACK);
@@ -96,7 +96,7 @@ class CleanTimeBreak extends KassetteHUDElement {
         safeDestroy(breakBarBG);
         safeDestroy(breakBarFill);
 
-        timeTxtObj = new KHUDTimeText(0, 10, 0, 18, 0xFFFFFFFF, "left", true);
+        timeTxtObj = new KHUDTimeText({ x: 0, y: 10, w: 0, size: 18, color: 0xFFFFFFFF, align: "left", brackets: true });
         timeTxtObj.timeText.cameras = [state.camHUD];
         timeTxtObj.timeText.zIndex = KassetteHUDElement.Z_HUD_FRONT;
         state.add(timeTxtObj.timeText);

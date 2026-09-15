@@ -15,26 +15,38 @@ class KHUDHealthIcon extends KHUDObject {
     public var isPlayer:Bool = false;
     
     // Variables para la animación de escala (lerp)
-    public var targetScale:Float = 0.55; // default base scale
+    public var targetScale:Float = 1.0;
     public var lerpSpeed:Float = 15.0; // matched CleanHealthBar speed (originally it was a custom lerp factor)
+
+    public var skinScale:Float = 1.0;
 
     // Lógica automática
     public var autoBop:Bool = false;
 
-    public function new(char:String = "face", isPlayer:Bool = false, x:Float = 0, y:Float = 0, existingIcon:HealthIcon = null) {
+    public function new(options:Dynamic = null) {
+        var x:Float = options != null && options.x != null ? options.x : 0;
+        var y:Float = options != null && options.y != null ? options.y : 0;
         super(x, y);
         this.objectName = "KHUDHealthIcon";
-        this.isPlayer = isPlayer;
+
+        var char:String = options != null && options.char != null ? options.char : "face";
+        this.isPlayer = options != null && options.isPlayer != null ? options.isPlayer : false;
+        
+        if (options != null && options.skinScale != null) {
+            this.skinScale = options.skinScale;
+        }
+        
+        this.targetScale = this.skinScale;
+
+        var existingIcon:Dynamic = options != null && options.existingIcon != null ? options.existingIcon : null;
 
         if (existingIcon != null) {
             icon = existingIcon;
-            
-            // Cancelar tweens nativos de forma segura
-            icon.shouldBop = false;
-            icon.bopTween?.cancel();
-            icon.bopTween = null;
         } else {
-            icon = new HealthIcon(char, isPlayer);
+            icon = new HealthIcon(char, isPlayer ? 1 : 0);
+            
+            // V-Slice HealthIcon won't load the graphic until configure is called
+            icon.configure({id: char, isPixel: false, shouldBop: true, scale: 1.0, flipX: false, offsets: [0, 0]});
         }
     }
 
@@ -44,7 +56,6 @@ class KHUDHealthIcon extends KHUDObject {
     public function bop(scaleAmount:Float = 1.2) {
         if (icon == null) return;
         icon.scale.set(targetScale * scaleAmount, targetScale * scaleAmount);
-        icon.updateHitbox();
     }
     
     /**
@@ -58,7 +69,7 @@ class KHUDHealthIcon extends KHUDObject {
         
         if (iconHunter != null) {
             bopInterval = isPlayer ? iconHunter.cachedP1Bop : iconHunter.cachedP2Bop;
-            targetScale = (isPlayer ? iconHunter.cachedP1Scale : iconHunter.cachedP2Scale) * 0.55;
+            targetScale = (isPlayer ? iconHunter.cachedP1Scale : iconHunter.cachedP2Scale) * skinScale;
         }
 
         if (bopInterval > 0 && step % bopInterval == 0) {
@@ -88,7 +99,6 @@ class KHUDHealthIcon extends KHUDObject {
                 var mult:Float = FlxMath.lerp(targetScale, icon.scale.x, Math.exp(-elapsed * 9 * 0.15));
                 icon.scale.set(mult, mult);
             }
-            icon.updateHitbox();
         }
     }
 

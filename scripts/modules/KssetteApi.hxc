@@ -250,7 +250,7 @@ class KssetteApi extends Module {
 
 	// Returns a map of available custom fonts.
 	// Example: ModuleHandler.getModule("KssetteApi").scriptCall("getAvailableFonts", [])
-	public function getAvailableFonts():Map<String, String> {
+	public function getAvailableFonts():Dynamic {
 		if (KassetteHUDDatahunter.asset != null) {
 			return KassetteHUDDatahunter.asset.getAvailableFonts();
 		}

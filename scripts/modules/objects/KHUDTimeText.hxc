@@ -23,7 +23,15 @@ class KHUDTimeText extends KHUDObject {
     public var lastSecondsTotal:Int = -1;
     public var formatWithBrackets:Bool = true;
 
-    public function new(x:Float = 0, y:Float = 0, w:Float = 0, size:Int = 18, color:Int = 0xFFFFFFFF, align:String = "left", brackets:Bool = true) {
+    public function new(options:Dynamic = null) {
+        var x:Float = options != null && options.x != null ? options.x : 0;
+        var y:Float = options != null && options.y != null ? options.y : 0;
+        var w:Float = options != null && options.w != null ? options.w : 0;
+        var size:Int = options != null && options.size != null ? options.size : 18;
+        var color:Int = options != null && options.color != null ? options.color : 0xFFFFFFFF;
+        var align:String = options != null && options.align != null ? options.align : "left";
+        var brackets:Bool = options != null && options.brackets != null ? options.brackets : true;
+
         super(x, y);
         this.objectName = "KHUDTimeText";
         this.formatWithBrackets = brackets;
