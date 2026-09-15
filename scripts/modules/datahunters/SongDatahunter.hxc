@@ -58,6 +58,16 @@ class SongDatahunter extends KassetteHUDDatahunter {
         gammodAutoPlay = false;
     }
 
+    public function invalidateCache() {
+        _checkedSongName = false;
+        _cachedSongName = "Unknown";
+        _checkedSongArtist = false;
+        _cachedSongArtist = "Unknown Artist";
+        _checkedSongId = false;
+        _cachedSongId = "";
+        _qtModule = null;
+    }
+
     public function getDownscroll():Bool {
         if (KssetteOptionsManager.instance != null) return KssetteOptionsManager.instance.getDownscroll();
         return false;

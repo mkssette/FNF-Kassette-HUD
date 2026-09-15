@@ -46,6 +46,7 @@ import kassettehud.util.KssetteOptionsManager;
 import kassettehud.util.KassetteHUDDatahunter;
 import kassettehud.util.KssetteFontManager;
 import funkin.play.PlayState;
+import kassettehud.objects.KHUDTimeText;
 import flixel.text.FlxText;
 import funkin.Paths;
 import flixel.text.FlxTextBorderStyle;
@@ -71,8 +72,8 @@ class KssetteAccuracy extends KassetteHUDElement {
     public var uiText:FlxText;
     /** Secondary text showing song title and/or difficulty. */
     public var infoText:FlxText; 
-    /** Text showing remaining song time. */
-    public var timeText:FlxText; 
+    /** Text object showing remaining song time. */
+    public var timeTxtObj:KHUDTimeText; 
     /** Scrolling marquee showing the current game mode (e.g., "Botplay"). */
     /** Label FlxText objects for each judgement counter (Sicks, Goods, etc.). */
     public var judgeLabels:Array<FlxText> = [];
@@ -216,7 +217,11 @@ class KssetteAccuracy extends KassetteHUDElement {
     public function cleanupUI() {
         safeDestroy(uiText);
         safeDestroy(infoText);
-        safeDestroy(timeText);
+        if (timeTxtObj != null) {
+            safeDestroy(timeTxtObj.timeText);
+            timeTxtObj.destroy();
+            timeTxtObj = null;
+        }
         for (t in judgeLabels) safeDestroy(t);
         for (t in judgeValues) safeDestroy(t);
         judgeLabels = [];
@@ -254,7 +259,10 @@ class KssetteAccuracy extends KassetteHUDElement {
         uiText = makeText(0, 0, 0, "", 18, "center", 100, cam);
         uiText.updateHitbox();
 
-        timeText = makeText(0, 0, FlxG.width / 2 - 10, "", 28, "right", 2000, cam);
+        timeTxtObj = new KHUDTimeText({ x: 0, y: 0, w: FlxG.width / 2 - 10, size: 28, color: 0xFFFFFFFF, align: "right", brackets: true });
+        timeTxtObj.timeText.zIndex = 2000;
+        safeAdd(timeTxtObj.timeText, cam);
+        
         infoText = makeText(0, 0, FlxG.width / 2 - 10, "", 16, "left", 2000, cam);
         modeText = makeText(FlxG.width, 200, 0, "", 24, "left", 2000, cam);
         judgeLabels = [];
@@ -323,6 +331,10 @@ class KssetteAccuracy extends KassetteHUDElement {
         songHunter = KassetteHUDDatahunter.song;
         gammodHunter = KassetteHUDDatahunter.gammod;
         iconHunter = KassetteHUDDatahunter.icon;
+
+        if (songHunter != null && songHunter.invalidateCache != null) {
+            songHunter.invalidateCache();
+        }
 
 
         var state = PlayState.instance;
@@ -495,11 +507,11 @@ class KssetteAccuracy extends KassetteHUDElement {
             }
         }
 
-        if (timeText != null && timeText.exists) {
-            if (timeText.font != cachedFont) timeText.font = cachedFont;
-            timeText.visible = _cShowTime;
+        if (timeTxtObj != null && timeTxtObj.timeText != null && timeTxtObj.timeText.exists) {
+            if (timeTxtObj.timeText.font != cachedFont) timeTxtObj.timeText.font = cachedFont;
+            timeTxtObj.timeText.visible = _cShowTime;
             if (isPreview && _cShowTime) {
-                if (timeText.text != "[3:20]") timeText.text = "[3:20]";
+                if (timeTxtObj.timeText.text != "[3:20]") timeTxtObj.timeText.text = "[3:20]";
             }
         }
 
@@ -611,19 +623,19 @@ class KssetteAccuracy extends KassetteHUDElement {
                     iX = splitX + 10; iW = (FlxG.width - safeRight) - (splitX + 10); iA = "left";
                     
                     if (hasBottomTimebar) {
-                        tY = FlxG.height - 55;
+                        tY = FlxG.height - 52;
                         iY = FlxG.height - 46;
                     } else {
-                        tY = FlxG.height - 45;
+                        tY = FlxG.height - 42;
                         iY = FlxG.height - 36;
                     }
                 } else {
-                    tY = 15; iY = 24; tX = safeLeft; tW = splitX - 10 - safeLeft; tA = "right";
+                    tY = 18; iY = 24; tX = safeLeft; tW = splitX - 10 - safeLeft; tA = "right";
                     iX = splitX + 10; iW = (FlxG.width - safeRight) - (splitX + 10); iA = "left";
                 }
             } else {
                 if (inverted) {
-                    tY = 15; iY = 24; tX = safeLeft; tW = splitX - 10 - safeLeft; tA = "right";
+                    tY = 18; iY = 24; tX = safeLeft; tW = splitX - 10 - safeLeft; tA = "right";
                     iX = splitX + 10; iW = (FlxG.width - safeRight) - (splitX + 10); iA = "left";
                 } else {
                     if (hbPos == "Center") {
@@ -648,10 +660,10 @@ class KssetteAccuracy extends KassetteHUDElement {
             }
         }
 
-        if (timeText != null) {
-            if (timeText.x != tX || timeText.y != tY) timeText.setPosition(tX, tY);
-            if (timeText.fieldWidth != tW) timeText.fieldWidth = tW;
-            if (timeText.alignment != tA) timeText.alignment = tA;
+        if (timeTxtObj != null && timeTxtObj.timeText != null) {
+            if (timeTxtObj.timeText.x != tX || timeTxtObj.timeText.y != tY) timeTxtObj.timeText.setPosition(tX, tY);
+            if (timeTxtObj.timeText.fieldWidth != tW) timeTxtObj.timeText.fieldWidth = tW;
+            if (timeTxtObj.timeText.alignment != tA) timeTxtObj.timeText.alignment = tA;
         }
 
         if (infoText != null) {
@@ -988,17 +1000,12 @@ class KssetteAccuracy extends KassetteHUDElement {
 
         if (state == null) return;
         
-        if (timeText != null && timeText.exists) {
+        if (timeTxtObj != null && timeTxtObj.timeText != null && timeTxtObj.timeText.exists) {
             var showT:Bool = _cShowTime;
-            timeText.visible = showT;
+            timeTxtObj.timeText.visible = showT;
             if (showT && state.conductorInUse != null) {
-                var remainingSeconds:Int = Math.floor((state.currentSongLengthMs - state.conductorInUse.songPosition) / 1000);
-                if (remainingSeconds < 0) remainingSeconds = 0;
-                
-                if (remainingSeconds != lastTimeSeconds) {
-                    lastTimeSeconds = remainingSeconds;
-                    timeText.text = "[" + FlxStringUtil.formatTime(remainingSeconds, false) + "]";
-                }
+                timeTxtObj.updateTimeFromState();
+                timeTxtObj.updateObject(elapsed);
             }
         }
 
@@ -1092,12 +1099,12 @@ class KssetteAccuracy extends KassetteHUDElement {
     override public function destroy() {
         if (uiText != null) uiText.destroy();
         if (infoText != null) infoText.destroy();
-        if (timeText != null) timeText.destroy();
+        if (timeTxtObj != null) timeTxtObj.destroy();
         if (modeText != null) modeText.destroy();
         
         uiText = null;
         infoText = null;
-        timeText = null;
+        timeTxtObj = null;
         modeText = null;
         
         currentTargetFmt = null;

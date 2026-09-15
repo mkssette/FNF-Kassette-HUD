@@ -14,6 +14,7 @@ import funkin.Conductor;
 import flixel.util.FlxColor;
 import Std;
 import Math;
+import kassettehud.objects.KHUDHealthIcon;
 
 class CleanHealthBar extends KassetteHUDElement {
 	var previewHealthBarBG:FlxSprite;
@@ -88,8 +89,8 @@ class CleanHealthBar extends KassetteHUDElement {
 		previewHealthBarBG.zIndex = KassetteHUDElement.Z_HUD_BASE;
 		previewHealthBarFillP2.zIndex = KassetteHUDElement.Z_HUD_MID;
 		previewHealthBarFillP1.zIndex = KassetteHUDElement.Z_HUD_MID;
-		previewIconP1Obj.zIndex = KassetteHUDElement.Z_HUD_FRONT;
-		previewIconP2Obj.zIndex = KassetteHUDElement.Z_HUD_FRONT;
+		previewIconP1Obj.icon.zIndex = KassetteHUDElement.Z_HUD_FRONT;
+		previewIconP2Obj.icon.zIndex = KassetteHUDElement.Z_HUD_FRONT;
 	}
 
 	var _cPosPref:String = "Center";

@@ -15,6 +15,7 @@ import kassettehud.util.KassetteHUDDatahunter;
 import funkin.Conductor;
 import Std;
 import Math;
+import kassettehud.objects.KHUDTimeText;
 
 class CleanTimeBreak extends KassetteHUDElement {
     var timeTxtObj:KHUDTimeText;

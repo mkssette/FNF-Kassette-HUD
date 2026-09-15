@@ -43,6 +43,7 @@ import funkin.Conductor;
 import kassettehud.util.KassetteHUDElement;
 import kassettehud.util.KssetteOptionsManager;
 import kassettehud.util.KassetteHUDDatahunter;
+import kassettehud.objects.KHUDHealthIcon;
 
 class KssetteHealthBar extends KassetteHUDElement {
 	/** Last known character ID for P1 icon; used to detect icon changes. */
@@ -122,8 +123,8 @@ class KssetteHealthBar extends KassetteHUDElement {
 		previewHealthBarBG.zIndex = KassetteHUDElement.Z_HUD_BASE;
 		previewHealthBarFillP2.zIndex = KassetteHUDElement.Z_HUD_MID;
 		previewHealthBarFillP1.zIndex = KassetteHUDElement.Z_HUD_MID;
-		previewIconP1Obj.zIndex = KassetteHUDElement.Z_HUD_FRONT;
-		previewIconP2Obj.zIndex = KassetteHUDElement.Z_HUD_FRONT;
+		previewIconP1Obj.icon.zIndex = KassetteHUDElement.Z_HUD_FRONT;
+		previewIconP2Obj.icon.zIndex = KassetteHUDElement.Z_HUD_FRONT;
 	}
 
 	var _cPosPref:String = "Center";
