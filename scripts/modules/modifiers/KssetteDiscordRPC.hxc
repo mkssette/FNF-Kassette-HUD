@@ -15,54 +15,9 @@ class KssetteDiscordRPC extends KHUDModifier {
     var _lastScore:Int = -1;
     var _lastMisses:Int = -1;
 
-    var _cRpcEnable:Bool = true;
-    var _cRpcSep:String = " | ";
-    var _cL1_1:String = "Score";
-    var _cL1_2:String = "Accuracy";
-    var _cL1_3:String = "Misses";
-    var _cL2_1:String = "Song";
-    var _cL2_2:String = "Diff";
-    var _cL2_3:String = "None";
-
     public function new() {
         super("KssetteDiscordRPC");
-        
         this.name = "KssetteDiscordRPC";
-    }
-
-    function updateSettings() {
-        var optManager = KssetteOptionsManager.instance;
-        if (optManager == null) return;
-        
-        var rpcEnable = optManager.getKssValue("kssette_rpc_enable");
-        if (rpcEnable == "Off" || rpcEnable == false || rpcEnable == "false") _cRpcEnable = false;
-        else _cRpcEnable = true;
-
-        var oSep = optManager.getKssValue("kssette_rpc_sep");
-        if (oSep != null) _cRpcSep = Std.string(oSep);
-
-        var v_l1_i1 = optManager.getKssValue("kssette_rpc_l1_i1");
-        if (v_l1_i1 != null) _cL1_1 = Std.string(v_l1_i1);
-
-        var v_l1_i2 = optManager.getKssValue("kssette_rpc_l1_i2");
-        if (v_l1_i2 != null) _cL1_2 = Std.string(v_l1_i2);
-
-        var v_l1_i3 = optManager.getKssValue("kssette_rpc_l1_i3");
-        if (v_l1_i3 != null) _cL1_3 = Std.string(v_l1_i3);
-
-        var v_l2_i1 = optManager.getKssValue("kssette_rpc_l2_i1");
-        if (v_l2_i1 != null) _cL2_1 = Std.string(v_l2_i1);
-
-        var v_l2_i2 = optManager.getKssValue("kssette_rpc_l2_i2");
-        if (v_l2_i2 != null) _cL2_2 = Std.string(v_l2_i2);
-
-        var v_l2_i3 = optManager.getKssValue("kssette_rpc_l2_i3");
-        if (v_l2_i3 != null) _cL2_3 = Std.string(v_l2_i3);
-    }
-
-    override public function onCountdownStart(event:Dynamic) {
-        super.onCountdownStart(event);
-        updateSettings();
     }
     
     function buildString(items:Array<String>, sep:String, state:Dynamic, acc:String, rank:String, fcTier:String, currentScore:Int, currentMisses:Int, songName:String, diff:String):String {
@@ -87,17 +42,21 @@ class KssetteDiscordRPC extends KHUDModifier {
         if (isPreview) return; // Do not update RPC during options preview
         if (FlxG.onMobile) return; // Discord RPC does not exist on Mobile
         
+        var optManager = KssetteOptionsManager.instance;
+        if (optManager != null) {
+            var rpcEnable = optManager.getKssValue("kssette_rpc_enable");
+            if (rpcEnable == "Off" || rpcEnable == false) return;
+        }
+        
         if (PlayState.instance != null && Highscore.tallies != null) {
             _timer += event.elapsed;
             
             var state = PlayState.instance;
             var currentScore = Std.int(state.songScore);
             var currentMisses = Highscore.tallies.missed;
-            if (((currentScore != _lastScore || currentMisses != _lastMisses) && _timer >= 15.0) || _timer >= 30.0) {
+            
+            if (((currentScore != _lastScore || currentMisses != _lastMisses) && _timer >= 1.0) || _timer >= 5.0) {
                 _timer = 0;
-                
-                if (!_cRpcEnable) return;
-                
                 _lastScore = currentScore;
                 _lastMisses = currentMisses;
                 
@@ -128,25 +87,49 @@ class KssetteDiscordRPC extends KHUDModifier {
                     songName = state.currentChart.songName;
                 }
                 
-                var l1 = [_cL1_1, _cL1_2, _cL1_3];
-                var l2 = [_cL2_1, _cL2_2, _cL2_3];
+                var sep = " | ";
+                var l1 = ["Score", "Accuracy", "Misses"];
+                var l2 = ["Song", "Diff", "None"];
                 
-                var detailsText = buildString(l1, _cRpcSep, state, acc, rank, fcTier, currentScore, currentMisses, songName, diff);
-                var stateText = buildString(l2, _cRpcSep, state, acc, rank, fcTier, currentScore, currentMisses, songName, diff);
+                if (optManager != null) {
+                    var oSep = optManager.getKssValue("kssette_rpc_sep");
+                    if (oSep != null) sep = Std.string(oSep);
+                    
+                    var v_l1_i1 = optManager.getKssValue("kssette_rpc_l1_i1");
+                    if (v_l1_i1 != null) l1[0] = Std.string(v_l1_i1);
+                    
+                    var v_l1_i2 = optManager.getKssValue("kssette_rpc_l1_i2");
+                    if (v_l1_i2 != null) l1[1] = Std.string(v_l1_i2);
+                    
+                    var v_l1_i3 = optManager.getKssValue("kssette_rpc_l1_i3");
+                    if (v_l1_i3 != null) l1[2] = Std.string(v_l1_i3);
+                    
+                    var v_l2_i1 = optManager.getKssValue("kssette_rpc_l2_i1");
+                    if (v_l2_i1 != null) l2[0] = Std.string(v_l2_i1);
+                    
+                    var v_l2_i2 = optManager.getKssValue("kssette_rpc_l2_i2");
+                    if (v_l2_i2 != null) l2[1] = Std.string(v_l2_i2);
+                    
+                    var v_l2_i3 = optManager.getKssValue("kssette_rpc_l2_i3");
+                    if (v_l2_i3 != null) l2[2] = Std.string(v_l2_i3);
+                }
+                
+                var detailsText = buildString(l1, sep, state, acc, rank, fcTier, currentScore, currentMisses, songName, diff);
+                var stateText = buildString(l2, sep, state, acc, rank, fcTier, currentScore, currentMisses, songName, diff);
                 
                 var largeImg = state.discordRPCAlbum;
                 var smallImg = state.discordRPCIcon;
                 
-                var presenceObj:Dynamic = {
-                    largeImageKey: largeImg,
-                    smallImageKey: smallImg
-                };
-                if (stateText != "") presenceObj.state = stateText;
-                if (detailsText != "") presenceObj.details = detailsText;
-                
-                if (DiscordClient != null) {
+                try {
+                    var presenceObj:Dynamic = {
+                        largeImageKey: largeImg,
+                        smallImageKey: smallImg
+                    };
+                    if (stateText != "") presenceObj.state = stateText;
+                    if (detailsText != "") presenceObj.details = detailsText;
+                    
                     DiscordClient.setPresence(presenceObj);
-                }
+                } catch(e:Dynamic) {}
             }
         }
     }

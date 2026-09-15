@@ -1422,6 +1422,11 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 
 		if (cat.options != null) {
 			for (opt in cat.options) {
+				if (opt.type == "subcategory") {
+					addHeader(opt.name);
+					continue;
+				}
+
 				if (opt.platform == "Mobile" && !FlxG.onMobile)
 					continue;
 				if (opt.platform == "PC" && !showPCOptions)
@@ -1927,12 +1932,14 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 
 		if (activeItems.length > 0 && activeItems[activeIndex].isHeader && menuPage == 1) {
 			var dir = change >= 0 ? 1 : -1;
-			while (activeItems[activeIndex].isHeader) {
+			var loopGuard = 0;
+			while (activeItems[activeIndex].isHeader && loopGuard < activeItems.length) {
 				activeIndex += dir;
 				if (activeIndex < 0)
 					activeIndex = activeItems.length - 1;
 				if (activeIndex >= activeItems.length)
 					activeIndex = 0;
+				loopGuard++;
 			}
 		}
 

@@ -42,11 +42,19 @@
       "name": "Customization",
       "options": [
         {
+          "type": "subcategory",
+          "name": "GENERAL"
+        },
+        {
           "id": "kssette_current_skin",
           "name": "HUD SKIN",
           "description": "Choose the visual skin for the HUD.",
           "type": "skin",
           "defaultValue": "default"
+        },
+        {
+          "type": "subcategory",
+          "name": "SCORE & JUDGEMENTS"
         },
         {
           "id": "kssette_show_score",
@@ -88,6 +96,10 @@
           "type": "choice",
           "options": ["On", "Off"],
           "defaultValue": "On"
+        },
+        {
+          "type": "subcategory",
+          "name": "HUD ELEMENTS"
         },
         {
           "id": "kssette_show_timebar",
@@ -191,6 +203,10 @@
       "name": "Gameplay",
       "options": [
         {
+          "type": "subcategory",
+          "name": "MODIFIERS"
+        },
+        {
           "id": "kssette_middlescroll",
           "name": "MIDDLESCROLL",
           "description": "Moves your notes to the center of the screen for better focus.",
@@ -225,6 +241,10 @@
           "defaultValue": "On"
         },
         {
+          "type": "subcategory",
+          "name": "SCORING & SOUNDS"
+        },
+        {
           "id": "kssette_acc_mode",
           "name": "ACCURACY CALCULATION",
           "description": "How accuracy is calculated. 'Ascending' starts at 0% and climbs up.",
@@ -248,12 +268,20 @@
           "defaultValue": "100%"
         },
         {
+          "type": "subcategory",
+          "name": "VISUALS"
+        },
+        {
           "id": "kssette_incoming_fade",
           "name": "INCOMING NOTE FADE",
           "description": "Lanes will glow when a note is approaching (up to 4 seconds ahead).",
           "type": "choice",
           "options": ["On", "Off"],
           "defaultValue": "On"
+        },
+        {
+          "type": "subcategory",
+          "name": "OPPONENT"
         },
         {
           "id": "kssette_hide_opponent",
@@ -345,6 +373,10 @@
       "name": "Positions",
       "options": [
         {
+          "type": "subcategory",
+          "name": "BARS"
+        },
+        {
           "id": "kssette_healthbar_position",
           "name": "HEALTH BAR POSITION",
           "description": "Choose where the health bar is placed horizontally on the screen.",
@@ -368,6 +400,10 @@
           "options": ["Center", "Strumline"],
           "defaultValue": "Center",
           "locked": ["kssette_middlescroll != Off"]
+        },
+        {
+          "type": "subcategory",
+          "name": "ICONS & TEXT"
         },
         {
           "id": "kssette_icon_pos",
@@ -434,6 +470,10 @@
       "name": "Letters",
       "options": [
         {
+          "type": "subcategory",
+          "name": "FONTS"
+        },
+        {
           "id": "kssette_custom_font",
           "name": "MAIN HUD FONT",
           "description": "Choose the font for the HUD.",
@@ -462,6 +502,10 @@
           "defaultValue": "vcr.ttf"
         },
         {
+          "type": "subcategory",
+          "name": "INTRO"
+        },
+        {
           "id": "kssette_intro_text",
           "name": "SONG INTRO TEXT",
           "description": "Displays the song title and artist when the song starts.",
@@ -477,6 +521,10 @@
           "options": ["On", "Off"],
           "defaultValue": "On",
           "locked": ["kssette_intro_text == Off", "kssette_intro_text == false"]
+        },
+        {
+          "type": "subcategory",
+          "name": "SUBTITLES & KARAOKE"
         },
         {
           "id": "kssette_subtitles_anim",
@@ -499,6 +547,10 @@
     {
       "name": "Performance",
       "options": [
+        {
+          "type": "subcategory",
+          "name": "GENERAL"
+        },
         {
           "id": "kssette_low_detail_menu",
           "name": "LOW DETAIL OPTIONS MENU",
