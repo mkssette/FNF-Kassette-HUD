@@ -111,6 +111,11 @@ class KassetteHUDElement {
     // Layer 1: Behind the HUD
     public static var Z_BACKGROUND_OVERLAYS:Int = 10;  // Vignettes, dark backgrounds (e.g. KassetteNight)
     public static var Z_STRUM_BACKGROUNDS:Int = 20;    // Lane backgrounds (behind HUD)
+    
+    // Layer 1.5: HUD Elements behind notes
+    public static var Z_HEALTH_BAR_BG:Int = 50;
+    public static var Z_HEALTH_BAR_FILL:Int = 60;
+    public static var Z_HEALTH_BAR_ICON:Int = 70;
 
     // Layer 2: Main HUD Elements (Must be above notes!)
     public static var Z_HUD_BASE:Int = 1000;             // Base panels, backgrounds

@@ -17,7 +17,6 @@ class KssetteIncomingFade extends KHUDModifier {
 	var fades:Array<FlxSprite> = [];
 	var fadesGroup:Dynamic = null; // Group to hold fades in absolute coordinates
 	var curIdx:Array<Int> = [0, 0, 0, 0];
-	var sharedPoint:FlxPoint;
 	var cachedScreenEntry:Float = 1500;
 	var cachedWarningEnd:Float = 2000;
 
@@ -58,9 +57,6 @@ class KssetteIncomingFade extends KHUDModifier {
 			return;
 		}
 
-		if (sharedPoint == null)
-			sharedPoint = new FlxPoint();
-
 		cachedScreenEntry = 1500;
 
 		if (state.currentChart != null && state.currentChart.notes != null) {
@@ -68,7 +64,7 @@ class KssetteIncomingFade extends KHUDModifier {
 			if (scrollSpeed <= 0)
 				scrollSpeed = 1.0;
 
-			var ps = state.playerStrumline?.scrollSpeed;
+			var ps = state.playerStrumline != null ? state.playerStrumline.scrollSpeed : null;
 			if (ps != null && ps > 0)
 				scrollSpeed = ps;
 
@@ -89,9 +85,6 @@ class KssetteIncomingFade extends KHUDModifier {
 		}
 	}
 	override public function onUpdate(event:Dynamic) {
-		if (sharedPoint == null)
-			sharedPoint = new FlxPoint();
-
 		if (!_enabled) {
 			for (f in fades) {
 				if (f != null)
@@ -153,18 +146,20 @@ class KssetteIncomingFade extends KHUDModifier {
 		var pMembers = (pStrumline != null && pStrumline.strumlineNotes != null) ? pStrumline.strumlineNotes.members : null;
 
 		for (dir in 0...4) {
-			var arr = KassetteHUDDatahunter.chartData != null ? KassetteHUDDatahunter.chartData.incomingFadeNotes[dir] : null;
+			var arr = null;
+			if (KassetteHUDDatahunter.chartData != null && KassetteHUDDatahunter.chartData.incomingFadeNotes != null && dir < KassetteHUDDatahunter.chartData.incomingFadeNotes.length) {
+				arr = KassetteHUDDatahunter.chartData.incomingFadeNotes[dir];
+			}
 			var idx = curIdx[dir];
 
 			if (arr == null) continue;
 
-			if (pMembers != null) {
+			if (pMembers != null && dir < pMembers.length) {
 				var strum = pMembers[dir];
 				var grad = fades[dir];
 				if (strum != null && grad != null) {
 					if (state.camHUD == null) continue;
-					strum.getScreenPosition(sharedPoint, state.camHUD);
-					var centerX = sharedPoint.x + (strum.width * 0.5);
+					var centerX = strum.x + (strum.width * 0.5);
 					grad.x = centerX - (grad.width * 0.5);
 
 					if (downscroll) {
@@ -175,15 +170,19 @@ class KssetteIncomingFade extends KHUDModifier {
 				}
 			}
 
-			while (idx < arr.length && arr[idx] != null && arr[idx].start < pos) {
+			while (idx < arr.length && arr[idx] != null && arr[idx].start != null && arr[idx].start < pos) {
 				idx++;
 			}
 			curIdx[dir] = idx;
 
-			if (idx < arr.length && arr[idx] != null) {
+			if (idx < arr.length && arr[idx] != null && arr[idx].start != null) {
 				var shouldBeVisible = false;
 				var k = idx;
 				while (k < arr.length && arr[k] != null) {
+					if (arr[k].start == null) {
+						k++;
+						continue;
+					}
 					var kDist = arr[k].start - pos;
 					if (kDist > cachedWarningEnd) {
 						break;

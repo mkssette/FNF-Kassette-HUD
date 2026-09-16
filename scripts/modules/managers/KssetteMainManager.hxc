@@ -10,7 +10,13 @@ import flixel.text.FlxText;
 import flixel.text.FlxTextBorderStyle;
 import flixel.util.FlxColor;
 import kassettehud.util.KssetteFontManager;
+import flixel.text.FlxBitmapText;
+import flixel.graphics.frames.FlxBitmapFont;
+import funkin.Paths;
+import openfl.display.BlendMode;
 import Std;
+import StringTools;
+import funkin.util.ReflectUtil;
 
 class KssetteMainManager extends Module {
     public static var instance:Dynamic = null;
@@ -36,7 +42,14 @@ class KssetteMainManager extends Module {
         }
 
         if (_isInPlayState) {
-            if (state.scoreText != null) state.scoreText.visible = false;
+            var sText = state.scoreText ?? null;
+            if (sText != null) sText.visible = false;
+            
+            var lMark = state.leftWatermarkText ?? null;
+            if (lMark != null) lMark.visible = false;
+            
+            var rMark = state.rightWatermarkText ?? null;
+            if (rMark != null) rMark.visible = false;
             
             var songHunter = KassetteHUDDatahunter.song;
             var chartHunter = KassetteHUDDatahunter.chartData;
@@ -125,6 +138,13 @@ class KssetteMainManager extends Module {
         }
     }
 
+    override public function onCountdownStart(event) {
+        super.onCountdownStart(event);
+        if (PlayState.instance != null) {
+            _isInPlayState = true;
+        }
+    }
+
     function createHUDWatermark(state:PlayState) {
         if (state == null || state.camHUD == null) return;
         
@@ -143,9 +163,23 @@ class KssetteMainManager extends Module {
         var gammodHunter = KassetteHUDDatahunter.gammod;
         var gammodAdd:String = (gammodHunter != null && gammodHunter.isGammodMode) ? " + GAMMOD" : "";
         var ver = KssetteUpdateManager.instance != null ? KssetteUpdateManager.instance.hudVersion : "0.3.0-a";
-        var watermark = new FlxText(0, yPos, FlxG.width - safeMargin, "Kassette HUD " + platform + " [" + ver + "]" + gammodAdd, 16);
-        watermark.setFormat("VCR OSD Mono", 16, FlxColor.WHITE, "right", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
-        watermark.alpha = 0.5; watermark.zIndex = 1000; watermark.cameras = [state.camHUD];
+        var wmTextStr = "Kassette HUD " + platform + " [" + ver + "]" + gammodAdd;
+        if (state.isChartingMode) {
+            wmTextStr = "TEST MODE";
+        }
+        var bmpFont = FlxBitmapFont.fromAngelCode(Paths.font("vcr-bmp.png"), Paths.font("vcr-bmp.fnt"));
+        var watermark = new FlxBitmapText(0, yPos, wmTextStr, bmpFont);
+        watermark.letterSpacing = -1;
+        watermark.borderStyle = FlxTextBorderStyle.OUTLINE;
+        watermark.borderColor = FlxColor.BLACK;
+        watermark.borderSize = 1;
+        watermark.alpha = 0.35; 
+        watermark.blend = BlendMode.ADD;
+        watermark.scale.set(0.85, 0.85);
+        watermark.updateHitbox();
+        watermark.x = FlxG.width - safeMargin - watermark.width;
+        watermark.zIndex = KassetteHUDElement.Z_SCREEN_OVERLAYS; 
+        watermark.cameras = [state.camHUD];
         state.add(watermark);
     }
 }

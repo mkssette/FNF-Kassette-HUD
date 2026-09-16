@@ -424,10 +424,8 @@ class KssetteAccuracy extends KassetteHUDElement {
         updateSettings();
         updatePositions();
         
-        if (_cAccMode != "Ascending") {
-            updateAccuracyText(123456, 0, 100.00, "PERFECT_GOLD", "SFC");
-            lastVisualAcc = 100.00;
-        }
+        updateAccuracyText(123456, 0, 100.00, "PERFECT_GOLD", "SFC");
+        lastVisualAcc = 100.00;
 
         for (i in 0...judgeLabels.length) {
             if (judgeValues[i] != null) {

@@ -306,10 +306,10 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 			cachePreviewModules();
 		for (mod in previewModules) {
 			if (mod != null) {
-				try {
+				if (mod.buildPreview != null || Std.isOfType(mod, KassetteHUDElement)) {
 					mod.isPreview = true;
 					mod.buildPreview(hudCam);
-				} catch(e:Dynamic) {}
+				}
 			}
 		}
 	}
@@ -327,9 +327,9 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 			cachePreviewModules();
 		for (mod in previewModules) {
 			if (mod != null) {
-				try {
+				if (mod.updatePreview != null || Std.isOfType(mod, KassetteHUDElement)) {
 					mod.updatePreview();
-				} catch(e:Dynamic) {}
+				}
 			}
 		}
 
@@ -401,6 +401,13 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 					manager = ModuleHandler.getModule("KassetteSkinManager");
 				if (manager != null)
 					manager.activateSkin(newSkinId);
+				
+				// Reset lockedState to force re-evaluation with the new skin
+				for (item in optionItems) {
+					if (item != null) item.lockedState = null;
+				}
+				changeSelection(0);
+
 				for (p in previewModules) {
 					if (p != null)
 						p.destroy();
@@ -419,6 +426,13 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 				manager = ModuleHandler.getModule("KassetteSkinManager");
 			if (manager != null)
 				manager.activateSkin(newSkinId);
+
+			// Reset lockedState to force re-evaluation with the new skin
+			for (item in optionItems) {
+				if (item != null) item.lockedState = null;
+			}
+			changeSelection(0);
+
 			for (p in previewModules) {
 				if (p != null)
 					p.destroy();
@@ -487,7 +501,9 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 				_previewUpdateTimer = 0;
 				for (mod in previewModules) {
 					if (mod != null) {
-						try { mod.onUpdate(accum); } catch(e:Dynamic) {}
+						if (mod.onUpdate != null || Std.isOfType(mod, KassetteHUDElement)) {
+							mod.onUpdate(accum);
+						}
 					}
 				}
 			}
@@ -2079,7 +2095,7 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 					if (item == null || item.bg == null || !item.bg.visible || item.isHeader && menuPage == 1)
 						continue;
 
-					if (TouchUtil.pressAction(item.bg, null, false)) {
+					if (TouchUtil.pressAction(item.bg, optionCam, false)) {
 						if (i == activeIndex) {
 							acceptPressed = true; // Activate selected capsule
 						} else {

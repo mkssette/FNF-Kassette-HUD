@@ -90,6 +90,15 @@ class KassetteHUDSkin extends Module {
 
     override public function onCountdownStart(event:Dynamic) {
         if (!active) return;
+        
+        var state = PlayState.instance;
+        if (state != null && state.isChartingMode && state.isMinimalMode) {
+            state.isMinimalMode = false;
+            if (state.initStage != null) state.initStage();
+            if (state.initCharacters != null) state.initCharacters();
+            state.refresh();
+        }
+        
         ensureElements();
         for (el in elements) {
             if (el != null) {

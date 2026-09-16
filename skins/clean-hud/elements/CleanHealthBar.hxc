@@ -86,11 +86,11 @@ class CleanHealthBar extends KassetteHUDElement {
 		previewIconP2Obj.icon.scrollFactor.set(0, 0);
 		safeAdd(previewIconP2Obj.icon, cam);
 
-		previewHealthBarBG.zIndex = KassetteHUDElement.Z_HUD_BASE;
-		previewHealthBarFillP2.zIndex = KassetteHUDElement.Z_HUD_MID;
-		previewHealthBarFillP1.zIndex = KassetteHUDElement.Z_HUD_MID;
-		previewIconP1Obj.icon.zIndex = KassetteHUDElement.Z_HUD_FRONT;
-		previewIconP2Obj.icon.zIndex = KassetteHUDElement.Z_HUD_FRONT;
+		previewHealthBarBG.zIndex = KassetteHUDElement.Z_HEALTH_BAR_BG;
+		previewHealthBarFillP2.zIndex = KassetteHUDElement.Z_HEALTH_BAR_FILL;
+		previewHealthBarFillP1.zIndex = KassetteHUDElement.Z_HEALTH_BAR_FILL;
+		previewIconP1Obj.icon.zIndex = KassetteHUDElement.Z_HEALTH_BAR_ICON;
+		previewIconP2Obj.icon.zIndex = KassetteHUDElement.Z_HEALTH_BAR_ICON;
 	}
 
 	var _cPosPref:String = "Center";
@@ -128,12 +128,12 @@ class CleanHealthBar extends KassetteHUDElement {
 			iconHunter = KassetteHUDDatahunter.icon;
 
 		if (state.healthBarBG != null) {
-			state.healthBarBG.zIndex = KassetteHUDElement.Z_HUD_BASE;
+			state.healthBarBG.zIndex = KassetteHUDElement.Z_HEALTH_BAR_BG;
 			state.remove(state.healthBarBG, true);
 			state.add(state.healthBarBG);
 		}
 		if (state.healthBar != null) {
-			state.healthBar.zIndex = KassetteHUDElement.Z_HUD_MID;
+			state.healthBar.zIndex = KassetteHUDElement.Z_HEALTH_BAR_FILL;
 			state.remove(state.healthBar, true);
 			state.add(state.healthBar);
 		}
@@ -141,7 +141,7 @@ class CleanHealthBar extends KassetteHUDElement {
 		_lastP1Id = "";
 		_lastP2Id = "";
 		if (state.iconP1 != null) {
-			state.iconP1.zIndex = KassetteHUDElement.Z_HUD_FRONT;
+			state.iconP1.zIndex = KassetteHUDElement.Z_HEALTH_BAR_ICON;
 			state.remove(state.iconP1, true);
 			state.add(state.iconP1);
             
@@ -149,7 +149,7 @@ class CleanHealthBar extends KassetteHUDElement {
             gameIconP1Obj.autoBop = true;
 		}
 		if (state.iconP2 != null) {
-			state.iconP2.zIndex = KassetteHUDElement.Z_HUD_FRONT;
+			state.iconP2.zIndex = KassetteHUDElement.Z_HEALTH_BAR_ICON;
 			state.remove(state.iconP2, true);
 			state.add(state.iconP2);
             
@@ -201,7 +201,7 @@ class CleanHealthBar extends KassetteHUDElement {
 			}
 
 			var posPref = _cPosPref;
-			var mobPadding = isMobileLayout ? 180 : 90;
+			var mobPadding = isMobileLayout ? 300 : 90;
 
 			if (posPref == "Left") {
 				previewHealthBarBG.x = mobPadding;
@@ -340,7 +340,7 @@ class CleanHealthBar extends KassetteHUDElement {
 			var hbY = downscroll ? FlxG.height * 0.11 : FlxG.height * 0.89;
 
 			state.healthBarBG.y = hbY;
-			state.healthBarBG.zIndex = KassetteHUDElement.Z_HUD_BASE;
+			state.healthBarBG.zIndex = KassetteHUDElement.Z_HEALTH_BAR_BG;
 			barX = state.healthBarBG.x;
 			barY = state.healthBarBG.y;
 		}

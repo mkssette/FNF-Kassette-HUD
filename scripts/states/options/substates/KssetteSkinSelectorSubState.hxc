@@ -342,9 +342,9 @@ class KssetteSkinSelectorSubState extends ScriptedMusicBeatSubState {
         if (tJustPressed) {
             var inputHandled = false;
             
-            var overlapUp = FlxG.onMobile ? TouchUtil.overlaps(btnUpBg) : (FlxG.mouse != null && FlxG.mouse.overlaps(btnUpBg));
-            var overlapDown = FlxG.onMobile ? TouchUtil.overlaps(btnDownBg) : (FlxG.mouse != null && FlxG.mouse.overlaps(btnDownBg));
-            var overlapBack = FlxG.onMobile ? TouchUtil.overlaps(btnBackBg) : (FlxG.mouse != null && FlxG.mouse.overlaps(btnBackBg));
+            var overlapUp = FlxG.onMobile ? TouchUtil.overlaps(btnUpBg, optionCam) : (FlxG.mouse != null && FlxG.mouse.overlaps(btnUpBg, optionCam));
+            var overlapDown = FlxG.onMobile ? TouchUtil.overlaps(btnDownBg, optionCam) : (FlxG.mouse != null && FlxG.mouse.overlaps(btnDownBg, optionCam));
+            var overlapBack = FlxG.onMobile ? TouchUtil.overlaps(btnBackBg, optionCam) : (FlxG.mouse != null && FlxG.mouse.overlaps(btnBackBg, optionCam));
             
             if (btnUpBg != null && overlapUp) {
                 changeSkinSelection(-1); holdTimer = 0.5;
@@ -360,7 +360,7 @@ class KssetteSkinSelectorSubState extends ScriptedMusicBeatSubState {
                     var item = skinItems[i];
                     if (item == null || item.bg == null) continue;
                     
-                    var itemOverlap = FlxG.onMobile ? TouchUtil.overlaps(item.bg) : (FlxG.mouse != null && FlxG.mouse.overlaps(item.bg));
+                    var itemOverlap = FlxG.onMobile ? TouchUtil.overlaps(item.bg, optionCam) : (FlxG.mouse != null && FlxG.mouse.overlaps(item.bg, optionCam));
                     if (itemOverlap) {
                         if (skinSelectedIndex == i) {
                             selectCurrentSkin();

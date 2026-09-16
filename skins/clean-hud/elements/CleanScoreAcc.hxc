@@ -175,14 +175,17 @@ class CleanScoreAcc extends KassetteHUDElement {
         if (isPreview) {
             if (previewScoreTxt != null) {
                 if (fontChanged) previewScoreTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
-                previewScoreTxt.visible = showHud;
+                previewScoreTxt.visible = showHud && _cShowScore;
                 previewScoreTxt.y = targetY;
                 previewScoreTxt.x = 10;
             }
             if (previewAccTxt != null) {
                 if (fontChanged) previewAccTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
-                previewAccTxt.visible = showHud;
-                previewAccTxt.y = previewScoreTxt != null ? targetY + previewScoreTxt.height : targetY + 24;
+                var showAcc = (_cAccMode != "Off" && _cAccMode != "null" && _cAccMode != "false");
+                previewAccTxt.visible = showHud && showAcc;
+                var baseTY = targetY;
+                if (previewScoreTxt != null && previewScoreTxt.visible) baseTY += previewScoreTxt.height;
+                previewAccTxt.y = baseTY;
                 previewAccTxt.x = 10;
             }
             return;

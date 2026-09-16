@@ -372,7 +372,8 @@ class KssetteTimeBar extends KassetteHUDElement {
 
         // Intenta leer la duración de la canción si no estaba disponible al inicio de la cuenta atrás.
         if (songLengthMs <= 0.0) {
-            songLengthMs = state.currentSongLengthMs;
+            songLengthMs = state.currentSongLengthMs ?? 0;
+            if (songLengthMs <= 0 && FlxG.sound.music != null) songLengthMs = FlxG.sound.music.length;
         }    
         if (songLengthMs <= 0) return;
 
