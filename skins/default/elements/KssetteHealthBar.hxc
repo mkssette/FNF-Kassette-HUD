@@ -123,8 +123,8 @@ class KssetteHealthBar extends KassetteHUDElement {
 		previewHealthBarBG.zIndex = KassetteHUDElement.Z_HEALTH_BAR_BG;
 		previewHealthBarFillP2.zIndex = KassetteHUDElement.Z_HEALTH_BAR_FILL;
 		previewHealthBarFillP1.zIndex = KassetteHUDElement.Z_HEALTH_BAR_FILL;
-		previewIconP1Obj.icon.zIndex = KassetteHUDElement.Z_HEALTH_BAR_ICON;
-		previewIconP2Obj.icon.zIndex = KassetteHUDElement.Z_HEALTH_BAR_ICON;
+		previewIconP1Obj.icon.zIndex = KassetteHUDElement.Z_HUD_FRONT;
+		previewIconP2Obj.icon.zIndex = KassetteHUDElement.Z_HUD_FRONT;
 	}
 
 	var _cPosPref:String = "Center";
@@ -172,14 +172,14 @@ class KssetteHealthBar extends KassetteHUDElement {
 			state.add(state.healthBar);
 		}
 		if (state.iconP1 != null) {
-			state.iconP1.zIndex = KassetteHUDElement.Z_HEALTH_BAR_ICON;
+			state.iconP1.zIndex = KassetteHUDElement.Z_HUD_FRONT;
 			state.remove(state.iconP1, true);
 			state.add(state.iconP1);
             
             gameIconP1Obj = new KHUDHealthIcon({ existingIcon: state.iconP1, isPlayer: true, skinScale: 1.0 });
 		}
 		if (state.iconP2 != null) {
-			state.iconP2.zIndex = KassetteHUDElement.Z_HEALTH_BAR_ICON;
+			state.iconP2.zIndex = KassetteHUDElement.Z_HUD_FRONT;
 			state.remove(state.iconP2, true);
 			state.add(state.iconP2);
             
@@ -348,10 +348,37 @@ class KssetteHealthBar extends KassetteHUDElement {
 		var hb = state.healthBar;
 		if (hb != null && state.healthBarBG != null) {
 			var posPref = _cPosPref;
+
+			var isMobileLayout = false;
+			if (KssetteOptionsManager.instance != null) {
+				if (!KssetteOptionsManager.instance.isMobileLikePC()) {
+					isMobileLayout = true;
+				} else if (KssetteOptionsManager.instance.getKssValue("kssette_middlescroll") == "Like Mobile") {
+					isMobileLayout = true;
+				}
+			}
+
+			var mobPaddingLeft = isMobileLayout ? 180.0 : 90.0;
+			var mobPaddingRight = isMobileLayout ? 180.0 : 90.0;
+
+			// Calcula padding dinámico desde la strumline del oponente
+			if (isMobileLayout && state.opponentStrumline != null && state.opponentStrumline.strumlineNotes != null) {
+				var maxOppX = 90.0;
+				for (strum in state.opponentStrumline.strumlineNotes.members) {
+					if (strum != null && strum.exists && strum.visible) {
+						var edge = strum.x + strum.width;
+						if (edge > maxOppX)
+							maxOppX = edge;
+					}
+				}
+				if (maxOppX > 90.0)
+					mobPaddingLeft = maxOppX + 30;
+			}
+
 			if (posPref == "Left") {
-				state.healthBarBG.x = 90;
+				state.healthBarBG.x = mobPaddingLeft;
 			} else if (posPref == "Right") {
-				state.healthBarBG.x = FlxG.width - state.healthBarBG.width - 90;
+				state.healthBarBG.x = FlxG.width - state.healthBarBG.width - mobPaddingRight;
 			} else {
 				state.healthBarBG.screenCenter(0x01);
 			}

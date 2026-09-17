@@ -60,8 +60,10 @@ class KssetteTimeBar extends KassetteHUDElement {
     var songLengthMs:Float = 0.0;
     /** Timer to throttle bar updates to ~120fps instead of every frame. */
     var updateTimer:Float = 0.0;
-    /** Dedicated camera for edge mode bars (renders above all HUD layers). */
     var customCam:FlxCamera = null;
+
+    var _lastHbY:Float = -1;
+    var _lastHbX:Float = -1;
 
     /** Set to true during the options menu preview to use a custom camera instead of camHUD. */
 
@@ -146,10 +148,18 @@ class KssetteTimeBar extends KassetteHUDElement {
             targetCam = customCam;
         }
 
-        var zIdx:Int = isBorder ? 1018 : (timeBarPos == "In Health" ? 109 : 15);
+        var bgZ = KassetteHUDElement.Z_HUD_BASE;
+        var barZ = KassetteHUDElement.Z_HUD_MID;
+        if (timeBarPos == "In Health") {
+            bgZ = KassetteHUDElement.Z_HEALTH_BAR_ICON - 2;
+            barZ = KassetteHUDElement.Z_HEALTH_BAR_ICON - 1;
+        } else if (isBorder) {
+            bgZ = 1018;
+            barZ = 1019;
+        }
 
-        timeBarBG = makeBar(0, Std.int(barSize + 4), 0xFF000000, KassetteHUDElement.Z_HUD_BASE, targetCam);
-        timeBar = makeBar(2, Std.int(barSize), 0xFFFFFFFF, KassetteHUDElement.Z_HUD_MID, targetCam);
+        timeBarBG = makeBar(0, Std.int(barSize + 4), 0xFF000000, bgZ, targetCam);
+        timeBar = makeBar(2, Std.int(barSize), 0xFFFFFFFF, barZ, targetCam);
         FlxG.state.refresh();
     }
 
@@ -213,21 +223,27 @@ class KssetteTimeBar extends KassetteHUDElement {
             case "In Health":
                 var bgW = 601; // Default healthbar width
                 var hbX:Float = (FlxG.width - bgW) / 2;
-                
-                var hbPosPref = getSettingString("kssette_healthbar_position", "Center");
-                if (hbPosPref == "Left") {
-                    hbX = 90;
-                } else if (hbPosPref == "Right") {
-                    hbX = FlxG.width - bgW - 90;
+                var state = PlayState.instance;
+
+                if (state != null && state.healthBarBG != null) {
+                    // Usa la X ya corregida por KssetteHealthBar (incluye middlescroll padding)
+                    hbX = state.healthBarBG.x;
+                    bgW = Std.int(state.healthBarBG.width);
+                } else {
+                    var hbPosPref = getSettingString("kssette_healthbar_position", "Center");
+                    if (hbPosPref == "Left") {
+                        hbX = 90;
+                    } else if (hbPosPref == "Right") {
+                        hbX = FlxG.width - bgW - 90;
+                    }
                 }
-                
-                // Adjust to timebar's center
+
+                // Centra la timebar dentro de la healthbar
                 hbX += (bgW - currentBgW) / 2;
-                
+
                 var downscrollValue = isDownscroll();
                 var hbY:Float = downscrollValue ? FlxG.height * 0.11 : FlxG.height * 0.89;
                 var hbH:Float = 19;
-                var state = PlayState.instance;
                 if (state != null && state.healthBarBG != null) {
                     hbY = state.healthBarBG.y;
                     hbH = state.healthBarBG.height;
@@ -363,6 +379,15 @@ class KssetteTimeBar extends KassetteHUDElement {
         if (isPreview) return;
 
         var state = PlayState.instance;
+        if (state != null && state.healthBarBG != null) {
+            var hbY = state.healthBarBG.y;
+            var hbX = state.healthBarBG.x;
+            if (hbY != _lastHbY || hbX != _lastHbX) {
+                _lastHbY = hbY;
+                _lastHbX = hbX;
+                updatePositions();
+            }
+        }
         if (customCam != null && state?.camHUD != null) {
             if (customCam.visible != state.camHUD.visible) customCam.visible = state.camHUD.visible;
             if (customCam.alpha   != state.camHUD.alpha)   customCam.alpha   = state.camHUD.alpha;
