@@ -18,98 +18,99 @@ import Std;
 import flixel.text.FlxBitmapText;
 import flixel.graphics.frames.FlxBitmapFont;
 import openfl.display.BlendMode;
-
 import kassettehud.util.KassetteHUDElement;
 
 class KssetteUpdateManager extends Module {
-    public static var instance:Dynamic = null;
-    public var hudVersion:String = "0.3.0-a";
-    public var latestVersion:String = "";
-    public var updateAvailable:Bool = false;
-    
-    var _versionChecked:Bool = false;
-    var _hasStartedUpdateCheck:Bool = false;
-    var _hasShownUpdateScreen:Bool = false;
+	public static var instance:Dynamic = null;
 
-    public function new() {
-        super("KssetteUpdateManager");
-        KssetteUpdateManager.instance = this;
-    }
+	public var hudVersion:String = "0.3.0";
+	public var latestVersion:String = "";
+	public var updateAvailable:Bool = false;
 
-    override public function onUpdate(event:UpdateScriptEvent) {
-        super.onUpdate(event);
-        if (!_hasStartedUpdateCheck) {
-            _hasStartedUpdateCheck = true;
-            checkForUpdates();
-        }
-    }
+	var _versionChecked:Bool = false;
+	var _hasStartedUpdateCheck:Bool = false;
+	var _hasShownUpdateScreen:Bool = false;
 
-    public function checkForUpdates() {
-        if (_versionChecked) return;
-        _versionChecked = true;
-        
-        trace("[KssetteUpdate] Initializing update check with URLLoader...");
-        try {
-            var loader = new URLLoader();
-            var _url:String = "https://raw.githubusercontent.com/mkssette/FNF-Kassette-HUD/refs/heads/info/last_version.txt";
-            
-            trace("Attempting to get string from URL: " + _url);
-            loader.dataFormat = 1; // URLLoaderDataFormat.TEXT
-            
-            loader.addEventListener("complete", function(e:Event) {
-                var data:String = loader.data;
-                trace("[KssetteUpdate] DOWNLOADED VERSION: '" + data + "'");
-                if (data != null && data != "") {
-                    var v = StringTools.trim(data);
-                    var currentVersion = hudVersion;
-                    trace("[KssetteUpdate] COMPARING: Downloaded '" + v + "' vs Current '" + currentVersion + "'");
-                    if (v != "" && v != currentVersion && v != "0.2.3.a1") {
-                        trace("[KssetteUpdate] UPDATE AVAILABLE! Proceeding to notify.");
-                        latestVersion = v;
-                        updateAvailable = true;
-                    } else {        
-                        trace("[KssetteUpdate] NO UPDATE NEEDED. Versions match.");
-                    }
-                }
-            });
-            
-            loader.addEventListener("ioError", function(e:Dynamic) {
-                trace("[KssetteUpdate] ERROR FETCHING UPDATE (IOError): " + Std.string(e));
-            });
-            
-            loader.addEventListener("securityError", function(e:Dynamic) {
-                trace("[KssetteUpdate] ERROR FETCHING UPDATE (Security Error): " + Std.string(e));
-            });
-            
-            loader.load(new URLRequest(_url));
-        } catch(e:Dynamic) {
-            trace("[KssetteUpdate] CAUGHT EXCEPTION: " + Std.string(e));
-        }
-    }
+	public function new() {
+		super("KssetteUpdateManager");
+		KssetteUpdateManager.instance = this;
+	}
 
-    override public function onStateChangeEnd(event:StateChangeScriptEvent):Void {
-        super.onStateChangeEnd(event);
-        
-        var target = event.targetState;
-        if (target != null && Std.isOfType(target, MainMenuState)) {
-            var currentVersion = hudVersion;
-            
-            var updateStr = updateAvailable ? " (UPDATE AVAILABLE)" : "";
-            var mmWatermark = new FlxText(0, FlxG.height - 24, FlxG.width - 12, "KASSETTE HUD v" + currentVersion + updateStr, 16);
-            mmWatermark.setFormat(Paths.font("vcr.ttf"), 16, FlxColor.WHITE, "right", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
-            mmWatermark.scrollFactor.set(0, 0);
-            target.add(mmWatermark);
+	override public function onUpdate(event:UpdateScriptEvent) {
+		super.onUpdate(event);
+		if (!_hasStartedUpdateCheck) {
+			_hasStartedUpdateCheck = true;
+			checkForUpdates();
+		}
+	}
 
-            if (!_hasShownUpdateScreen) {
-                _hasShownUpdateScreen = true;
-                if (updateAvailable) {
-                    trace("[KssetteUpdate] Transitioning to KssetteUpdateState!");
-                    FlxG.switchState(ScriptedMusicBeatState.init("KssetteUpdateState"));
-                    return;
-                } else {
-                    trace("[KssetteUpdate] Not transitioning, updateAvailable is false.");
-                }
-            }
-        }
-    }
+	public function checkForUpdates() {
+		if (_versionChecked)
+			return;
+		_versionChecked = true;
+
+		trace("[KssetteUpdate] Initializing update check with URLLoader...");
+		try {
+			var loader = new URLLoader();
+			var _url:String = "https://raw.githubusercontent.com/mkssette/FNF-Kassette-HUD/refs/heads/info/last_version.txt";
+
+			trace("Attempting to get string from URL: " + _url);
+			loader.dataFormat = 1; // URLLoaderDataFormat.TEXT
+
+			loader.addEventListener("complete", function(e:Event) {
+				var data:String = loader.data;
+				trace("[KssetteUpdate] DOWNLOADED VERSION: '" + data + "'");
+				if (data != null && data != "") {
+					var v = StringTools.trim(data);
+					var currentVersion = hudVersion;
+					trace("[KssetteUpdate] COMPARING: Downloaded '" + v + "' vs Current '" + currentVersion + "'");
+					if (v != "" && v != currentVersion && v != "0.2.3.a1") {
+						trace("[KssetteUpdate] UPDATE AVAILABLE! Proceeding to notify.");
+						latestVersion = v;
+						updateAvailable = true;
+					} else {
+						trace("[KssetteUpdate] NO UPDATE NEEDED. Versions match.");
+					}
+				}
+			});
+
+			loader.addEventListener("ioError", function(e:Dynamic) {
+				trace("[KssetteUpdate] ERROR FETCHING UPDATE (IOError): " + Std.string(e));
+			});
+
+			loader.addEventListener("securityError", function(e:Dynamic) {
+				trace("[KssetteUpdate] ERROR FETCHING UPDATE (Security Error): " + Std.string(e));
+			});
+
+			loader.load(new URLRequest(_url));
+		} catch (e:Dynamic) {
+			trace("[KssetteUpdate] CAUGHT EXCEPTION: " + Std.string(e));
+		}
+	}
+
+	override public function onStateChangeEnd(event:StateChangeScriptEvent):Void {
+		super.onStateChangeEnd(event);
+
+		var target = event.targetState;
+		if (target != null && Std.isOfType(target, MainMenuState)) {
+			var currentVersion = hudVersion;
+
+			var updateStr = updateAvailable ? " (UPDATE AVAILABLE)" : "";
+			var mmWatermark = new FlxText(0, FlxG.height - 24, FlxG.width - 12, "KASSETTE HUD v" + currentVersion + updateStr, 16);
+			mmWatermark.setFormat(Paths.font("vcr.ttf"), 16, FlxColor.WHITE, "right", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+			mmWatermark.scrollFactor.set(0, 0);
+			target.add(mmWatermark);
+
+			if (!_hasShownUpdateScreen) {
+				_hasShownUpdateScreen = true;
+				if (updateAvailable) {
+					trace("[KssetteUpdate] Transitioning to KssetteUpdateState!");
+					FlxG.switchState(ScriptedMusicBeatState.init("KssetteUpdateState"));
+					return;
+				} else {
+					trace("[KssetteUpdate] Not transitioning, updateAvailable is false.");
+				}
+			}
+		}
+	}
 }
