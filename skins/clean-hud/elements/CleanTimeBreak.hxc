@@ -175,18 +175,19 @@ class CleanTimeBreak extends KassetteHUDElement {
             var currentX = startX;
             var currentY = targetY;
 
-            if (pTimeTxtObj != null && pTimeTxtObj.timeText != null) {
-                if (fontChanged) pTimeTxtObj.timeText.setFormat(cachedFont, 18, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
-                pTimeTxtObj.timeText.visible = showHud && _cShowTime;
-                pTimeTxtObj.timeText.text = "[3:20]";
-                if (pTimeTxtObj.timeText.visible) {
-                    pTimeTxtObj.timeText.x = currentX;
-                    pTimeTxtObj.timeText.y = currentY;
-                    currentX += pTimeTxtObj.timeText.width + 6;
+            var ptxt = pTimeTxtObj?.timeText;
+            if (ptxt != null && ptxt.exists) {
+                if (fontChanged) ptxt.setFormat(cachedFont, 18, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+                ptxt.visible = showHud && _cShowTime;
+                ptxt.text = "[3:20]";
+                if (ptxt.visible) {
+                    ptxt.x = currentX;
+                    ptxt.y = currentY;
+                    currentX += ptxt.width + 6;
                 }
             }
 
-            if (pTimeBarBG != null) {
+            if (pTimeBarBG != null && pTimeBarBG.exists) {
                 pTimeBarBG.visible = showHud && _cShowTimeBar;
                 if (pTimeBarBG.visible) {
                     pTimeBarBG.x = currentX;
@@ -194,7 +195,7 @@ class CleanTimeBreak extends KassetteHUDElement {
                     currentY = pTimeBarBG.y + pTimeBarBG.height + 2;
                 }
             }
-            if (pTimeBarFill != null && pTimeBarBG != null) {
+            if (pTimeBarFill != null && pTimeBarFill.exists && pTimeBarBG != null && pTimeBarBG.exists) {
                 pTimeBarFill.visible = showHud && _cShowTimeBar;
                 if (pTimeBarFill.visible) {
                     pTimeBarFill.x = pTimeBarBG.x + 2;
@@ -205,16 +206,16 @@ class CleanTimeBreak extends KassetteHUDElement {
             }
 
             var isP:Bool = KassetteHUDElement.preview_playerTurn != false;
-            var prog:Float = KassetteHUDElement.preview_turnProgress != null ? KassetteHUDElement.preview_turnProgress : 0.0;
+            var prog:Float = KassetteHUDElement.preview_turnProgress ?? 0.0;
 
-            if (pBreakBarBG != null) {
+            if (pBreakBarBG != null && pBreakBarBG.exists) {
                 pBreakBarBG.visible = showHud && _cShowBreakBar && !isP;
                 if (pBreakBarBG.visible) {
                     pBreakBarBG.x = currentX;
-                    pBreakBarBG.y = (pTimeBarBG != null && pTimeBarBG.visible) ? currentY : targetY + 8;
+                    pBreakBarBG.y = (pTimeBarBG != null && pTimeBarBG.exists && pTimeBarBG.visible) ? currentY : targetY + 8;
                 }
             }
-            if (pBreakBarFill != null && pBreakBarBG != null) {
+            if (pBreakBarFill != null && pBreakBarFill.exists && pBreakBarBG != null && pBreakBarBG.exists) {
                 pBreakBarFill.visible = showHud && _cShowBreakBar && !isP;
                 if (pBreakBarFill.visible) {
                     pBreakBarFill.x = pBreakBarBG.x;
@@ -277,7 +278,7 @@ class CleanTimeBreak extends KassetteHUDElement {
         // Delegar la actualización del texto a KHUDTimeText
         if (_cShowTime) {
             timeTxtObj.updateTimeFromState();
-            timeTxtObj.updateObject(event.elapsed);
+            timeTxtObj.updateObject(event?.elapsed ?? 0.0);
         }
 
         // Break bar logic
@@ -291,7 +292,7 @@ class CleanTimeBreak extends KassetteHUDElement {
             
             if (breakBarBG.visible) {
                 breakBarBG.x = currentX;
-                breakBarBG.y = timeBarBG.visible ? currentY : targetY + 8;
+                breakBarBG.y = (timeBarBG?.visible ?? false) ? currentY : targetY + 8;
                 breakBarFill.x = breakBarBG.x;
                 breakBarFill.y = breakBarBG.y;
             }
