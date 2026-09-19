@@ -268,6 +268,9 @@ var triviaArray:Array<String> = [
     "Did you know? <font color=\"#00FF00\">For every three trees, one grows crooked.</font>"
 ];
 
+    /**
+     * Constructor for the component.
+     */
     public function new() {
         super("KssetteSubtitles");
         elementType = "modifier";
@@ -947,6 +950,11 @@ var triviaArray:Array<String> = [
         }
     }
     
+    /**
+     * Cleans up the subtitles modifier when the PlayState is destroyed.
+     * Safely destroys all sprites, text objects, timers, and containers 
+     * to prevent memory leaks or hanging text when transitioning to other menus.
+     */
     override public function destroy() {
         if (subText != null) subText.destroy();
         subText = null;

@@ -72,6 +72,10 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
     var panelOnLeft:Bool = false;
     var subActionLocked:String = "none";
 
+    /**
+     * Constructor for the component.
+     * @param parent Value for parent.
+     */
     public function new(parent:Dynamic) {
         var rawLowDetail = KssetteOptionsManager.instance.getKssValue("kssette_low_detail_menu");
         lowDetailMenu = (rawLowDetail == true || Std.string(rawLowDetail) == "On" || Std.string(rawLowDetail) == "true");
@@ -81,6 +85,9 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
         this.persistentDraw = true;
     }
 
+    /**
+     * Executes the initSubstate logic.
+     */
     public function initSubstate():Void {
         var pState:Dynamic = FlxG.state;
         this.parent = pState;
@@ -102,6 +109,13 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
 
     }
 
+    /**
+     * Executes the moveGroup logic.
+     * @param group Value for group.
+     * @param targetX Value for targetX.
+     * @param elapsed Value for elapsed.
+     * @param speed Value for speed.
+     */
     function moveGroup(group:FlxSpriteGroup, targetX:Float, elapsed:Float, speed:Float) {
         if (group == null) return;
         if (Math.abs(group.x - targetX) < 0.1) {
@@ -112,6 +126,19 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
         group.x = newX;
     }
 
+    /**
+     * Executes the makeOverlayText logic.
+     * @param group Value for group.
+     * @param x Value for x.
+     * @param y Value for y.
+     * @param w Value for w.
+     * @param text Value for text.
+     * @param size Value for size.
+     * @param color Value for color.
+     * @param align Value for align.
+     * @param border Value for border.
+     * @return Returns the FlxText value.
+     */
     function makeOverlayText(group:FlxSpriteGroup, x:Float, y:Float, w:Float, text:String, size:Int, color:Int, align:String, border:Bool = false):FlxText {
         var txt = new FlxText(x, y, w, text, size);
         if (border) txt.setFormat(menuFont, size, color, align, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
@@ -122,6 +149,12 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
         return txt;
     }
 
+    /**
+     * Executes the createOverlayGroup logic.
+     * @param title Value for title.
+     * @param inst Value for inst.
+     * @return Returns the FlxSpriteGroup value.
+     */
     function createOverlayGroup(title:String, inst:String = null):FlxSpriteGroup {
         var group = new FlxSpriteGroup(0, 0);
         group.x = panelOnLeft ? -panelWidth : screenW;
@@ -139,6 +172,10 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
         return group;
     }
 
+    /**
+     * Executes the openOpacitySelector logic.
+     * @param saveKey Value for saveKey.
+     */
     public function openOpacitySelector(saveKey:String) {
         isOpMenuOpen = true; 
         opSel_SaveKey = saveKey;
@@ -161,12 +198,18 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
         updateOpacityUI();
     }
 
+    /**
+     * Executes the updateOpacityUI logic.
+     */
     function updateOpacityUI() {
         if (opSel_Group == null || opSel_TxtVal == null) return;
         var nextText = Std.string(opSel_Value) + "%";
         if (opSel_TxtVal.text != nextText) opSel_TxtVal.text = nextText;
     }
 
+    /**
+     * Executes the saveOpacitySelection logic.
+     */
     public function saveOpacitySelection() {
         var finalStr = Std.string(opSel_Value) + "%";
         Save.instance.modOptions.set(opSel_SaveKey, finalStr);
@@ -191,6 +234,9 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
         parent.updatePreviews();
     }
 
+    /**
+     * Executes the closeOpacitySelector logic.
+     */
     public function closeOpacitySelector() {
         if (opSel_Group != null) {
             remove(opSel_Group);
@@ -202,6 +248,10 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
         wasMenuJustClosed = true;
     }
 
+    /**
+     * Executes the handleOpacityInput logic.
+     * @param elapsed Value for elapsed.
+     */
     function handleOpacityInput(elapsed:Float) {
         var tX:Float = FlxG.mouse.screenX;
         var tY:Float = FlxG.mouse.screenY;
@@ -274,6 +324,10 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
         }
     }
 
+    /**
+     * Executes the openVolumeSelector logic.
+     * @param saveKey Value for saveKey.
+     */
     public function openVolumeSelector(saveKey:String) {
         isVolMenuOpen = true; 
         volSel_SaveKey = saveKey;
@@ -296,12 +350,18 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
         updateVolumeUI();
     }
 
+    /**
+     * Executes the updateVolumeUI logic.
+     */
     function updateVolumeUI() {
         if (volSel_Group == null || volSel_TxtVal == null) return;
         var nextText = Std.string(volSel_Value) + "%";
         if (volSel_TxtVal.text != nextText) volSel_TxtVal.text = nextText;
     }
 
+    /**
+     * Executes the saveVolumeSelection logic.
+     */
     public function saveVolumeSelection() {
         var finalStr = Std.string(volSel_Value) + "%";
         Save.instance.modOptions.set(volSel_SaveKey, finalStr);
@@ -326,6 +386,9 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
         parent.updatePreviews();
     }
 
+    /**
+     * Executes the closeVolumeSelector logic.
+     */
     public function closeVolumeSelector() {
         if (volSel_Group != null) {
             remove(volSel_Group);
@@ -337,6 +400,10 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
         wasMenuJustClosed = true;
     }
 
+    /**
+     * Executes the handleVolumeInput logic.
+     * @param elapsed Value for elapsed.
+     */
     function handleVolumeInput(elapsed:Float) {
         var tX:Float = FlxG.mouse.screenX;
         var tY:Float = FlxG.mouse.screenY;
@@ -410,6 +477,11 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
         }
     }
 
+    /**
+     * Executes the openTimeSelector logic.
+     * @param saveKey Value for saveKey.
+     * @param textRef Value for textRef.
+     */
     public function openTimeSelector(saveKey:String, textRef:FlxText) {
         isTimeMenuOpen = true; 
         tSel_SaveKey = saveKey;
@@ -447,6 +519,9 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
         updateTimeUI();
     }
 
+    /**
+     * Executes the updateTimeUI logic.
+     */
     function updateTimeUI() {
         if (tSel_Group == null) return;
         var hrStr = tSel_Hour < 10 ? "0" + tSel_Hour : Std.string(tSel_Hour);
@@ -468,6 +543,9 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
         if (tSel_DownMin != null && tSel_DownMin.color != minColor) tSel_DownMin.color = minColor;
     }
 
+    /**
+     * Executes the saveTimeSelection logic.
+     */
     public function saveTimeSelection() {
         var hrStr = tSel_Hour < 10 ? "0" + tSel_Hour : Std.string(tSel_Hour);
         var minStr = tSel_Min < 10 ? "0" + tSel_Min : Std.string(tSel_Min);
@@ -496,6 +574,9 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
         parent.updatePreviews();
     }
 
+    /**
+     * Executes the closeTimeSelector logic.
+     */
     public function closeTimeSelector() {
         if (tSel_Group != null) {
             remove(tSel_Group);
@@ -507,6 +588,10 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
         wasMenuJustClosed = true;
     }
 
+    /**
+     * Executes the handleTimeInput logic.
+     * @param elapsed Value for elapsed.
+     */
     function handleTimeInput(elapsed:Float) {
         var tX:Float = FlxG.mouse.screenX;
         var tY:Float = FlxG.mouse.screenY;
@@ -610,6 +695,10 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
         }
     }
 
+    /**
+     * Executes the applyFontItemState logic.
+     * @param idx Value for idx.
+     */
     function applyFontItemState(idx:Int):Void {
         if (idx < 0 || idx >= fontItems.length) return;
         var item = fontItems[idx];
@@ -621,12 +710,22 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
         }
     }
 
+    /**
+     * Sets the FontItemVisible value.
+     * @param item Value for item.
+     * @param visible Value for visible.
+     */
     function setFontItemVisible(item:Dynamic, visible:Bool):Void {
         if (item == null || item.bg == null) return;
         if (item.bg.visible != visible) item.bg.visible = visible;
         if (item.text != null && item.text.visible != visible) item.text.visible = visible;
     }
 
+    /**
+     * Executes the updateFontItemVisibility logic.
+     * @param grpY Value for grpY.
+     * @param viewH Value for viewH.
+     */
     function updateFontItemVisibility(grpY:Float, viewH:Float):Void {
         var count = fontItems.length;
         if (count <= 0) return;
@@ -684,6 +783,10 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
         lastFontVisibleEnd = fontVisibleEnd;
     }
 
+    /**
+     * Executes the update logic.
+     * @param elapsed Value for elapsed.
+     */
     override public function update(elapsed:Float):Void {
         wasMenuJustClosed = false;
         super.update(elapsed);
@@ -715,6 +818,7 @@ class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
             if (holdTimer > 0) holdTimer -= elapsed;
             handleTimeInput(elapsed); 
             return; 
-        }
+        }
+
     }
 }

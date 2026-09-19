@@ -56,12 +56,19 @@ class KssetteHUDPreview extends ScriptedMusicBeatSubState {
     var canSpawnOpp:Bool = true;
     var cachedNoteStyle:Dynamic = null;
 
+    /**
+     * Constructor for the component.
+     */
     public function new() {
         super();
         this.persistentUpdate = true;
         this.persistentDraw = true;
     }
 
+    /**
+     * Executes the killObj logic.
+     * @param obj Value for obj.
+     */
     function killObj(obj:Dynamic) {
         if (obj == null) return;
         try {
@@ -70,6 +77,10 @@ class KssetteHUDPreview extends ScriptedMusicBeatSubState {
         } catch(e:Dynamic) {}
     }
 
+    /**
+     * Executes the cancelStrum logic.
+     * @param strum Value for strum.
+     */
     function cancelStrum(strum:Dynamic) {
         if (strum == null || !strum.exists) return;
         if (strum.strumlineNotes != null) {
@@ -80,6 +91,9 @@ class KssetteHUDPreview extends ScriptedMusicBeatSubState {
         FlxTween.cancelTweensOf(strum);
     }
 
+    /**
+     * Executes the cancelStrumTweens logic.
+     */
     public function cancelStrumTweens() {
         if (previewInTween != null) {
             previewInTween?.cancel();
@@ -93,6 +107,9 @@ class KssetteHUDPreview extends ScriptedMusicBeatSubState {
         cancelStrum(opponentStrumPreview);
     }
 
+    /**
+     * Executes the cleanUp logic.
+     */
     public function cleanUp() {
         cancelStrumTweens();
 
@@ -108,16 +125,28 @@ class KssetteHUDPreview extends ScriptedMusicBeatSubState {
         opponentStrumPreview = null;
     }
 
+    /**
+     * Executes the onStateChangeStart logic.
+     * @param event Value for event.
+     */
     override public function onStateChangeStart(event:Dynamic) {
         super.onStateChangeStart(event);
         isPreview = false;
         cleanUp();
     }
 
+    /**
+     * Sets the upUI value.
+     * @param cam Value for cam.
+     */
     public function setupUI(cam:FlxCamera) {
         cleanUp();
     }
 
+    /**
+     * Executes the buildPreview logic.
+     * @param cam Value for cam.
+     */
     public function buildPreview(cam:FlxCamera) {
         isPreview = true;
         previewCam = cam;
@@ -126,6 +155,10 @@ class KssetteHUDPreview extends ScriptedMusicBeatSubState {
         updatePreview(0.0);
     }
 
+    /**
+     * Executes the updatePreview logic.
+     * @param elapsed Value for elapsed.
+     */
     public function updatePreview(elapsed:Float) {
         if (!isPreview) { return; }
         
@@ -402,6 +435,9 @@ class KssetteHUDPreview extends ScriptedMusicBeatSubState {
         cachedActive = KssetteOptionsManager.instance != null && KssetteOptionsManager.instance.getKssValue("kssette_show_hud") == true;
     }
 
+    /**
+     * Executes the spawnFakeNote logic.
+     */
     function spawnFakeNote() {
         if (!isPreview || playerStrumPreview == null) return;
         
@@ -535,6 +571,9 @@ class KssetteHUDPreview extends ScriptedMusicBeatSubState {
         FlxG.state.add(fake);
     }
 
+    /**
+     * Executes the spawnGhostTap logic.
+     */
     function spawnGhostTap() {
         if (KassetteHUDElement.preview_bf == null) return;
         var char = KassetteHUDElement.preview_bf;
@@ -579,6 +618,10 @@ class KssetteHUDPreview extends ScriptedMusicBeatSubState {
         }
     }
 
+    /**
+     * Executes the update logic.
+     * @param elapsed Value for elapsed.
+     */
     override public function update(elapsed:Float):Void {
         super.update(elapsed);
         elapsedTime += elapsed;

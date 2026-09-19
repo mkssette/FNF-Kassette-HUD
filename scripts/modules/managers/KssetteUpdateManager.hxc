@@ -31,11 +31,18 @@ class KssetteUpdateManager extends Module {
 	var _hasStartedUpdateCheck:Bool = false;
 	var _hasShownUpdateScreen:Bool = false;
 
+	/**
+	 * Constructor for the component.
+	 */
 	public function new() {
 		super("KssetteUpdateManager");
 		KssetteUpdateManager.instance = this;
 	}
 
+	/**
+	 * Called every frame to update the component's state.
+	 * @param event Value for event.
+	 */
 	override public function onUpdate(event:UpdateScriptEvent) {
 		super.onUpdate(event);
 		if (!_hasStartedUpdateCheck) {
@@ -44,6 +51,11 @@ class KssetteUpdateManager extends Module {
 		}
 	}
 
+	/**
+	 * Initiates an asynchronous HTTP request to GitHub to check for updates.
+	 * Compares the currently installed `hudVersion` against the text in `last_version.txt`.
+	 * Flags `updateAvailable` if a newer version exists.
+	 */
 	public function checkForUpdates() {
 		if (_versionChecked)
 			return;
@@ -88,6 +100,13 @@ class KssetteUpdateManager extends Module {
 		}
 	}
 
+	/**
+	 * Triggered whenever the game state changes.
+	 * If the user returns to the MainMenuState, it injects the Kassette HUD version watermark 
+	 * and automatically transitions to the Update Screen if a new version was found.
+	 * 
+	 * @param event The script event containing state transition data.
+	 */
 	override public function onStateChangeEnd(event:StateChangeScriptEvent):Void {
 		super.onStateChangeEnd(event);
 

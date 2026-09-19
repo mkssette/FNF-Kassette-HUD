@@ -92,13 +92,22 @@ class KssetteStrumlines extends KHUDModifier {
     /** Cached opponent opacity value (0.0 - 1.0). */
     var cachedOppOpacity:Float = 1.0;
 
+    /**
+     * Constructor for the component.
+     */
     public function new() {
         super('KssetteStrumlines'); 
         elementType = "modifier";
         
     }
 
-    /** Returns true if the Dynamic value represents an "on" state. */
+    /**
+     * Helper function to robustly evaluate if a setting represents an "enabled" state.
+     * Safely parses booleans and string variants ("true", "On", "on") into a clean boolean.
+     * 
+     * @param val The dynamic raw setting value to evaluate.
+     * @return True if the value evaluates to active/enabled, false otherwise.
+     */
     function isOn(val:Dynamic):Bool {
         if (val == true) return true;
         var s = Std.string(val);
@@ -367,7 +376,13 @@ class KssetteStrumlines extends KHUDModifier {
         }
     }
 
-    /** No additional logic needed; onCountdownStart handles retry via song restart. */
+    /**
+     * Hook triggered when the song restarts after a death or manual retry.
+     * No custom logic is strictly necessary here since `onCountdownStart` handles 
+     * the re-initialization of positions, but the hook is kept for structural completeness.
+     * 
+     * @param event The event detailing the retry action.
+     */
     override function onSongRetry(event:ScriptEvent):Void {
         super.onSongRetry(event);
     }
@@ -885,6 +900,10 @@ class KssetteStrumlines extends KHUDModifier {
     
     public var antiCheatTriggered:Bool = false;
 
+    /**
+     * Immediately inflicts misses on all visible, un-hit notes in the player's strumline.
+     * This acts as an anti-cheat measure or fail-state enforcer, rapidly draining health.
+     */
     public function applyAntiCheatPenalty() {
         antiCheatTriggered = true;
         var state = PlayState.instance;

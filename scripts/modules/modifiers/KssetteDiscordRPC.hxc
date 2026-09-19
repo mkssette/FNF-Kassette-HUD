@@ -15,11 +15,33 @@ class KssetteDiscordRPC extends KHUDModifier {
     var _lastScore:Int = -1;
     var _lastMisses:Int = -1;
 
+    /**
+     * Initializes the KssetteDiscordRPC modifier.
+     * This module runs in the background and is responsible for updating the Discord Rich Presence
+     * status based on the player's performance, current song, and configured display preferences.
+     */
     public function new() {
         super("KssetteDiscordRPC");
         this.name = "KssetteDiscordRPC";
     }
     
+    /**
+     * Constructs a formatted string for the Discord Rich Presence status or details field.
+     * This method maps configured layout items (e.g., "Score", "Accuracy", "Misses") to their 
+     * corresponding runtime values and joins them using the specified separator.
+     * 
+     * @param items An array of item identifiers configured by the user (e.g., ["Score", "Accuracy", "None"]).
+     * @param sep The string separator used to join the mapped values (e.g., " | ").
+     * @param state Reference to the current PlayState instance.
+     * @param acc Formatted accuracy string (e.g., "98.5%").
+     * @param rank The player's current rank letter (e.g., "S", "A").
+     * @param fcTier The player's current combo tier (e.g., "SFC", "GFC", "Clear").
+     * @param currentScore The player's current numerical score.
+     * @param currentMisses The number of notes the player has missed.
+     * @param songName The name of the song currently being played.
+     * @param diff The difficulty level of the current chart (e.g., "NORMAL", "HARD").
+     * @return The fully constructed string ready to be sent to Discord Client.
+     */
     function buildString(items:Array<String>, sep:String, state:Dynamic, acc:String, rank:String, fcTier:String, currentScore:Int, currentMisses:Int, songName:String, diff:String):String {
         var strParts = [];
         for (it in items) {
@@ -38,6 +60,15 @@ class KssetteDiscordRPC extends KHUDModifier {
         return strParts.join(sep);
     }
 
+    /**
+     * Updates the Discord Rich Presence every frame.
+     * To prevent rate-limiting, the presence is only sent to Discord if the score/misses have changed
+     * and at least 1.0 second has passed, or if 5.0 seconds have passed unconditionally.
+     * It dynamically fetches the user's preferred layout from `KssetteOptionsManager` 
+     * and compiles the final strings using `buildString()`.
+     * 
+     * @param event The update event containing delta time (`elapsed`).
+     */
     override public function onUpdate(event:Dynamic) {
         if (isPreview) return; // Do not update RPC during options preview
         if (FlxG.onMobile) return; // Discord RPC does not exist on Mobile

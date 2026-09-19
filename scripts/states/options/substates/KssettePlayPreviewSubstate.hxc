@@ -32,6 +32,9 @@ class KssettePlayPreviewSubstate extends ScriptedMusicBeatSubState {
 
     var lowDetailMenu:Bool = false;
 
+    /**
+     * Constructor for the component.
+     */
     public function new() {
         var rawLowDetail = KssetteOptionsManager.instance.getKssValue("kssette_low_detail_menu");
         lowDetailMenu = (rawLowDetail == true || Std.string(rawLowDetail) == "On" || Std.string(rawLowDetail) == "true");
@@ -40,6 +43,9 @@ class KssettePlayPreviewSubstate extends ScriptedMusicBeatSubState {
         this.persistentDraw = true;
     }
 
+    /**
+     * Executes the create logic.
+     */
     override public function create():Void {
         super.create();
         
@@ -125,17 +131,24 @@ class KssettePlayPreviewSubstate extends ScriptedMusicBeatSubState {
 
     var _bfTurn:Bool = true;
     var _simBeat:Int = 0;
+    /**
+     * Executes the update logic.
+     * @param elapsed Value for elapsed.
+     */
     override public function update(elapsed:Float):Void {
         super.update(elapsed);
     }
 
+    /**
+     * Executes the beatHit logic.
+     */
     override public function beatHit():Void {
         super.beatHit();
         _simBeat++;
         
         if (gf != null) gf.dance();
         
-        // Simular interactividad de turnos (para cámara y otros módulos)
+        // Simulate turn interactivity (for camera and other modules)
         if (_simBeat % 4 == 0) {
             _bfTurn = !_bfTurn;
         }
@@ -149,6 +162,12 @@ class KssettePlayPreviewSubstate extends ScriptedMusicBeatSubState {
         }
     }
 
+    /**
+     * Executes the spawnCharacter logic.
+     * @param charId Value for charId.
+     * @param initEvent Value for initEvent.
+     * @return Returns the BaseCharacter value.
+     */
     function spawnCharacter(charId:String, initEvent:ScriptEvent):BaseCharacter {
         var oldScript = CharacterDataParser.characterScriptedClass.get(charId);
         if (oldScript != null) CharacterDataParser.characterScriptedClass.remove(charId);

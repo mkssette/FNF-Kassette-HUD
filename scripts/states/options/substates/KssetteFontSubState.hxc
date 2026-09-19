@@ -61,6 +61,10 @@ class KssetteFontSubState extends ScriptedMusicBeatSubState {
     var panelOnLeft:Bool = false;
     var subActionLocked:String = "none";
 
+    /**
+     * Constructor for the component.
+     * @param parent Value for parent.
+     */
     public function new(parent:Dynamic) {
         var rawLowDetail = KssetteOptionsManager.instance.getKssValue("kssette_low_detail_menu");
         lowDetailMenu = (rawLowDetail == true || Std.string(rawLowDetail) == "On" || Std.string(rawLowDetail) == "true");
@@ -70,6 +74,9 @@ class KssetteFontSubState extends ScriptedMusicBeatSubState {
         this.persistentDraw = true;
     }
 
+    /**
+     * Executes the initSubstate logic.
+     */
     public function initSubstate():Void {
         var pState:Dynamic = FlxG.state;
         this.parent = pState;
@@ -90,6 +97,13 @@ class KssetteFontSubState extends ScriptedMusicBeatSubState {
         this.panelOnLeft = false; // Force to right side
     }
 
+    /**
+     * Executes the moveGroup logic.
+     * @param group Value for group.
+     * @param targetX Value for targetX.
+     * @param elapsed Value for elapsed.
+     * @param speed Value for speed.
+     */
     function moveGroup(group:FlxSpriteGroup, targetX:Float, elapsed:Float, speed:Float) {
         if (group == null) return;
         if (Math.abs(group.x - targetX) < 0.1) {
@@ -100,6 +114,19 @@ class KssetteFontSubState extends ScriptedMusicBeatSubState {
         group.x = newX;
     }
 
+    /**
+     * Executes the makeOverlayText logic.
+     * @param group Value for group.
+     * @param x Value for x.
+     * @param y Value for y.
+     * @param w Value for w.
+     * @param text Value for text.
+     * @param size Value for size.
+     * @param color Value for color.
+     * @param align Value for align.
+     * @param border Value for border.
+     * @return Returns the FlxText value.
+     */
     function makeOverlayText(group:FlxSpriteGroup, x:Float, y:Float, w:Float, text:String, size:Int, color:Int, align:String, border:Bool = false):FlxText {
         var txt = new FlxText(x, y, w, text, size);
         if (border) txt.setFormat(menuFont, size, color, align, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
@@ -110,6 +137,11 @@ class KssetteFontSubState extends ScriptedMusicBeatSubState {
         return txt;
     }
 
+    /**
+     * Executes the openFontSelector logic.
+     * @param saveKey Value for saveKey.
+     * @param textRef Value for textRef.
+     */
     public function openFontSelector(saveKey:String, textRef:FlxText) {
         fontBgGroup = new FlxSpriteGroup(0, 0);
         fontBgGroup.x = panelOnLeft ? -panelWidth : screenW;
@@ -230,6 +262,9 @@ class KssetteFontSubState extends ScriptedMusicBeatSubState {
         changeFontSelection(0);
     }
 
+    /**
+     * Executes the closeFontSelector logic.
+     */
     public function closeFontSelector() {
         if (fontBgGroup != null) {
             remove(fontBgGroup);
@@ -260,6 +295,9 @@ class KssetteFontSubState extends ScriptedMusicBeatSubState {
         wasMenuJustClosed = true;
     }
 
+    /**
+     * Executes the selectCurrentFont logic.
+     */
     public function selectCurrentFont() {
         if (fontItems.length > 0 && fontSelectedIndex >= 0 && fontSelectedIndex < fontItems.length) {
             var selFile = fontItems[fontSelectedIndex].fileName;
@@ -300,6 +338,10 @@ class KssetteFontSubState extends ScriptedMusicBeatSubState {
     }
 
 
+    /**
+     * Executes the applyFontItemState logic.
+     * @param idx Value for idx.
+     */
     function applyFontItemState(idx:Int):Void {
         if (idx < 0 || idx >= fontItems.length) return;
         var item = fontItems[idx];
@@ -309,6 +351,11 @@ class KssetteFontSubState extends ScriptedMusicBeatSubState {
         }
     }
 
+    /**
+     * Executes the changeFontSelection logic.
+     * @param change Value for change.
+     * @param updateScroll Value for updateScroll.
+     */
     function changeFontSelection(change:Int = 0, updateScroll:Bool = true) {
         var prevIndex = fontSelectedIndex;
         fontSelectedIndex += change;
@@ -331,12 +378,21 @@ class KssetteFontSubState extends ScriptedMusicBeatSubState {
         }
     }
 
+    /**
+     * Sets the FontItemVisible value.
+     * @param item Value for item.
+     * @param visible Value for visible.
+     */
     function setFontItemVisible(item:Dynamic, visible:Bool):Void {
         if (item == null || item.bg == null) return;
         if (item.bg.visible != visible) item.bg.visible = visible;
         if (item.text != null && item.text.visible != visible) item.text.visible = visible;
     }
 
+    /**
+     * Executes the updateFontItemVisibility logic.
+     * @param screenHeight Value for screenHeight.
+     */
     function updateFontItemVisibility(screenHeight:Float) {
         if (fontItems == null || fontItems.length == 0) return;
         
@@ -360,6 +416,10 @@ class KssetteFontSubState extends ScriptedMusicBeatSubState {
         fontVisibleEnd = endIdx - 1;
     }
 
+    /**
+     * Executes the handleFontInput logic.
+     * @param elapsed Value for elapsed.
+     */
     function handleFontInput(elapsed:Float) {
         if (!isFontMenuOpen) return;
         if (openTimer > 0) {
@@ -433,6 +493,10 @@ class KssetteFontSubState extends ScriptedMusicBeatSubState {
         }
     }
 
+    /**
+     * Executes the update logic.
+     * @param elapsed Value for elapsed.
+     */
     override public function update(elapsed:Float):Void {
         wasMenuJustClosed = false;
         super.update(elapsed);

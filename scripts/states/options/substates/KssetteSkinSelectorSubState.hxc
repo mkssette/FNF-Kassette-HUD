@@ -64,6 +64,9 @@ class KssetteSkinSelectorSubState extends ScriptedMusicBeatSubState {
 
     var isClosing:Bool = false;
 
+    /**
+     * Constructor for the component.
+     */
     public function new() {
         var rawLowDetail = KssetteOptionsManager.instance.getKssValue("kssette_low_detail_menu");
         lowDetailMenu = (rawLowDetail == true || Std.string(rawLowDetail) == "On" || Std.string(rawLowDetail) == "true");
@@ -72,6 +75,9 @@ class KssetteSkinSelectorSubState extends ScriptedMusicBeatSubState {
         this.persistentDraw = true;
     }
 
+    /**
+     * Executes the initSubstate logic.
+     */
     public function initSubstate():Void {
         holdTimer = 0.2;
         var pState:Dynamic = FlxG.state;
@@ -219,6 +225,13 @@ class KssetteSkinSelectorSubState extends ScriptedMusicBeatSubState {
         }
     }
 
+    /**
+     * Executes the moveGroup logic.
+     * @param group Value for group.
+     * @param targetX Value for targetX.
+     * @param elapsed Value for elapsed.
+     * @param speed Value for speed.
+     */
     function moveGroup(group:FlxSpriteGroup, targetX:Float, elapsed:Float, speed:Float) {
         if (group == null) return;
         if (Math.abs(group.x - targetX) < 0.1) {
@@ -229,6 +242,9 @@ class KssetteSkinSelectorSubState extends ScriptedMusicBeatSubState {
         group.x = newX;
     }
 
+    /**
+     * Executes the selectCurrentSkin logic.
+     */
     function selectCurrentSkin() {
         if (skinItems.length == 0) {
             closeSkinSelector();
@@ -273,6 +289,10 @@ class KssetteSkinSelectorSubState extends ScriptedMusicBeatSubState {
         closeSkinSelector();
     }
 
+    /**
+     * Executes the applySkinItemState logic.
+     * @param idx Value for idx.
+     */
     function applySkinItemState(idx:Int):Void {
         if (idx < 0 || idx >= skinItems.length) return;
         var item = skinItems[idx];
@@ -284,6 +304,10 @@ class KssetteSkinSelectorSubState extends ScriptedMusicBeatSubState {
         }
     }
 
+    /**
+     * Executes the changeSkinSelection logic.
+     * @param change Value for change.
+     */
     function changeSkinSelection(change:Int = 0) {
         var prevIndex = skinSelectedIndex;
         skinSelectedIndex += change;
@@ -329,6 +353,10 @@ class KssetteSkinSelectorSubState extends ScriptedMusicBeatSubState {
         }
     }
 
+    /**
+     * Executes the handleSkinInput logic.
+     * @param elapsed Value for elapsed.
+     */
     function handleSkinInput(elapsed:Float) {
         var swipeU = SwipeUtil.swipeUp;
         var swipeD = SwipeUtil.swipeDown;
@@ -396,10 +424,17 @@ class KssetteSkinSelectorSubState extends ScriptedMusicBeatSubState {
         }
     }
 
+    /**
+     * Executes the closeSkinSelector logic.
+     */
     function closeSkinSelector() {
         isClosing = true;
     }
 
+    /**
+     * Executes the update logic.
+     * @param elapsed Value for elapsed.
+     */
     override public function update(elapsed:Float):Void {
         super.update(elapsed);
         

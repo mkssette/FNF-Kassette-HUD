@@ -20,6 +20,9 @@ class IconColorDatahunter extends KassetteHUDDatahunter {
     public var cachedP1Bop:Int = 4;
     public var cachedP2Bop:Int = 4;
 
+    /**
+     * Constructor for the component.
+     */
     public function new() {
         super("IconColorDatahunter");
         KassetteHUDDatahunter.icon = this;
@@ -33,14 +36,26 @@ class IconColorDatahunter extends KassetteHUDDatahunter {
         }
     }
 
+    /**
+     * Called every frame to update the component's state.
+     * @param event Value for event.
+     */
     override public function onUpdate(event:UpdateScriptEvent) {
         // Nothing here yet
     }
 
+    /**
+     * Triggered when the song countdown begins.
+     * @param event Value for event.
+     */
     override public function onCountdownStart(event:ScriptEvent) {
         updateIconCache();
     }
 
+    /**
+     * Inspects the current PlayState icons and forces a color extraction if they aren't cached.
+     * Also reads and caches their specific rendering properties like scale and bop intervals.
+     */
     public function updateIconCache():Void {
         var state = PlayState.instance;
         if (state == null) return;
@@ -78,6 +93,14 @@ class IconColorDatahunter extends KassetteHUDDatahunter {
         }
     }
 
+    /**
+     * Retrieves the dominant color of a cached icon by its character ID.
+     * 
+     * @param iconId The character ID used for the icon.
+     * @param defaultColor The fallback color to use if the extraction fails.
+     * @param isPlayer True if this is the player's icon (changes the hardcoded fallback color).
+     * @return The 32-bit ARGB color value.
+     */
     public function getIconColor(iconId:String, defaultColor:Int, isPlayer:Bool = false):Int {
         if (iconId != null && iconId != "" && iconId != "generic_p1" && iconId != "generic_p2") {
             if (ReflectUtil.hasField(iconColorCache, iconId)) {
@@ -87,6 +110,13 @@ class IconColorDatahunter extends KassetteHUDDatahunter {
         return defaultColor;
     }
 
+    /**
+     * Loads an icon graphic purely to extract its dominant color into the cache.
+     * Used by preview menus or sub-states that need colors before spawning the actual sprite.
+     * 
+     * @param iconId The character ID to load.
+     * @param isPlayer True if this is a player character.
+     */
     public function preCacheIconColor(iconId:String, isPlayer:Bool = false):Void {
         if (iconId == null || iconId == "" || iconId == "generic_p1" || iconId == "generic_p2") return;
         if (ReflectUtil.hasField(iconColorCache, iconId)) return;
@@ -104,6 +134,15 @@ class IconColorDatahunter extends KassetteHUDDatahunter {
         }
     }
 
+    /**
+     * Analyzes an FlxSprite's pixels to determine its most frequently occurring non-transparent color.
+     * Avoids counting pure black or white outlines. Heavily optimized for mobile devices by skipping pixels.
+     * 
+     * @param icon The `FlxSprite` containing the icon graphic.
+     * @param isPlayer True if this is the player's icon.
+     * @param iconId The string ID to cache this color under.
+     * @return The extracted 32-bit ARGB dominant color.
+     */
     public function extractIconColor(icon:Dynamic, isPlayer:Bool = false, iconId:String = null):Int {
 
         var isCacheable = (iconId != null && iconId != "" && iconId != "generic_p1" && iconId != "generic_p2");
@@ -184,6 +223,15 @@ class IconColorDatahunter extends KassetteHUDDatahunter {
         return finalColor;
     }
 
+    /**
+     * Applies two extracted colors to a HealthBar instance.
+     * Automatically handles the fill direction swap depending on who the player is facing.
+     * 
+     * @param bar The HealthBar object to modify.
+     * @param isSolo True if this is a single-player chart (e.g. no opponent).
+     * @param p1Color The dominant color of the player.
+     * @param p2Color The dominant color of the opponent.
+     */
     public function applyHealthBarColors(bar:Dynamic, isSolo:Bool, p1Color:Int, p2Color:Int):Void {
         if (bar == null) return;
 

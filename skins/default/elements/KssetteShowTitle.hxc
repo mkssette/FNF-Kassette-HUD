@@ -63,6 +63,9 @@ class KssetteShowTitle extends KassetteHUDElement {
     var cachedTitleFont:String = "";
     var cachedArtistFont:String = "";
 
+    /**
+     * Constructor for the component.
+     */
     public function new() {
         super("KssetteShowTitle");
         this.name = "KssetteShowTitle";
@@ -660,6 +663,9 @@ class KssetteShowTitle extends KassetteHUDElement {
         }
     }
     
+    /**
+     * Cleans up spawned elements when the modifier is disabled or destroyed.
+     */
     override public function destroy() {
         if (titleTxt != null) titleTxt.destroy();
         if (artistTxt != null) artistTxt.destroy();

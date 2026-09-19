@@ -48,12 +48,18 @@ class KssetteDiscordRPCSubState extends ScriptedMusicBeatSubState {
     var menuTargetY:Float = 0;
     var menuStartY:Float = 320;
     
+    /**
+     * Constructor for the component.
+     */
     public function new() {
         super();
         this.persistentUpdate = true;
         this.persistentDraw = true;
     }
     
+    /**
+     * Executes the initSubstate logic.
+     */
     public function initSubstate():Void {
         var optionCam = FlxG.cameras.list[FlxG.cameras.list.length - 1];
         this.cameras = [optionCam];
@@ -73,6 +79,9 @@ class KssetteDiscordRPCSubState extends ScriptedMusicBeatSubState {
         updateSelection();
     }
     
+    /**
+     * Executes the createRPCMock logic.
+     */
     function createRPCMock() {
         var scale:Float = 1.35;
         var mockW = 450 * scale;
@@ -111,6 +120,9 @@ class KssetteDiscordRPCSubState extends ScriptedMusicBeatSubState {
         add(timeText);
     }
     
+    /**
+     * Executes the createMenu logic.
+     */
     function createMenu() {
         for (i in 0...options.length) {
             var opt = options[i];
@@ -132,6 +144,9 @@ class KssetteDiscordRPCSubState extends ScriptedMusicBeatSubState {
         }
     }
     
+    /**
+     * Executes the loadSavedOptions logic.
+     */
     function loadSavedOptions() {
         // defaults matching previous options logic
         var defaults = [
@@ -154,6 +169,9 @@ class KssetteDiscordRPCSubState extends ScriptedMusicBeatSubState {
         }
     }
     
+    /**
+     * Executes the saveOptions logic.
+     */
     function saveOptions() {
         for (opt in options) {
             Save.instance.modOptions.set(opt.key, opt.choices[opt.current]);
@@ -162,6 +180,12 @@ class KssetteDiscordRPCSubState extends ScriptedMusicBeatSubState {
         if (parent != null) parent.updatePreviews();
     }
     
+    /**
+     * Executes the buildString logic.
+     * @param items Value for items.
+     * @param sep Value for sep.
+     * @return Returns the String value.
+     */
     function buildString(items:Array<String>, sep:String):String {
         var strParts = [];
         for (it in items) {
@@ -180,6 +204,9 @@ class KssetteDiscordRPCSubState extends ScriptedMusicBeatSubState {
         return strParts.join(sep);
     }
     
+    /**
+     * Executes the updateMockText logic.
+     */
     function updateMockText() {
         var enable = options[0].choices[options[0].current];
         var sep = options[1].choices[options[1].current];
@@ -216,6 +243,9 @@ class KssetteDiscordRPCSubState extends ScriptedMusicBeatSubState {
         }
     }
     
+    /**
+     * Executes the updateSelection logic.
+     */
     function updateSelection() {
         for (i in 0...options.length) {
             var isSel = (i == selectedIndex);
@@ -235,6 +265,10 @@ class KssetteDiscordRPCSubState extends ScriptedMusicBeatSubState {
         if (menuTargetY > 0) menuTargetY = 0;
     }
     
+    /**
+     * Executes the update logic.
+     * @param elapsed Value for elapsed.
+     */
     override public function update(elapsed:Float):Void {
         super.update(elapsed);
         

@@ -36,24 +36,45 @@ class KassetteHUDElement {
     public var isMobile:Bool = false;
     public var isPreview:Bool = false;
     
+    /**
+     * Constructor for the component.
+     * @param name Value for name.
+     */
     public function new(name:String) {
         this.name = name;
         this.isMobile = KssetteOptionsManager.instance != null ? KssetteOptionsManager.instance.isMobileMode : FlxG.onMobile;
     }
 
     /** Helper shortcut to fetch Kssette settings safely */
+    /**
+     * Gets the Setting value.
+     * @param key Value for key.
+     * @return Returns the Dynamic value.
+     */
     public function getSetting(key:String):Dynamic {
         if (KssetteOptionsManager.instance != null) return KssetteOptionsManager.instance.getKssValue(key);
         return null;
     }
 
     /** Shortcut for getting string settings safely */
+    /**
+     * Gets the SettingString value.
+     * @param key Value for key.
+     * @param defaultVal Value for defaultVal.
+     * @return Returns the String value.
+     */
     public function getSettingString(key:String, defaultVal:String = ""):String {
         var val = getSetting(key);
         return val != null ? Std.string(val) : defaultVal;
     }
     
     /** Shortcut for getting boolean settings safely */
+    /**
+     * Gets the SettingBool value.
+     * @param key Value for key.
+     * @param defaultVal Value for defaultVal.
+     * @return Returns the Bool value.
+     */
     public function getSettingBool(key:String, defaultVal:Bool = false):Bool {
         var val = getSetting(key);
         if (val == null) return defaultVal;
@@ -61,6 +82,10 @@ class KassetteHUDElement {
     }
 
     /** Returns true if the global HUD visibility option is enabled */
+    /**
+     * Executes the isHudVisible logic.
+     * @return Returns the Bool value.
+     */
     public function isHudVisible():Bool {
         var val = getSetting("kssette_show_hud");
         if (val == null) return true; // Default to visible on fresh saves!
@@ -68,6 +93,10 @@ class KassetteHUDElement {
     }
 
     /** Returns true if downscroll is currently active in gameplay or preferences */
+    /**
+     * Executes the isDownscroll logic.
+     * @return Returns the Bool value.
+     */
     public function isDownscroll():Bool {
         if (KssetteOptionsManager.instance != null) {
             return KssetteOptionsManager.instance.getDownscroll();
@@ -77,31 +106,115 @@ class KassetteHUDElement {
 
     // Getters have been replaced with standard instance variables initialized in the constructor to improve HScript compatibility.
 
+    /**
+     * Triggered when the song countdown begins.
+     * @param event Value for event.
+     */
     public function onCountdownStart(event:Dynamic) {}
+    /**
+     * Called every frame to update the component's state.
+     * @param event Value for event.
+     */
     public function onUpdate(event:Dynamic) {}
 
     /** Logic executed exclusively when inside PlayState */
+    /**
+     * Executes the inGameplay logic.
+     * @param event Value for event.
+     */
     public function inGameplay(event:Dynamic) {}
     
     /** Logic executed exclusively when inside the KssetteOptionsState Preview */
+    /**
+     * Executes the inPreview logic.
+     * @param event Value for event.
+     */
     public function inPreview(event:Dynamic) {}
 
+    /**
+     * Triggered on every musical step.
+     * @param event Value for event.
+     */
     public function onStepHit(event:Dynamic) {}
+    /**
+     * Triggered on every musical beat.
+     * @param event Value for event.
+     */
     public function onBeatHit(event:Dynamic) {}
+    /**
+     * Triggered when the song officially starts.
+     * @param event Value for event.
+     */
     public function onSongStart(event:Dynamic) {}
+    /**
+     * Executes the onSongRetry logic.
+     * @param event Value for event.
+     */
     public function onSongRetry(event:Dynamic) {}
+    /**
+     * Triggered when the song ends.
+     * @param event Value for event.
+     */
     public function onSongEnd(event:Dynamic) {}
+    /**
+     * Executes the onResume logic.
+     * @param event Value for event.
+     */
     public function onResume(event:Dynamic) {}
+    /**
+     * Executes the onPause logic.
+     * @param event Value for event.
+     */
     public function onPause(event:Dynamic) {}
+    /**
+     * Executes the onStateChangeStart logic.
+     * @param event Value for event.
+     */
     public function onStateChangeStart(event:Dynamic) {}
+    /**
+     * Executes the onStateChangeEnd logic.
+     * @param event Value for event.
+     */
     public function onStateChangeEnd(event:Dynamic) {}
+    /**
+     * Executes the onGhostMissNote logic.
+     * @param event Value for event.
+     */
     public function onGhostMissNote(event:Dynamic) {}
+    /**
+     * Executes the onNoteGhostMiss logic.
+     * @param event Value for event.
+     */
     public function onNoteGhostMiss(event:Dynamic) {}
+    /**
+     * Executes the onSubStateOpenBegin logic.
+     * @param event Value for event.
+     */
     public function onSubStateOpenBegin(event:Dynamic) {}
+    /**
+     * Executes the onSubStateCloseEnd logic.
+     * @param event Value for event.
+     */
     public function onSubStateCloseEnd(event:Dynamic) {}
+    /**
+     * Triggered when the player hits a note.
+     * @param event Value for event.
+     */
     public function onNoteHit(event:Dynamic) {}
+    /**
+     * Triggered when the player misses a note.
+     * @param event Value for event.
+     */
     public function onNoteMiss(event:Dynamic) {}
+    /**
+     * Executes the onNoteIncoming logic.
+     * @param event Value for event.
+     */
     public function onNoteIncoming(event:Dynamic) {}
+    /**
+     * Executes the onEvent logic.
+     * @param event Value for event.
+     */
     public function onEvent(event:Dynamic) {}
 
     // ==========================================
@@ -133,6 +246,11 @@ class KassetteHUDElement {
     // ==========================================
 
     /** Adds an element safely to PlayState or FlxG.state, optionally assigning a camera. */
+    /**
+     * Executes the safeAdd logic.
+     * @param obj Value for obj.
+     * @param ?cam Value for ?cam.
+     */
     public function safeAdd(obj:Dynamic, ?cam:Dynamic) {
         if (obj == null) return;
         if (cam != null) obj.cameras = [cam];
@@ -146,6 +264,10 @@ class KassetteHUDElement {
     }
 
     /** Removes an element safely from PlayState and FlxG.state. */
+    /**
+     * Executes the safeRemove logic.
+     * @param obj Value for obj.
+     */
     public function safeRemove(obj:Dynamic) {
         if (obj == null) return;
         var state = PlayState.instance;
@@ -154,6 +276,10 @@ class KassetteHUDElement {
     }
 
     /** Safely removes and destroys an element. */
+    /**
+     * Executes the safeDestroy logic.
+     * @param obj Value for obj.
+     */
     public function safeDestroy(obj:Dynamic) {
         if (obj != null) {
             safeRemove(obj);
@@ -162,6 +288,10 @@ class KassetteHUDElement {
     }
 
     /** Helper shortcut to get the current HUD font. */
+    /**
+     * Gets the HudFont value.
+     * @return Returns the String value.
+     */
     public function getHudFont():String {
         if (KssetteFontManager.instance != null) {
             var f = KssetteFontManager.instance.getHudFont();
@@ -191,6 +321,12 @@ class KassetteHUDElement {
         return bmp;
     }
 
+    /**
+     * Executes the _tryLoadImage logic.
+     * @param imageName Value for imageName.
+     * @param skinIdToUse Value for skinIdToUse.
+     * @return Returns the Dynamic value.
+     */
     private function _tryLoadImage(imageName:String, skinIdToUse:String):Dynamic {
         var relativePath = "skins/" + skinIdToUse + "/images/" + imageName + ".png";
         
@@ -234,6 +370,17 @@ class KassetteHUDElement {
     }
 
     /** Creates and formats a FlxText object automatically. */
+    /**
+     * Executes the createText logic.
+     * @param x Value for x.
+     * @param y Value for y.
+     * @param w Value for w.
+     * @param text Value for text.
+     * @param size Value for size.
+     * @param color Value for color.
+     * @param align Value for align.
+     * @return Returns the FlxText value.
+     */
     public function createText(x:Float, y:Float, w:Float, text:String, size:Int, color:Int = 0xFFFFFFFF, align:String = "left"):FlxText {
         var t = new FlxText(x, y, w, text, size);
         t.setFormat(getHudFont(), size, color, align, FlxTextBorderStyle.OUTLINE, 0xFF000000);
@@ -241,6 +388,11 @@ class KassetteHUDElement {
     }
 
     /** Returns the display label for a judgement identifier. */
+    /**
+     * Gets the JudgeName value.
+     * @param name Value for name.
+     * @return Returns the String value.
+     */
     public function getJudgeName(name:String):String {
         switch(name) {
             case 'sick': return 'Sicks';
@@ -254,6 +406,11 @@ class KassetteHUDElement {
     }
 
     /** Formats a rank ID to its abbreviated display form. */
+    /**
+     * Executes the formatRank logic.
+     * @param id Value for id.
+     * @return Returns the String value.
+     */
     public function formatRank(id:String):String {
         if (id == null || id == "" || id == "?") return "?";
         switch(id) {
@@ -267,6 +424,9 @@ class KassetteHUDElement {
         }
     }
 
+    /**
+     * Executes the destroy logic.
+     */
     public function destroy() {
         for (obj in trackedObjects) {
             if (obj != null) {
@@ -279,8 +439,15 @@ class KassetteHUDElement {
         trackedObjects = [];
     }
 
+    /**
+     * Executes the buildPreview logic.
+     * @param cam Value for cam.
+     */
     public function buildPreview(cam:FlxCamera) {
         this.isPreview = true;
     }
+    /**
+     * Executes the updatePreview logic.
+     */
     public function updatePreview() {}
 }

@@ -70,6 +70,9 @@ class KssetteTimeBar extends KassetteHUDElement {
     /** Camera for rendering in preview mode. */
     public var previewCam:FlxCamera = null;
 
+    /**
+     * Constructor for the component.
+     */
     public function new() {
         super("KssetteTimeBar");
         this.name = "KssetteTimeBar";
@@ -85,7 +88,14 @@ class KssetteTimeBar extends KassetteHUDElement {
         return s == "On" || s == "on" || s == "true";
     }
 
-    /** Returns the HUD camera from the given PlayState instance. */
+    /**
+     * Retrieves the standard HUD camera from the current PlayState.
+     * This is used as the default render target for the time bar unless it's configured
+     * to run in an edge layout (Top/Bottom/Vertical) which requires a custom camera.
+     * 
+     * @param state The active PlayState instance.
+     * @return The `camHUD` camera of the given state.
+     */
     function hudCamera(state:PlayState):FlxCamera {
         return state.camHUD;
     }
@@ -226,7 +236,7 @@ class KssetteTimeBar extends KassetteHUDElement {
                 var state = PlayState.instance;
 
                 if (state != null && state.healthBarBG != null) {
-                    // Usa la X ya corregida por KssetteHealthBar (incluye middlescroll padding)
+                    // Use X already corrected by KssetteHealthBar (includes middlescroll padding)
                     hbX = state.healthBarBG.x;
                     bgW = Std.int(state.healthBarBG.width);
                 } else {
@@ -238,7 +248,7 @@ class KssetteTimeBar extends KassetteHUDElement {
                     }
                 }
 
-                // Centra la timebar dentro de la healthbar
+                // Center the timebar within the healthbar
                 hbX += (bgW - currentBgW) / 2;
 
                 var downscrollValue = isDownscroll();
@@ -355,7 +365,13 @@ class KssetteTimeBar extends KassetteHUDElement {
         }
     }
 
-    /** Restores bar visibility when the pause substate closes (only in edge mode). */
+    /**
+     * Restores the visibility of the time bar when the pause menu closes.
+     * This is necessary because edge-layout time bars use a dedicated camera that isn't
+     * automatically managed by the pause substate's hiding logic.
+     * 
+     * @param event The script event indicating a substate closed.
+     */
     override public function onSubStateCloseEnd(event:SubStateScriptEvent) {
         super.onSubStateCloseEnd(event);
         if (event.targetState != null && Std.isOfType(event.targetState, PauseSubState)) {
@@ -395,7 +411,7 @@ class KssetteTimeBar extends KassetteHUDElement {
 
         if (!cachedActive || timeBar == null || !timeBar.exists || state == null || state.conductorInUse == null) return;
 
-        // Intenta leer la duración de la canción si no estaba disponible al inicio de la cuenta atrás.
+        // Try to read the song duration if it was not available at the start of the countdown.
         if (songLengthMs <= 0.0) {
             songLengthMs = state.currentSongLengthMs ?? 0;
             if (songLengthMs <= 0 && FlxG.sound.music != null) songLengthMs = FlxG.sound.music.length;
@@ -411,12 +427,17 @@ class KssetteTimeBar extends KassetteHUDElement {
         if (progress < 0) progress = 0;
         else if (progress > 1) progress = 1;
 
-        // Aplica el progreso al eje apropiado según la orientación.
+        // Apply progress to the appropriate axis based on orientation.
         var isVertical:Bool = (timeBarPos == "Vertical Left" || timeBarPos == "Vertical Right");
         if (isVertical) { timeBar.scale.y = progress; timeBar.scale.x = 1.0; }
         else            { timeBar.scale.x = progress; timeBar.scale.y = 1.0; }
     }
     
+    /**
+     * Safely cleans up the KssetteTimeBar.
+     * Destroys the foreground and background sprites to prevent memory leaks 
+     * when the modifier is unregistered or the game state switches.
+     */
     override public function destroy() {
         if (timeBar != null) timeBar.destroy();
         if (timeBarBG != null) timeBarBG.destroy();

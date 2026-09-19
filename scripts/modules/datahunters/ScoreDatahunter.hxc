@@ -26,6 +26,10 @@ class ScoreDatahunter extends KassetteHUDDatahunter {
     
     public var antiCheatTriggered:Bool = false;
     
+    /**
+     * Flags the current session as cheating (e.g. Botplay enabled while attempting to hide it).
+     * Once triggered, most getters will return 0 or unranked status.
+     */
     public function triggerAntiCheat() {
         antiCheatTriggered = true;
     }
@@ -36,11 +40,18 @@ class ScoreDatahunter extends KassetteHUDDatahunter {
     public var cachedAccMode:String = "Classic";
     public var cachedSmooth:Bool = true;
     
+    /**
+     * Constructor for the component.
+     */
     public function new() {
         super("ScoreDatahunter");
         KassetteHUDDatahunter.score = this;
     }
 
+    /**
+     * Called every frame to update the component's state.
+     * @param event Value for event.
+     */
     override public function onUpdate(event:UpdateScriptEvent) {
         var elapsed = event.elapsed;
         var state = PlayState.instance;
@@ -70,6 +81,10 @@ class ScoreDatahunter extends KassetteHUDDatahunter {
         }
     }
 
+    /**
+     * Re-reads the accuracy calculation mode (Classic vs Ascending) and 
+     * smooth display preference from the global options manager.
+     */
     public function updateSettings() {
         var optManager = KssetteOptionsManager.instance;
         if (optManager != null) {
@@ -80,10 +95,18 @@ class ScoreDatahunter extends KassetteHUDDatahunter {
         }
     }
 
+    /**
+     * Executes the onResume logic.
+     * @param event Value for event.
+     */
     override public function onResume(event:ScriptEvent) {
         updateSettings();
     }
 
+    /**
+     * Triggered when the song countdown begins.
+     * @param event Value for event.
+     */
     override public function onCountdownStart(event:ScriptEvent) {
         updateSettings();
 
@@ -117,6 +140,13 @@ class ScoreDatahunter extends KassetteHUDDatahunter {
         }
     }
 
+    /**
+     * Calculates the letter rank based on the current score and tallies.
+     * Caches the result to avoid expensive recalculations if the score and misses haven't changed.
+     * 
+     * @param state The active PlayState instance.
+     * @return A string representing the rank (e.g., "PERFECT", "GOOD").
+     */
     public function getRankID(state:PlayState):String {
         if (antiCheatTriggered) return "Unranked";
         var t = Highscore.tallies;
@@ -143,6 +173,13 @@ class ScoreDatahunter extends KassetteHUDDatahunter {
         return cachedRank;
     }
 
+    /**
+     * Evaluates the player's full combo status (SFC, GFC, FC, SDCB, Clear).
+     * Caches the string to prevent repeated evaluations when hit stats remain static.
+     * 
+     * @param state The active PlayState instance.
+     * @return The combo tier string.
+     */
     public function getComboTier(state:PlayState):String {
         if (antiCheatTriggered) return "N/A";
         var t = Highscore.tallies;
@@ -165,6 +202,13 @@ class ScoreDatahunter extends KassetteHUDDatahunter {
         return cachedTier;
     }
 
+    /**
+     * Computes the raw accuracy percentage based on total notes hit versus total possible.
+     * Floors the value to two decimal places (e.g., 98.76).
+     * 
+     * @param state The active PlayState instance.
+     * @return The calculated accuracy percentage.
+     */
     public function getAccuracy(state:PlayState):Float {
         if (antiCheatTriggered) return 0.0;
         var t = Highscore.tallies;
@@ -175,6 +219,14 @@ class ScoreDatahunter extends KassetteHUDDatahunter {
         return Math.floor(Math.max(0, raw) * 100) / 100;
     }
 
+    /**
+     * Modifies the accuracy value to artificially climb from 0% to the true percentage 
+     * as the song progresses. Used for the "Ascending" accuracy option.
+     * 
+     * @param state The active PlayState instance.
+     * @param songProgress Float representing song completion (0.0 to 1.0).
+     * @return The adjusted accuracy percentage.
+     */
     public function getAscendingAccuracy(state:PlayState, songProgress:Float):Float {
         if (state == null) return 0.0;
 
@@ -201,39 +253,75 @@ class ScoreDatahunter extends KassetteHUDDatahunter {
         return realAcc * noteProgress;
     }
 
+    /**
+     * Gets the Sicks value.
+     * @return Returns the Int value.
+     */
     public function getSicks():Int {
         if (Highscore.tallies != null) return Highscore.tallies.sick;
         return 0;
     }
+    /**
+     * Gets the Goods value.
+     * @return Returns the Int value.
+     */
     public function getGoods():Int {
         if (Highscore.tallies != null) return Highscore.tallies.good;
         return 0;
     }
+    /**
+     * Gets the Bads value.
+     * @return Returns the Int value.
+     */
     public function getBads():Int {
         if (Highscore.tallies != null) return Highscore.tallies.bad;
         return 0;
     }
+    /**
+     * Gets the Shits value.
+     * @return Returns the Int value.
+     */
     public function getShits():Int {
         if (Highscore.tallies != null) return Highscore.tallies.shit;
         return 0;
     }
+    /**
+     * Gets the Misses value.
+     * @return Returns the Int value.
+     */
     public function getMisses():Int {
         if (Highscore.tallies != null) return Highscore.tallies.missed;
         return 0;
     }
+    /**
+     * Gets the MaxCombo value.
+     * @return Returns the Int value.
+     */
     public function getMaxCombo():Int {
         if (Highscore.tallies != null) return Highscore.tallies.maxCombo;
         return 0;
     }
+    /**
+     * Gets the Combo value.
+     * @return Returns the Int value.
+     */
     public function getCombo():Int {
         if (Highscore.tallies != null) return Highscore.tallies.combo;
         return 0;
     }
+    /**
+     * Gets the TotalNotesHit value.
+     * @return Returns the Int value.
+     */
     public function getTotalNotesHit():Int {
         if (Highscore.tallies != null) return Highscore.tallies.totalNotesHit;
         return 0;
     }
     
+    /**
+     * Gets the TotalNotes value.
+     * @return Returns the Int value.
+     */
     public function getTotalNotes():Int {
         if (Highscore.tallies != null) {
             var tn = Highscore.tallies?.totalNotes;
@@ -242,6 +330,13 @@ class ScoreDatahunter extends KassetteHUDDatahunter {
         return totalNotes;
     }
 
+    /**
+     * Formats the raw integer score into a string with comma separators (e.g. 123,456).
+     * Returns "0" if the anti-cheat system was triggered.
+     * 
+     * @param state The active PlayState instance.
+     * @return The formatted score string.
+     */
     public function getScore(state:PlayState):String {
         if (antiCheatTriggered) return "0";
         if (state == null) return "0";
@@ -259,6 +354,10 @@ class ScoreDatahunter extends KassetteHUDDatahunter {
         return result;
     }
 
+    /**
+     * Gets the FinalAccuracy value.
+     * @return Returns the Float value.
+     */
     public function getFinalAccuracy():Float {
         return Math.floor(displayedAcc * 100) / 100;
     }

@@ -4,6 +4,10 @@ import kassettehud.util.KassetteHUDSkin;
 import kassettehud.util.KassetteHUDElement;
 
 class KssetteDefaultSkin extends KassetteHUDSkin {
+    /**
+     * Constructor for the component.
+     * @param ?_id Value for ?_id.
+     */
     public function new(?_id:String) {
         super({
             id: "default",
@@ -13,8 +17,14 @@ class KssetteDefaultSkin extends KassetteHUDSkin {
         });
     }
 
+    /**
+     * Instantiates and registers all visual elements associated with the Default Skin.
+     * These elements will be automatically loaded and managed by the MainManager.
+     * 
+     * @return An array containing instantiated KassetteHUDElement objects.
+     */
     override public function buildElements():Dynamic {
-        // Asumiendo que las clases base ya están disponibles (importadas o en el mismo scope base)
+        // Assuming base classes are available (imported or in the same base scope)
         return [
             new KssetteHealthBar(),
             new KssetteTimeBar(),

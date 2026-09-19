@@ -75,11 +75,20 @@ class KssetteHealthBar extends KassetteHUDElement {
 	var iconHunter:Dynamic = null;
 	var optManager:Dynamic = null;
 
+	/**
+	 * Constructor for the component.
+	 */
 	public function new() {
 		super("KssetteHealthBar");
 		this.name = "KssetteHealthBar";
 	}
 
+	/**
+	 * Constructs the placeholder health bar used in the Options menu preview screen.
+	 * Bypasses the PlayState requirements so it can run independently.
+	 * 
+	 * @param cam The camera to render the preview elements onto.
+	 */
 	override public function buildPreview(cam:FlxCamera) {
 		isPreview = true;
 		previewCam = cam;
@@ -131,17 +140,27 @@ class KssetteHealthBar extends KassetteHUDElement {
 	var _cColored:Bool = true;
 	var _cIsCorners:Bool = false;
 
+	/**
+	 * Refreshes local layout flags (position, color mode, corner mode) from the options manager.
+	 */
 	function updateSettings() {
 		_cPosPref = getSettingString("kssette_healthbar_position", "Center");
 		_cColored = getSettingBool("kssette_colored_healthbar");
 		_cIsCorners = getSettingString("kssette_icon_pos", "Vanilla") == "Corners";
 	}
 
+	/**
+	 * Refreshes the preview instance when an option is changed in the menu.
+	 */
 	override public function updatePreview() {
 		updateSettings();
 		onUpdate(0);
 	}
 
+	/**
+	 * Triggered when the song countdown begins.
+	 * @param event Value for event.
+	 */
 	override function onCountdownStart(event) {
 		isPreview = false;
 		updateSettings();
@@ -361,7 +380,7 @@ class KssetteHealthBar extends KassetteHUDElement {
 			var mobPaddingLeft = isMobileLayout ? 180.0 : 90.0;
 			var mobPaddingRight = isMobileLayout ? 180.0 : 90.0;
 
-			// Calcula padding dinámico desde la strumline del oponente
+			// Calculate dynamic padding from the opponent's strumline
 			if (isMobileLayout && state.opponentStrumline != null && state.opponentStrumline.strumlineNotes != null) {
 				var maxOppX = 90.0;
 				for (strum in state.opponentStrumline.strumlineNotes.members) {

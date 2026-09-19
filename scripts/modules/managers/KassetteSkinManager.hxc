@@ -11,6 +11,9 @@ class KassetteSkinManager extends Module {
     public var skinList = [];
     public var currentSkinId:String = "default";
 
+    /**
+     * Constructor for the component.
+     */
     public function new() {
         super("KassetteSkinManager");
         instance = this;
@@ -18,21 +21,32 @@ class KassetteSkinManager extends Module {
         loadSavedSkin();
     }
 
+    /**
+     * Registers a new custom HUD skin into the manager.
+     * Keeps track of available skins and automatically activates it if it matches 
+     * the user's saved preference.
+     * 
+     * @param skin The `KassetteHUDSkin` object representing the skin structure and assets.
+     */
     public function registerSkin(skin:KassetteHUDSkin) {
         if (!availableSkins.exists(skin.skinId)) {
             availableSkins.set(skin.skinId, skin);
             skinList.push(skin);
             trace("[KassetteSkinManager] Registered skin: " + skin.skinId + " (" + skin.skinName + ")");
             
-            // Si esta skin es la que el usuario tiene guardada, actívala
+            // If this skin is the one the user has saved, activate it
             if (skin.skinId == currentSkinId) {
                 activateSkin(currentSkinId);
             } else {
-                skin.active = false; // Desactivar si no es la actual
+                skin.active = false; // Deactivate if not the current one
             }
         }
     }
 
+    /**
+     * Reads the active skin preference from the save data.
+     * Called during initialization to ensure the correct skin is applied immediately.
+     */
     public function loadSavedSkin() {
         if (Save.instance.modOptions.exists("KassetteHUD")) {
             var options = Save.instance.modOptions.get("KassetteHUD");
@@ -42,6 +56,12 @@ class KassetteSkinManager extends Module {
         }
     }
 
+    /**
+     * Commits a skin selection to the game's save file.
+     * Ensures the selected skin persists across game restarts.
+     * 
+     * @param id The string ID of the skin to save.
+     */
     public function saveSkin(id:String) {
         if (!Save.instance.modOptions.exists("KassetteHUD")) {
             Save.instance.modOptions.set("KassetteHUD", new StringMap());
@@ -50,6 +70,13 @@ class KassetteSkinManager extends Module {
         Save.instance.flush();
     }
 
+    /**
+     * Swaps the currently active HUD skin.
+     * Deactivates all other skins and sets the specified skin as the active layout source, 
+     * while also saving the preference.
+     * 
+     * @param id The string ID of the skin to activate.
+     */
     public function activateSkin(id:String) {
         currentSkinId = id;
         saveSkin(id);
@@ -64,6 +91,11 @@ class KassetteSkinManager extends Module {
         }
     }
 
+    /**
+     * Retrieves the instance of the currently active skin script.
+     * 
+     * @return The KassetteSkin object that defines current visual logic.
+     */
     public function getCurrentSkin():KassetteHUDSkin {
         return availableSkins.get(currentSkinId);
     }

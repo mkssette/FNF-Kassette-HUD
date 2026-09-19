@@ -20,6 +20,9 @@ class ChartDatahunter extends KassetteHUDDatahunter {
     // Notes mapped by direction (0-3) for visual modifiers like Incoming Fade
     public var incomingFadeNotes:Array<Array<Dynamic>> = [[], [], [], []];
 
+    /**
+     * Constructor for the component.
+     */
     public function new() {
         super("ChartDatahunter");
         KassetteHUDDatahunter.breakData = this;
@@ -29,6 +32,12 @@ class ChartDatahunter extends KassetteHUDDatahunter {
     public var _cachedNativeBotplay:Bool = false;
     public var _checkedNativeBotplay:Bool = false;
 
+    /**
+     * Determines if Botplay is active through any means (native or custom chart scripts).
+     * Caches the result after the first check to avoid repeated deep script queries.
+     * 
+     * @return True if the engine or a recognized script is playing the chart automatically.
+     */
     public function isNativeBotplay():Bool {
         var state = PlayState.instance;
         if (state == null) return false;
@@ -54,6 +63,10 @@ class ChartDatahunter extends KassetteHUDDatahunter {
         return _cachedNativeBotplay;
     }
 
+    /**
+     * Triggered when the song countdown begins.
+     * @param event Value for event.
+     */
     override public function onCountdownStart(event:ScriptEvent) {
         _checkedNativeBotplay = false;
         playerNoteTimes = [];
@@ -77,8 +90,8 @@ class ChartDatahunter extends KassetteHUDDatahunter {
                 var d = (note?.data != null) ? note.data : ((note?.d != null) ? note.d : -1);
                 var dVal = Std.parseInt(Std.string(d));
                 
-                // Usually 0-3 is player in V-Slice unless it's a specific opponent chart, 
-                // but checking getStrumlineIndex() is more accurate if it works. 
+                // Usually 0-3 is player in V-Slice unless it's a specific opponent chart,
+                // but checking getStrumlineIndex() is more accurate if it works.
                 // However, safe parsing via dVal is extremely fast and robust for standard 4K.
                 if (dVal >= 0 && dVal < 4) isPlayer = true;
                 
@@ -119,6 +132,10 @@ class ChartDatahunter extends KassetteHUDDatahunter {
         }
     }
 
+    /**
+     * Called every frame to update the component's state.
+     * @param event Value for event.
+     */
     override public function onUpdate(event:UpdateScriptEvent) {
         var elapsed = event.elapsed;
         var state = PlayState.instance;

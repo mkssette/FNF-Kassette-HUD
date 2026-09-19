@@ -36,6 +36,9 @@ class KssetteUpdateState extends ScriptedMusicBeatState {
     
     var canProceed:Bool = false;
 
+    /**
+     * Executes the create logic.
+     */
     override public function create():Void {
         super.create();
         
@@ -108,6 +111,9 @@ class KssetteUpdateState extends ScriptedMusicBeatState {
         fetchGameBananaData();
     }
     
+    /**
+     * Executes the fetchGameBananaData logic.
+     */
     function fetchGameBananaData() {
         var urlUpdates = "https://gamebanana.com/apiv11/Mod/657203/Updates?_t=" + FlxG.random.int(0, 999999);
         var loaderUpdates = new URLLoader();
@@ -182,6 +188,11 @@ class KssetteUpdateState extends ScriptedMusicBeatState {
         loaderUpdates.load(new URLRequest(urlUpdates));
     }
     
+    /**
+     * Gets the BadgeColor value.
+     * @param cat Value for cat.
+     * @return Returns the Int value.
+     */
     function getBadgeColor(cat:String):Int {
         if (cat == null) return 0xFF888888;
         var c = cat.toLowerCase();
@@ -193,6 +204,9 @@ class KssetteUpdateState extends ScriptedMusicBeatState {
         return 0xFF888888;
     }
     
+    /**
+     * Executes the showButtons logic.
+     */
     function showButtons() {
         btnUpdate.visible = true;
         btnUpdateText.visible = true;
@@ -201,6 +215,10 @@ class KssetteUpdateState extends ScriptedMusicBeatState {
         canProceed = true;
     }
     
+    /**
+     * Executes the changeSelection logic.
+     * @param change Value for change.
+     */
     function changeSelection(change:Int) {
         curSelected += change;
         if (curSelected < 0) curSelected = 1;
@@ -213,6 +231,10 @@ class KssetteUpdateState extends ScriptedMusicBeatState {
         btnSkipText.color = (curSelected == 1) ? FlxColor.BLACK : FlxColor.WHITE;
     }
 
+    /**
+     * Executes the update logic.
+     * @param elapsed Value for elapsed.
+     */
     override public function update(elapsed:Float):Void {
         super.update(elapsed);
         
@@ -254,6 +276,9 @@ class KssetteUpdateState extends ScriptedMusicBeatState {
         }
     }
     
+    /**
+     * Executes the confirmSelection logic.
+     */
     function confirmSelection() {
         if (curSelected == 0) {
             FunkinSound.playOnce(Paths.sound('confirmMenu'));

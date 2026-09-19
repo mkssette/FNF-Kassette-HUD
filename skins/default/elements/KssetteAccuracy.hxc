@@ -207,6 +207,9 @@ class KssetteAccuracy extends KassetteHUDElement {
     /** Camera to render into during preview mode. */
     public var previewCam:FlxCamera = null;
 
+    /**
+     * Constructor for the component.
+     */
     public function new() {
         super("KssetteAccuracy");
         this.name = "KssetteAccuracy";
@@ -395,6 +398,10 @@ class KssetteAccuracy extends KassetteHUDElement {
     }
 
     /** Called on resume. Re-applies settings and positions in case options changed. */
+    /**
+     * Executes the onResume logic.
+     * @param event Value for event.
+     */
     override public function onResume(event) {
         updateSettings();
         updatePositions();
@@ -610,7 +617,7 @@ class KssetteAccuracy extends KassetteHUDElement {
             if (hbPos == null || hbPos == "") hbPos = "Center";
             var bgW = 601;
             var hbX:Float = (FlxG.width - bgW) / 2;
-            // Lee la X ya corregida por KssetteHealthBar (incluye middlescroll padding)
+            // Read X already corrected by KssetteHealthBar (includes middlescroll padding)
             if (state != null && state.healthBarBG != null) {
                 hbX = state.healthBarBG.x;
                 bgW = Std.int(state.healthBarBG.width);
@@ -1104,6 +1111,9 @@ class KssetteAccuracy extends KassetteHUDElement {
         }
     }
     
+    /**
+     * Executes the destroy logic.
+     */
     override public function destroy() {
         if (uiText != null) uiText.destroy();
         if (infoText != null) infoText.destroy();

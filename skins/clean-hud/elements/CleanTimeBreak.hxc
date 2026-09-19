@@ -275,7 +275,7 @@ class CleanTimeBreak extends KassetteHUDElement {
         if (timeBarFill.scale != null) timeBarFill.scale.x = timeRatio;
         timeBarFill.updateHitbox();
 
-        // Delegar la actualización del texto a KHUDTimeText
+        // Delegate text updates to KHUDTimeText
         if (_cShowTime) {
             timeTxtObj.updateTimeFromState();
             timeTxtObj.updateObject(event?.elapsed ?? 0.0);

@@ -15,6 +15,10 @@ class KHUDModifier extends Module {
     public var playState:Dynamic;
     public var isMobile:Bool = false;
 
+    /**
+     * Constructor for the component.
+     * @param name Value for name.
+     */
     public function new(name:String) {
         super(name);
         KHUDModifier.instances.push(this);
@@ -23,6 +27,11 @@ class KHUDModifier extends Module {
         this.isMobile = KssetteOptionsManager.instance != null ? KssetteOptionsManager.instance.isMobileMode : FlxG.onMobile;
     }
 
+    /**
+     * Gets the Setting value.
+     * @param key Value for key.
+     * @return Returns the Dynamic value.
+     */
     public function getSetting(key:String):Dynamic {
         return KssetteOptionsManager.instance != null ? KssetteOptionsManager.instance.getKssValue(key) : null;
     }
@@ -34,6 +43,10 @@ class KHUDModifier extends Module {
     // ==========================================
     // UTILITY
     // ==========================================
+    /**
+     * Executes the isPlayStateActive logic.
+     * @return Returns the Bool value.
+     */
     public function isPlayStateActive():Bool {
         return playState != null && !playState.startingSong;
     }
@@ -52,5 +65,8 @@ class KHUDModifier extends Module {
      */
     public function updatePreview() {}
 
+    /**
+     * Executes the destroy logic.
+     */
     public function destroy() {}
 }

@@ -23,6 +23,10 @@ class KHUDTimeText extends KHUDObject {
     public var lastSecondsTotal:Int = -1;
     public var formatWithBrackets:Bool = true;
 
+    /**
+     * Constructor for the component.
+     * @param options Value for options.
+     */
     public function new(options:Dynamic = null) {
         var x:Float = options != null && options.x != null ? options.x : 0;
         var y:Float = options != null && options.y != null ? options.y : 0;
@@ -73,7 +77,7 @@ class KHUDTimeText extends KHUDObject {
         var curPos:Float = Conductor.instance.songPosition;
         
         if (curPos < 0) {
-            // Mapeamos el progreso del countdown para que suba gradualmente
+            // Map countdown progress so it increases gradually
             var crochet = Conductor.instance.crochet;
             if (crochet <= 0) crochet = 500;
             var countdownStart = -(crochet * 5); // Generalmente son 5 beats
@@ -96,6 +100,10 @@ class KHUDTimeText extends KHUDObject {
         }
     }
 
+    /**
+     * Executes the updateObject logic.
+     * @param elapsed Value for elapsed.
+     */
     override public function updateObject(elapsed:Float) {
         var scoreHunter = KassetteHUDDatahunter.score;
         if (scoreHunter != null) {
@@ -103,17 +111,17 @@ class KHUDTimeText extends KHUDObject {
         }
 
         if (isSmooth && !hasStarted) {
-            // Lerp rápido para el countdown (sumando)
+            // Fast lerp for countdown (adding)
             var diff = targetMs - displayMs;
             displayMs += diff * (1.0 - Math.exp(-elapsed * 12.0));
             if (Math.abs(diff) < 10) displayMs = targetMs;
         } else if (isSmooth && hasStarted) {
-            // Lerp suave durante la partida
+            // Smooth lerp during gameplay
             var diff = targetMs - displayMs;
             displayMs += diff * (1.0 - Math.exp(-elapsed * 20.0));
             if (Math.abs(diff) < 10) displayMs = targetMs;
         } else {
-            // Sin smooth
+            // Without smooth
             displayMs = targetMs;
         }
 
@@ -135,6 +143,9 @@ class KHUDTimeText extends KHUDObject {
         }
     }
 
+    /**
+     * Executes the destroy logic.
+     */
     override public function destroy() {
         if (timeText != null) timeText.destroy();
     }

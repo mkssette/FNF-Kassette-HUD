@@ -25,6 +25,9 @@ class KssetteMainManager extends Module {
     public var modeText:FlxText = null;
     var cachedModeMsg:String = "";
 
+    /**
+     * Constructor for the component.
+     */
     public function new() {
         super("KssetteMainManager", 1000);
         KssetteMainManager.instance = this;
@@ -32,6 +35,10 @@ class KssetteMainManager extends Module {
         _isInPlayState = false;
     }
     
+    /**
+     * Called every frame to update the component's state.
+     * @param event Value for event.
+     */
     override public function onUpdate(event:UpdateScriptEvent) {
         super.onUpdate(event);
 
@@ -99,6 +106,13 @@ class KssetteMainManager extends Module {
         }
     }
 
+    /**
+     * Triggered when the game state changes.
+     * Hooks into the PlayState to build the Kassette HUD watermark and reset the 
+     * mode indicator marquee (Botplay/AutoPlay). Cleans up memory when leaving.
+     * 
+     * @param event The script event containing state transition data.
+     */
     override public function onStateChangeEnd(event:StateChangeScriptEvent):Void {
         super.onStateChangeEnd(event);
         var target = event.targetState;
@@ -138,6 +152,10 @@ class KssetteMainManager extends Module {
         }
     }
 
+    /**
+     * Triggered when the song countdown begins.
+     * @param event Value for event.
+     */
     override public function onCountdownStart(event) {
         super.onCountdownStart(event);
         if (PlayState.instance != null) {
@@ -145,6 +163,12 @@ class KssetteMainManager extends Module {
         }
     }
 
+    /**
+     * Generates the translucent watermark text indicating the HUD version and current platform.
+     * Appends "GAMMOD" or "TEST MODE" tags if applicable, and adds it to the HUD camera.
+     * 
+     * @param state The active PlayState instance.
+     */
     function createHUDWatermark(state:PlayState) {
         if (state == null || state.camHUD == null) return;
         

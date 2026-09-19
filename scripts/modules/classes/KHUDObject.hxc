@@ -26,6 +26,11 @@ class KHUDObject {
     public var zIndex:Int = 0;
     public var visible:Bool = true;
 
+    /**
+     * Constructor for the component.
+     * @param x Value for x.
+     * @param y Value for y.
+     */
     public function new(x:Float = 0, y:Float = 0) {
         this.x = x;
         this.y = y;
@@ -45,13 +50,13 @@ class KHUDObject {
      * Función llamada por el KassetteHUDElement padre en cada frame
      */
     public function updateObject(elapsed:Float) {
-        // A ser sobrescrito por clases hijas (KHUDTimeText, KHUDHealthIcon, etc.)
+        // To be overridden by child classes (KHUDTimeText, KHUDHealthIcon, etc.)
     }
 
     /**
      * Función llamada para limpiar recursos
      */
     public function destroy() {
-        // A ser sobrescrito por clases hijas
+        // To be overridden by child classes
     }
 }

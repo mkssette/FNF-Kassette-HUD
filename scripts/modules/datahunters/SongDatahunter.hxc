@@ -26,6 +26,9 @@ class SongDatahunter extends KassetteHUDDatahunter {
     var _cachedSongId:String = "";
     var _qtModule:Dynamic = null;
 
+    /**
+     * Constructor for the component.
+     */
     public function new() {
         super("SongDatahunter");
         KassetteHUDDatahunter.song = this;
@@ -34,10 +37,18 @@ class SongDatahunter extends KassetteHUDDatahunter {
 
 
 
+    /**
+     * Called every frame to update the component's state.
+     * @param event Value for event.
+     */
     override public function onUpdate(event:UpdateScriptEvent) {
         var elapsed = event.elapsed;
     }
 
+    /**
+     * Triggered when the song countdown begins.
+     * @param event Value for event.
+     */
     override public function onCountdownStart(event:ScriptEvent) {
         
         _checkedSongName = false;
@@ -51,6 +62,10 @@ class SongDatahunter extends KassetteHUDDatahunter {
         gammodAutoPlay = false;
     }
 
+    /**
+     * Clears all cached song metadata.
+     * Forces a re-fetch of the song title, artist, and chart characteristics on the next request.
+     */
     public function invalidateCache() {
         _checkedSongName = false;
         _cachedSongName = "Unknown";
@@ -61,11 +76,22 @@ class SongDatahunter extends KassetteHUDDatahunter {
         _qtModule = null;
     }
 
+    /**
+     * Queries the global options manager to determine if downscroll is active.
+     * 
+     * @return True if the notes fall downwards.
+     */
     public function getDownscroll():Bool {
         if (KssetteOptionsManager.instance != null) return KssetteOptionsManager.instance.getDownscroll();
         return false;
     }
 
+    /**
+     * Analyzes the stage characters and opponent visibility to determine if the track 
+     * is functionally a solo performance (e.g., no visible opponent strumline).
+     * 
+     * @return True if the player is singing alone.
+     */
     public function isSoloMode():Bool {
         var state = PlayState.instance;
         if (state == null) return false;
@@ -106,6 +132,12 @@ class SongDatahunter extends KassetteHUDDatahunter {
         return isSolo;
     }
 
+    /**
+     * Fetches the display name of the current song.
+     * Attempts to read from chart metadata first, falling back to song ID if necessary.
+     * 
+     * @return The human-readable song title.
+     */
     public function getSongTitle():String {
         if (_checkedSongName) return _cachedSongName;
         
@@ -135,6 +167,11 @@ class SongDatahunter extends KassetteHUDDatahunter {
         return _cachedSongName;
     }
 
+    /**
+     * Extracts the composer or artist name from the current song's metadata.
+     * 
+     * @return The artist string, or "Unknown Artist" if missing.
+     */
     public function getSongArtist():String {
         if (_checkedSongArtist) return _cachedSongArtist;
         
@@ -174,6 +211,12 @@ class SongDatahunter extends KassetteHUDDatahunter {
         return _cachedSongArtist;
     }
 
+    /**
+     * Retrieves the current difficulty rating (e.g., NORMAL, HARD, ERECT).
+     * Returns an empty string if the user disabled the difficulty display in options.
+     * 
+     * @return The uppercase difficulty name.
+     */
     public function getDifficulty():String {
         if (KssetteOptionsManager.instance != null && KssetteOptionsManager.instance.getKssValue("kssette_show_song_diff") != true) return "";
         var state = PlayState.instance;
@@ -182,6 +225,12 @@ class SongDatahunter extends KassetteHUDDatahunter {
         return (diff == null || diff == "" || diff == "null") ? "NORMAL" : diff.toUpperCase();
     }
 
+    /**
+     * Calculates the time remaining in the song and formats it as "M:SS".
+     * Returns an empty string if the user disabled the time display.
+     * 
+     * @return A formatted time string.
+     */
     public function getTimeRemaining():String {
         if (KssetteOptionsManager.instance != null && KssetteOptionsManager.instance.getKssValue("kssette_show_song_time") != true) return "";
         var state = PlayState.instance;
@@ -191,12 +240,23 @@ class SongDatahunter extends KassetteHUDDatahunter {
         return FlxStringUtil.formatTime(remaining, false);
     }
 
+    /**
+     * Computes the fractional progress through the current audio track.
+     * 
+     * @return A float from 0.0 (start) to 1.0 (end).
+     */
     public function getSongProgress():Float {
         var state = PlayState.instance;
         if (state == null || state.currentSongLengthMs <= 0) return 0.0;
         return Math.min(1.0, Math.max(0.0, state.conductorInUse.songPosition / state.currentSongLengthMs));
     }
 
+    /**
+     * Counts the total number of interactable player notes in the active chart.
+     * Essential for the "Ascending" accuracy calculation.
+     * 
+     * @return The integer note count.
+     */
     public function getNoteCount():Int {
         if (KssetteOptionsManager.instance != null && KssetteOptionsManager.instance.getKssValue("kssette_acc_mode") != "Ascending") return 0;
         var state = PlayState.instance;
@@ -217,6 +277,10 @@ class SongDatahunter extends KassetteHUDDatahunter {
         return (count == 0) ? Std.int(state.currentChart.notes.length / 2) : count;
     }
 
+    /**
+     * Gets the NoteStyle value.
+     * @return Returns the String value.
+     */
     public function getNoteStyle():String {
         var state = PlayState.instance;
         if (state == null) return "funkin";
@@ -226,6 +290,10 @@ class SongDatahunter extends KassetteHUDDatahunter {
         return "funkin";
     }
 
+    /**
+     * Gets the ModeMessage value.
+     * @return Returns the String value.
+     */
     public function getModeMessage():String {
         var state = PlayState.instance;
         return "";

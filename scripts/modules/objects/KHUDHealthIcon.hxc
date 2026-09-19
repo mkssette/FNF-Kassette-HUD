@@ -14,7 +14,7 @@ class KHUDHealthIcon extends KHUDObject {
     public var icon:Dynamic;
     public var isPlayer:Bool = false;
     
-    // Variables para la animación de escala (lerp)
+    // Scale animation variables (lerp)
     public var targetScale:Float = 1.0;
     public var lerpSpeed:Float = 15.0; // matched CleanHealthBar speed (originally it was a custom lerp factor)
 
@@ -23,6 +23,10 @@ class KHUDHealthIcon extends KHUDObject {
     // Lógica automática
     public var autoBop:Bool = false;
 
+    /**
+     * Constructor for the component.
+     * @param options Value for options.
+     */
     public function new(options:Dynamic = null) {
         var x:Float = options != null && options.x != null ? options.x : 0;
         var y:Float = options != null && options.y != null ? options.y : 0;
@@ -83,19 +87,19 @@ class KHUDHealthIcon extends KHUDObject {
     override public function updateObject(elapsed:Float) {
         if (icon != null) {
             if (autoBop) {
-                // Modo in-game: cancelamos tween nativo por si se reinicia
+                // In-game mode: cancel native tween in case it restarts
                 icon.shouldBop = false;
                 icon.bopTween?.cancel();
                 icon.bopTween = null;
                 
-                // Emular el lerp lineal de KassetteHUD
+                // Emulate linear lerp of KassetteHUD
                 var lerpFactor = 1.0 - (elapsed * lerpSpeed);
                 if (lerpFactor < 0) lerpFactor = 0;
                 
                 icon.scale.x = targetScale + ((icon.scale.x - targetScale) * lerpFactor);
                 icon.scale.y = targetScale + ((icon.scale.y - targetScale) * lerpFactor);
             } else {
-                // Modo preview: lerp exponencial
+                // Preview mode: exponential lerp
                 var mult:Float = FlxMath.lerp(targetScale, icon.scale.x, Math.exp(-elapsed * 9 * 0.15));
                 icon.scale.set(mult, mult);
             }
@@ -117,6 +121,9 @@ class KHUDHealthIcon extends KHUDObject {
         }
     }
 
+    /**
+     * Executes the destroy logic.
+     */
     override public function destroy() {
         if (icon != null) icon.destroy();
     }

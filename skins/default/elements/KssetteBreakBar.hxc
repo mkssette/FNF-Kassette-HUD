@@ -111,6 +111,9 @@ class KssetteBreakBar extends KassetteHUDElement {
     /** Accumulated time used to animate the preview break bar. */
     var previewBreakTimer:Float = 0.0;
     
+    /**
+     * Constructor for the component.
+     */
     public function new() {
         super("KssetteBreakBar");
         this.name = "KssetteBreakBar";
@@ -137,7 +140,11 @@ class KssetteBreakBar extends KassetteHUDElement {
         lastFillW = -1;
     }
 
-    /** Cleans up UI and resets preview flag when leaving the current state. */
+    /**
+     * Cleans up UI and resets the preview flag when transitioning to a new state.
+     * 
+     * @param event The script event indicating a state change.
+     */
     override public function onStateChangeStart(event) {
         super.onStateChangeStart(event);
         isPreview = false;
@@ -684,6 +691,9 @@ class KssetteBreakBar extends KassetteHUDElement {
         }
     }
     
+    /**
+     * Safely cleans up the BreakBar component and removes elements from memory.
+     */
     override public function destroy() {
         if (border != null) border.destroy();
         if (breakIcon != null) breakIcon.destroy();

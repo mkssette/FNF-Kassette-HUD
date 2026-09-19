@@ -41,12 +41,22 @@ class KssetteHitsound extends KHUDModifier {
     var _cMode:String = "Off";
     var _cVolume:Float = 1.0;
 
+    /**
+     * Initializes the KssetteHitsound modifier.
+     * This module runs in the background during gameplay and listens for note hits or 
+     * raw keyboard inputs to play a custom sound effect based on the user's settings.
+     */
     public function new() {
         super('KssetteHitsound');
         elementType = "modifier";
         
     }
 
+    /**
+     * Fetches the latest user preferences for the hitsound mode and volume.
+     * Normalizes percentage strings (e.g., "50%") into float multipliers (e.g., 0.5)
+     * and maps legacy boolean toggles to the new "On Note Hit" / "Anytime" string modes.
+     */
     function updateSettings() {
         var val = getSetting("kssette_hitsound");
         if (val == null) {
@@ -71,11 +81,22 @@ class KssetteHitsound extends KHUDModifier {
         }
     }
 
+    /**
+     * Plays the cached hitsound audio file using the configured volume level.
+     * If the sound hasn't been cached yet, it securely loads it from the assets path first.
+     */
     function playHitSound() {
         if (hitSound == null) hitSound = Paths.sound("play/hitsound");
         if (hitSound != null) FunkinSound.playOnce(hitSound, _cVolume);
     }
 
+    /**
+     * Triggered right before the 3-2-1 countdown begins.
+     * Pre-loads the hitsound asset into memory to guarantee zero-latency playback 
+     * on the very first note hit, and ensures the component starts unpaused.
+     * 
+     * @param event The script event data regarding the countdown.
+     */
     override public function onCountdownStart(event:Dynamic) {
         super.onCountdownStart(event);
         updateSettings();
@@ -83,22 +104,49 @@ class KssetteHitsound extends KHUDModifier {
         hitSound = Paths.sound("play/hitsound");
     }
 
+    /**
+     * Triggered when the game is paused.
+     * Sets a flag to prevent keyboard inputs in the pause menu from triggering the hitsound.
+     * 
+     * @param event The script event indicating the game was paused.
+     */
     override function onPause(event:ScriptEvent) {
         super.onPause(event);
         isPaused = true;
     }
 
+    /**
+     * Triggered when a state transition fully finishes.
+     * Resets the pause flag to re-enable hitsounds for the new state context.
+     * 
+     * @param event The script event indicating a state change completion.
+     */
     override function onStateChangeEnd(event:ScriptEvent) {
         super.onStateChangeEnd(event);
         isPaused = false;
     }
 
+    /**
+     * Triggered when returning to the game from the pause menu.
+     * Forces a settings refresh so any volume or mode changes made within the options 
+     * menu while paused take effect immediately.
+     * 
+     * @param event The script event indicating the game resumed.
+     */
     override function onResume(event:ScriptEvent) {
         super.onResume(event);
         updateSettings();
         isPaused = false;
     }
 
+    /**
+     * Per-frame update loop.
+     * Specifically handles the "Anytime" mode by constantly monitoring the player's 
+     * raw control inputs (Left, Down, Up, Right). If any directional key is pressed, 
+     * it instantly plays the hitsound, effectively creating a ghost-tapping sound effect.
+     * 
+     * @param event The update script event containing delta time.
+     */
     override public function onUpdate(event:Dynamic) {
         var elapsed:Float = (Std.isOfType(event, Float)) ? event : (event != null ? event.elapsed : 0);
         super.onUpdate(event);

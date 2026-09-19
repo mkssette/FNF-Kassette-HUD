@@ -17,12 +17,20 @@ class KssetteFontManager extends Module {
     public var lastPixelFontKey:String = "";
     public var cachedCustomPixelFontPath:String = "";
 
+    /**
+     * Constructor for the component.
+     */
     public function new() {
         super("KssetteFontManager");
         this.active = true;
         KssetteFontManager.instance = this;
     }
 
+    /**
+     * Clears cached font resolutions.
+     * Forces the manager to re-evaluate the NoteStyle or user preference on the 
+     * next request, ensuring fonts update dynamically when switching songs or options.
+     */
     public function invalidateCache() {
         _cachedHudFont = "";
         _cachedHudStyleId = "";
@@ -32,6 +40,13 @@ class KssetteFontManager extends Module {
         cachedCustomPixelFontPath = "";
     }
 
+    /**
+     * Retrieves a complete font definition object using its configuration identifier.
+     * Uses a mapping to resolve the physical font file from the user's setting.
+     * 
+     * @param id The font key to resolve (e.g. 'kssette_font_hud').
+     * @return A dynamic object with font attributes, or a fallback to VCR/Pixel.
+     */
     public function getHudFont():String {
         var styleId:String = "funkin";
         
@@ -97,12 +112,26 @@ class KssetteFontManager extends Module {
         return _cachedHudFont;
     }
 
+    /**
+     * Resolves the true file path of a custom font from its user-facing key.
+     * Interfaces with the Asset datahunter to map display names to `.ttf`/`.otf` paths.
+     * Falls back to VCR OSD Mono if the key is invalid or "None".
+     * 
+     * @param fontKey The name of the font selected by the user.
+     * @return The absolute/relative asset path to the font file.
+     */
     public function resolveCustomFont(fontKey:String):String {
         var assetHunter = KassetteHUDDatahunter.asset;
         if (assetHunter != null) return assetHunter.resolveCustomFont(fontKey);
         return "VCR OSD Mono";
     }
 
+    /**
+     * Resolves the string path for the primary custom font selected by the user.
+     * 
+     * @param key The option key to read the preferred font from.
+     * @return The file path to the .ttf/.otf, or "VCR OSD Mono" if unavailable.
+     */
     public function getCustomFont():String {
         var optionsManager = KssetteOptionsManager.instance;
         var fontKey:String = "None";
@@ -116,6 +145,12 @@ class KssetteFontManager extends Module {
         return resolved;
     }
 
+    /**
+     * Resolves the string path for the secondary pixel-style custom font.
+     * 
+     * @param key The option key to read the preferred pixel font from.
+     * @return The file path to the pixel font, or "pixel.otf" natively.
+     */
     public function getCustomPixelFont():String {
         var optionsManager = KssetteOptionsManager.instance;
         var fontKey:String = "None";

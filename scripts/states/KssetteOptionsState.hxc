@@ -173,12 +173,18 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 	public var sndCancel:Dynamic;
 	public var sndHit:Dynamic;
 
+	/**
+	 * Constructor for the component.
+	 */
 	public function new() {
         var rawLowDetail = KssetteOptionsManager.instance.getKssValue("kssette_low_detail_menu");
         lowDetailMenu = (rawLowDetail == true || Std.string(rawLowDetail) == "On" || Std.string(rawLowDetail) == "true");
 		super();
 	}
 
+	/**
+	 * Executes the create logic.
+	 */
 	override public function create():Void {
 		trace("[KssetteOptionsState] create() STARTED");
 		super.create();
@@ -260,6 +266,9 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		trace("[KssetteOptionsState] create() FINISHED");
 	}
 
+	/**
+	 * Executes the cachePreviewModules logic.
+	 */
 	function cachePreviewModules():Void {
 		previewModules = [];
 		var skin:Dynamic = KassetteSkinManager.instance;
@@ -301,6 +310,9 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		trace("[KssetteOptionsState] cachePreviewModules() completed. previewModules length: " + previewModules.length);
 	}
 
+	/**
+	 * Executes the initPreviews logic.
+	 */
 	public function initPreviews() {
 		if (previewModules.length == 0)
 			cachePreviewModules();
@@ -314,6 +326,9 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		}
 	}
 
+	/**
+	 * Executes the updatePreviews logic.
+	 */
 	public function updatePreviews() {
 		trace("[KssetteOptionsState] updatePreviews() STARTED");
 		if (KssetteOptionsManager.instance != null) {
@@ -389,6 +404,10 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 
 	var _isReloadingSkin:Bool = false;
 
+	/**
+	 * Executes the reloadSkinPreview logic.
+	 * @param newSkinId Value for newSkinId.
+	 */
 	public function reloadSkinPreview(newSkinId:String):Void {
 		if (_isReloadingSkin)
 			return;
@@ -443,12 +462,15 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		}
 	}
 
+	/**
+	 * Executes the fixZIndex logic.
+	 */
 	public function fixZIndex() {
 		if (FlxG.state.members == null)
 			return;
 
 		var hudElements:Array<Dynamic> = [];
-		// Recolectar todos los elementos que tengan zIndex configurado
+		// Collect all elements that have a configured zIndex
 		for (i in 0...FlxG.state.members.length) {
 			var m:Dynamic = FlxG.state.members[i];
 			if (m != null && m.zIndex != null && m.zIndex != 0) {
@@ -456,7 +478,7 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 			}
 		}
 
-		// Ordenarlos de menor a mayor zIndex
+		// Sort them by zIndex from lowest to highest
 		hudElements.sort(function(a:Dynamic, b:Dynamic):Int {
 			var aZ:Float = a.zIndex;
 			var bZ:Float = b.zIndex;
@@ -467,17 +489,24 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 			return 0;
 		});
 
-		// Re-agregarlos al estado en el orden correcto
+		// Re-add them to the state in the correct order
 		for (m in hudElements) {
 			FlxG.state.remove(m, true);
 			FlxG.state.add(m);
 		}
 	}
 
+	/**
+	 * Executes the beatHit logic.
+	 */
 	override public function beatHit():Void {
 		super.beatHit();
 	}
 
+	/**
+	 * Executes the update logic.
+	 * @param elapsed Value for elapsed.
+	 */
 	override public function update(elapsed:Float):Void {
 		if (FlxG.sound.music != null && FlxG.sound.music.playing) {
 			if (Conductor.instance != null)
@@ -1007,6 +1036,9 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 			holdTimer -= elapsed;
 	}
 
+	/**
+	 * Executes the exitMenu logic.
+	 */
 	public function exitMenu() {
 		trace("[KssetteOptionsState] exitMenu() STARTED");
 		if (exiting)
@@ -1026,6 +1058,12 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		});
 	}
 
+	/**
+	 * Gets the ValueColor value.
+	 * @param val Value for val.
+	 * @param ?item Value for ?item.
+	 * @return Returns the Int value.
+	 */
 	public function getValueColor(val:String, ?item:Dynamic):Int {
 		if (val == null)
 			return 0xFFFFFFFF;
@@ -1092,6 +1130,11 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		return 0xFFFFFFFF;
 	}
 
+	/**
+	 * Executes the formatShortValue logic.
+	 * @param val Value for val.
+	 * @return Returns the String value.
+	 */
 	public function formatShortValue(val:String):String {
 		if (val == null)
 			return "";
@@ -1147,6 +1190,11 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		return upper.substr(0, 3);
 	}
 
+	/**
+	 * Executes the formatLongValue logic.
+	 * @param val Value for val.
+	 * @return Returns the String value.
+	 */
 	public function formatLongValue(val:String):String {
 		if (val == null)
 			return "";
@@ -1168,6 +1216,9 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		return upper;
 	}
 
+	/**
+	 * Executes the buildSidePanel logic.
+	 */
 	function buildSidePanel() {
 		marqueeBg = new FlxSprite(0, 0).makeGraphic(Std.int(screenW), 45, 0xFF000000);
 		marqueeBg.scrollFactor.set(0, 0);
@@ -1340,6 +1391,10 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		trace("[KssetteOptionsState] buildSidePanel() FINISHED");
 	}
 
+	/**
+	 * Executes the addHeader logic.
+	 * @param text Value for text.
+	 */
 	function addHeader(text:String) {
 		var bg = new FlxSprite(0, 0).makeGraphic(Std.int(smallCapsuleWidth), 50, 0xFF000000);
 		bg.alpha = 0.8;
@@ -1361,6 +1416,10 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		});
 	}
 
+	/**
+	 * Executes the addCategory logic.
+	 * @param cat Value for cat.
+	 */
 	function addCategory(cat:Dynamic) {
 		var bg = new FlxSprite(0, 0);
 		if (categoryCapsuleAsset != null)
@@ -1394,6 +1453,10 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		});
 	}
 
+	/**
+	 * Executes the openCategory logic.
+	 * @param cat Value for cat.
+	 */
 	public function openCategory(cat:Dynamic) {
 		if (pageTransitioning)
 			return;
@@ -1406,6 +1469,10 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 			FlxG.sound.play(sndOn, 0.6);
 	}
 
+	/**
+	 * Executes the _executeOpenCategory logic.
+	 * @param cat Value for cat.
+	 */
 	function _executeOpenCategory(cat:Dynamic) {
 		// Clear existing options
 		for (item in optionItems) {
@@ -1516,6 +1583,9 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		}
 	}
 
+	/**
+	 * Executes the closeCategory logic.
+	 */
 	public function closeCategory() {
 		if (pageTransitioning)
 			return;
@@ -1525,6 +1595,9 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		pageTransitionOutDone = false;
 	}
 
+	/**
+	 * Executes the _executeCloseCategory logic.
+	 */
 	function _executeCloseCategory() {
 		for (item in optionItems) {
 			if (item.bg != null) {
@@ -1556,6 +1629,12 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		}
 	}
 
+	/**
+	 * Gets the SavedString value.
+	 * @param saveKey Value for saveKey.
+	 * @param fallback Value for fallback.
+	 * @return Returns the String value.
+	 */
 	function getSavedString(saveKey:String, fallback:String):String {
 		var curVal:String = fallback;
 		var fetchedVal = Save.instance.modOptions.get(saveKey);
@@ -1564,6 +1643,12 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		return curVal;
 	}
 
+	/**
+	 * Executes the optionIndex logic.
+	 * @param options Value for options.
+	 * @param curVal Value for curVal.
+	 * @return Returns the Int value.
+	 */
 	function optionIndex(options:Array<String>, curVal:String):Int {
 		if (curVal == "true") {
 			if (options.indexOf("On Note Hit") != -1)
@@ -1582,6 +1667,15 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		return idx < 0 ? 0 : idx;
 	}
 
+	/**
+	 * Executes the createOptionBase logic.
+	 * @param labelText Value for labelText.
+	 * @param saveKey Value for saveKey.
+	 * @param value Value for value.
+	 * @param descStr Value for descStr.
+	 * @param hasValue Value for hasValue.
+	 * @return Returns the Dynamic value.
+	 */
 	function createOptionBase(labelText:String, saveKey:String, value:String, descStr:String, hasValue:Bool):Dynamic {
 		var bg = new FlxSprite(0, 0);
 		if (smallCapsuleAsset != null)
@@ -1631,6 +1725,10 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		};
 	}
 
+	/**
+	 * Executes the primeOptionFire logic.
+	 * @param item Value for item.
+	 */
 	function primeOptionFire(item:Dynamic):Void {
 		item.flashTimer = 1.0;
 		descSlideVerticalTimer = 0.0;
@@ -1640,6 +1738,14 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		HapticUtil.vibrate(0, 0.01, 0.3, 0.1);
 	}
 
+	/**
+	 * Executes the createToggle logic.
+	 * @param labelText Value for labelText.
+	 * @param saveKey Value for saveKey.
+	 * @param options Value for options.
+	 * @param descStr Value for descStr.
+	 * @param ?customColors Value for ?customColors.
+	 */
 	function createToggle(labelText:String, saveKey:String, options:Array<String>, descStr:String, ?customColors:Array<String>) {
 		var curVal:String = getSavedString(saveKey, "Off");
 		if (curVal == "On" && options.indexOf("On Note Hit") != -1)
@@ -1707,6 +1813,12 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		optionItems.push(item);
 	}
 
+	/**
+	 * Executes the createOpacityOption logic.
+	 * @param labelText Value for labelText.
+	 * @param saveKey Value for saveKey.
+	 * @param descStr Value for descStr.
+	 */
 	function createOpacityOption(labelText:String, saveKey:String, descStr:String) {
 		var curVal:String = getSavedString(saveKey, "65%");
 		if (curVal.indexOf("%") == -1)
@@ -1721,6 +1833,12 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		optionItems.push(item);
 	}
 
+	/**
+	 * Executes the createVolumeOption logic.
+	 * @param labelText Value for labelText.
+	 * @param saveKey Value for saveKey.
+	 * @param descStr Value for descStr.
+	 */
 	function createVolumeOption(labelText:String, saveKey:String, descStr:String) {
 		var curVal:String = getSavedString(saveKey, "100%");
 		if (curVal.indexOf("%") == -1)
@@ -1735,6 +1853,12 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		optionItems.push(item);
 	}
 
+	/**
+	 * Executes the createDiscordOption logic.
+	 * @param labelText Value for labelText.
+	 * @param saveKey Value for saveKey.
+	 * @param descStr Value for descStr.
+	 */
 	function createDiscordOption(labelText:String, saveKey:String, descStr:String) {
 		var item = createOptionBase(labelText, saveKey, "EDIT", descStr, true);
 		var menuInst = this;
@@ -1749,6 +1873,12 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		optionItems.push(item);
 	}
 
+	/**
+	 * Executes the createTimeOption logic.
+	 * @param labelText Value for labelText.
+	 * @param saveKey Value for saveKey.
+	 * @param descStr Value for descStr.
+	 */
 	function createTimeOption(labelText:String, saveKey:String, descStr:String) {
 		var item = createOptionBase(labelText, saveKey, getSavedString(saveKey, "20:00"), descStr, true);
 		var menuInst = this;
@@ -1760,6 +1890,12 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		optionItems.push(item);
 	}
 
+	/**
+	 * Executes the createFontOption logic.
+	 * @param labelText Value for labelText.
+	 * @param saveKey Value for saveKey.
+	 * @param descStr Value for descStr.
+	 */
 	function createFontOption(labelText:String, saveKey:String, descStr:String) {
 		var item = createOptionBase(labelText, saveKey, "", descStr, false);
 		var menuInst = this;
@@ -1771,6 +1907,12 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		optionItems.push(item);
 	}
 
+	/**
+	 * Executes the createSkinOption logic.
+	 * @param labelText Value for labelText.
+	 * @param saveKey Value for saveKey.
+	 * @param descStr Value for descStr.
+	 */
 	function createSkinOption(labelText:String, saveKey:String, descStr:String) {
 		var curVal:String = getSavedString(saveKey, "default");
 		var item = createOptionBase(labelText, saveKey, formatShortValue(curVal), descStr, false);
@@ -1787,6 +1929,12 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		optionItems.push(item);
 	}
 
+	/**
+	 * Executes the updateTextSlide logic.
+	 * @param txt Value for txt.
+	 * @param maxWidth Value for maxWidth.
+	 * @param timer Value for timer.
+	 */
 	function updateTextSlide(txt:FlxText, maxWidth:Float, timer:Float) {
 		if (txt == null)
 			return;
@@ -1840,6 +1988,12 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		}
 	}
 
+	/**
+	 * Executes the updateVerticalTextSlide logic.
+	 * @param txt Value for txt.
+	 * @param maxHeight Value for maxHeight.
+	 * @param timer Value for timer.
+	 */
 	function updateVerticalTextSlide(txt:FlxText, maxHeight:Float, timer:Float) {
 		if (txt == null)
 			return;
@@ -1888,6 +2042,10 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		}
 	}
 
+	/**
+	 * Executes the resetTextSlide logic.
+	 * @param txt Value for txt.
+	 */
 	function resetTextSlide(txt:FlxText):Void {
 		if (txt == null)
 			return;
@@ -1901,6 +2059,10 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 			txt.clipRect = null;
 	}
 
+	/**
+	 * Executes the resetItemSlide logic.
+	 * @param idx Value for idx.
+	 */
 	function resetItemSlide(idx:Int):Void {
 		if (idx < 0 || idx >= optionItems.length)
 			return;
@@ -1912,6 +2074,11 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		item.slideTimer = 0.0;
 	}
 
+	/**
+	 * Sets the OptionItemVisible value.
+	 * @param item Value for item.
+	 * @param visible Value for visible.
+	 */
 	function setOptionItemVisible(item:Dynamic, visible:Bool):Void {
 		if (item == null || item.bg == null)
 			return;
@@ -1923,6 +2090,11 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 			item.textDisplay.visible = visible;
 	}
 
+	/**
+	 * Executes the hideVisibleRangeOutside logic.
+	 * @param startIdx Value for startIdx.
+	 * @param endIdx Value for endIdx.
+	 */
 	function hideVisibleRangeOutside(startIdx:Int, endIdx:Int):Void {
 		if (lastVisibleStart < 0)
 			return;
@@ -1935,6 +2107,10 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		}
 	}
 
+	/**
+	 * Executes the changeSelection logic.
+	 * @param change Value for change.
+	 */
 	function changeSelection(change:Int = 0) {
 		var activeItems = menuPage == 0 ? categoryItems : optionItems;
 		var activeIndex = menuPage == 0 ? selectedCategoryIndex : selectedIndex;
@@ -2016,6 +2192,10 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		scrollTween = FlxTween.tween(scrollTracker, {y: activeIndex}, lowDetailMenu ? 0.01 : 0.5, {ease: FlxEase.expoOut});
 	}
 
+	/**
+	 * Executes the handleInput logic.
+	 * @param elapsed Value for elapsed.
+	 */
 	function handleInput(elapsed:Float) {
 		if (FlxG.onMobile && TouchUtil.justPressed) {
 			touchActionLocked = "none";
@@ -2139,6 +2319,9 @@ class KssetteOptionsState extends ScriptedMusicBeatState {
 		}
 	}
 
+	/**
+	 * Executes the fireClickAt logic.
+	 */
 	function fireClickAt() {
 		var activeItems = menuPage == 0 ? categoryItems : optionItems;
 		var activeIndex = menuPage == 0 ? selectedCategoryIndex : selectedIndex;

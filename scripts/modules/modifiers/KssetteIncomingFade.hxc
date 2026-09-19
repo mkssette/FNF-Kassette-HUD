@@ -23,11 +23,20 @@ class KssetteIncomingFade extends KHUDModifier {
 	var colors:Array<Int> = [0xFFC24B99, 0xFF00FFFF, 0xFF12FA05, 0xFFF9393F];
 	var _cDownscroll:Bool = false;
 
+	/**
+	 * Initializes the KssetteIncomingFade modifier.
+	 * This modifier creates a dynamic color gradient at the edge of the screen (top or bottom)
+	 * to warn the player of incoming notes just before they enter the physical screen space.
+	 */
 	public function new() {
 		super("KssetteIncomingFade");
         
 	}
 
+	/**
+	 * Reads the user's preference to enable or disable the incoming fade effect,
+	 * and caches the current downscroll state to determine where to draw the gradients.
+	 */
 	function updateSettings() {
 		var raw = getSetting("kssette_incoming_fade");
 		_enabled = (raw == true);
@@ -38,10 +47,24 @@ class KssetteIncomingFade extends KHUDModifier {
 		}
 	}
 
+	/**
+	 * Triggered when returning to the game from the pause menu.
+	 * Forces a settings refresh so changes made while paused take effect immediately.
+	 *
+	 * @param event The script event indicating the game resumed.
+	 */
 	override public function onResume(event:ScriptEvent) {
 		updateSettings();
 	}
 
+	/**
+	 * Triggered right before the 3-2-1 countdown begins.
+	 * Calculates the precise physical entry time of notes into the screen bounds based 
+	 * on the chart's native scroll speed. This defines exactly when the warning fade 
+	 * should appear and disappear. Also cleans up any existing sprites from previous runs.
+	 *
+	 * @param event The script event data regarding the countdown.
+	 */
 	override public function onCountdownStart(event:Dynamic) {
 		updateSettings();
 		trace("KssetteIncomingFade: onCountdownStart. Enabled? " + _enabled);
@@ -84,6 +107,14 @@ class KssetteIncomingFade extends KHUDModifier {
 			fadesGroup = null;
 		}
 	}
+	/**
+	 * Per-frame update loop.
+	 * Responsible for generating the gradient sprites (fades) on the fly if they don't exist,
+	 * placing them directly behind the player's strumline columns, and interpolating their 
+	 * alpha opacity based on the proximity of the very next incoming note calculated from `ChartDatahunter`.
+	 *
+	 * @param event The update script event containing delta time.
+	 */
 	override public function onUpdate(event:Dynamic) {
 		if (!_enabled) {
 			for (f in fades) {

@@ -17,6 +17,12 @@ class GammodDatahunter extends KassetteHUDDatahunter {
     public var gammodPlayerSide:String = "NORMAL";
     public var gammodHighscoreActive:Bool = false;
     
+    /**
+     * Toggles the GAMMOD modifier script's built-in health bar override.
+     * Prevents the modifier from forcefully hiding or moving the health bar when Kassette HUD manages it.
+     * 
+     * @param value True to enable the override, false to let the HUD manage it.
+     */
     public function setHealthBarOverride(value:Bool) {
         if (_gammodPlay != null) {
             _gammodPlay.scriptSet("healthBarOverride", value);
@@ -31,12 +37,19 @@ class GammodDatahunter extends KassetteHUDDatahunter {
     var _gammodPlay:Dynamic = null;
     var _gammodCheckTimer:Float = 0.0;
 
+    /**
+     * Constructor for the component.
+     */
     public function new() {
         super("GammodDatahunter");
         KassetteHUDDatahunter.gammod = this;
     }
 
 
+    /**
+     * Clears cached references to GAMMOD module handlers.
+     * Called at the end of a song or on retry to prevent memory leaks from dangling script references.
+     */
     public function clearGammodCache() {
         _gammodHandler = null;
         _gammodMult = null;
@@ -46,14 +59,28 @@ class GammodDatahunter extends KassetteHUDDatahunter {
         _gammodPlay = null;
     }
 
+    /**
+     * Triggered when the song ends.
+     * @param event Value for event.
+     */
     override public function onSongEnd(event:Dynamic) {
         clearGammodCache();
     }
 
+    /**
+     * Hook triggered when the song is restarted.
+     * Wipes the script cache so the datahunter can safely re-acquire them upon the next countdown.
+     * 
+     * @param event The script event data.
+     */
     override public function onSongRetry(event:Dynamic) {
         clearGammodCache();
     }
 
+    /**
+     * Triggered when the song countdown begins.
+     * @param event Value for event.
+     */
     override public function onCountdownStart(event:ScriptEvent) {
         _gammodHandler = ModuleHandler.getModule("GammodModifierHandler");
         _gammodMult = ModuleHandler.getModule("GammodMult");
@@ -74,6 +101,10 @@ class GammodDatahunter extends KassetteHUDDatahunter {
         setHealthBarOverride(false);
     }
 
+    /**
+     * Called every frame to update the component's state.
+     * @param event Value for event.
+     */
     override public function onUpdate(event:UpdateScriptEvent) {
         var state = PlayState.instance;
         if (state == null) return;

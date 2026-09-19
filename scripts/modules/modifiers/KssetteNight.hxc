@@ -65,6 +65,9 @@ class KssetteNight extends KHUDModifier {
     /** Camera for rendering in preview mode. */
     public var previewCam:FlxCamera = null;
 
+    /**
+     * Constructor for the component.
+     */
     public function new() {
         super('KssetteNight');
         elementType = "modifier";
@@ -85,7 +88,12 @@ class KssetteNight extends KHUDModifier {
         targetAlpha = 0.01;
     }
 
-    /** Cleans up the overlay when navigating away from the current game state. */
+    /**
+     * Cleans up the overlay when navigating away from the current game state.
+     * This prevents the overlay sprite from persisting into unrelated menus.
+     *
+     * @param event Script event containing details about the state transition.
+     */
     override public function onStateChangeStart(event:Dynamic) {
         super.onStateChangeStart(event);
         isPreview = false;
@@ -108,7 +116,12 @@ class KssetteNight extends KHUDModifier {
         applyCalculatedState(evaluateState());
     }
 
-    /** Returns true only when PlayState is Flixel's active state. */
+    /**
+     * Verifies whether the active game state is the actual PlayState.
+     * Used to distinguish between playing a song versus previewing the HUD in the options menu.
+     *
+     * @return True if the current active state is PlayState, false otherwise.
+     */
     function isPlayStateActive():Bool {
         return PlayState.instance != null && Std.isOfType(FlxG.state, PlayState);
     }
@@ -193,7 +206,10 @@ class KssetteNight extends KHUDModifier {
         return curSecs >= cachedStartSecs || curSecs < cachedEndSecs;
     }
 
-    /** Re-evaluates settings and active state; used to refresh the options menu preview. */
+    /**
+     * Triggered specifically by the options menu's preview system to re-evaluate
+     * and refresh the overlay if the user modifies night-mode settings in real time.
+     */
     public function updatePreview() {
         if (!isPreview) return;
         refreshSettings();

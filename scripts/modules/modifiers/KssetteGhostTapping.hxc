@@ -42,6 +42,11 @@ class KssGhostTapping extends KHUDModifier {
     /** Tracks if the game is paused to suppress ghost singing. */
     var isPaused:Bool = false;
 
+    /**
+     * Initializes the KssGhostTapping modifier.
+     * Registers the module to handle player inputs even when no notes are present,
+     * overriding default miss penalties and managing visual singing feedback.
+     */
     public function new() {
         super('KssGhostTapping');
         elementType = "modifier";
@@ -74,19 +79,37 @@ class KssGhostTapping extends KHUDModifier {
             trace("[KssGhostTapping] onCountdownStart - mode=" + _cGhostTappingMode + " ghostSing=" + _cGhostSing);
     }
 
-    /** Tracks pause state to suppress ghost singing animations. */
+    /**
+     * Triggered when the game is paused.
+     * Sets the pause flag to true, actively suppressing ghost singing animations
+     * so the character doesn't animate while the user is navigating the pause menu.
+     * 
+     * @param event The script event indicating the game was paused.
+     */
     override function onPause(event:Dynamic) {
         super.onPause(event);
         isPaused = true;
     }
 
-    /** Clears the paused state when game state changes. */
+    /**
+     * Triggered when a state transition fully finishes.
+     * Clears the paused state flag, ensuring the modifier is ready and active
+     * for the newly loaded game state.
+     * 
+     * @param event The script event indicating a state change completion.
+     */
     override function onStateChangeEnd(event:Dynamic) {
         super.onStateChangeEnd(event);
         isPaused = false;
     }
 
-    /** Clears the paused state when the player resumes gameplay. */
+    /**
+     * Triggered when returning to the game from the pause menu.
+     * Clears the paused state flag so that ghost singing and ghost tapping 
+     * logic resumes functioning correctly during gameplay.
+     * 
+     * @param event The script event indicating the game resumed.
+     */
     override function onResume(event:Dynamic) {
         super.onResume(event);
         isPaused = false;
