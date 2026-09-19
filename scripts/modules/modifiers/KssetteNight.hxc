@@ -30,6 +30,8 @@ package kassettehud.util;
 import flixel.FlxG;
 import funkin.graphics.FunkinSprite;
 import funkin.modding.module.Module;
+import kassettehud.util.KssetteOptionsManager;
+import kassettehud.util.KassetteHUDDatahunter;
 import funkin.modding.module.ModuleHandler;
 import funkin.play.PlayState;
 import Std;
@@ -37,7 +39,7 @@ import Date;
 import Math;
 import StringTools;
 
-class KssetteNight extends Module {
+class KssetteNight extends KHUDModifier {
     /** The full-screen dark overlay sprite. */
     var overlayGame:FunkinSprite;
     /** Indicates if the overlay is currently in the "should be visible" state. */
@@ -47,8 +49,6 @@ class KssetteNight extends Module {
     var timeCheckTimer:Float = 0.0;
     /** Target alpha the overlay interpolates towards (either `cachedOpacity` or ~0). */
     var targetAlpha:Float = 0.01;
-    /** Cached reference to KssetteApi. */
-    var apiModule:Dynamic = null;
     /** Current night mode setting: "Off", "On", or "Scheduled". */
     var cachedMode:String = "Off";
     /** Desired opacity of the overlay (0.0-1.0) when night mode is active. */
@@ -61,12 +61,17 @@ class KssetteNight extends Module {
     var updateTimer:Float = 0.0;
     
     /** True when rendering a preview in the options menu rather than in-game. */
-    public var isPreview:Bool = false;
-    /** Camera for rendering in preview mode. */
-    public var previewCam:flixel.FlxCamera = null;
 
+    /** Camera for rendering in preview mode. */
+    public var previewCam:FlxCamera = null;
+
+    /**
+     * Constructor for the component.
+     */
     public function new() {
         super('KssetteNight');
+        elementType = "modifier";
+        
     }
 
     /**
@@ -83,7 +88,12 @@ class KssetteNight extends Module {
         targetAlpha = 0.01;
     }
 
-    /** Cleans up the overlay when navigating away from the current game state. */
+    /**
+     * Cleans up the overlay when navigating away from the current game state.
+     * This prevents the overlay sprite from persisting into unrelated menus.
+     *
+     * @param event Script event containing details about the state transition.
+     */
     override public function onStateChangeStart(event:Dynamic) {
         super.onStateChangeStart(event);
         isPreview = false;
@@ -97,7 +107,7 @@ class KssetteNight extends Module {
      *
      * @param cam Camera to render the preview on.
      */
-    public function buildPreview(cam:flixel.FlxCamera) {
+    public function buildPreview(cam:FlxCamera) {
         isPreview = true;
         previewCam = cam;
         cleanUp();
@@ -106,7 +116,12 @@ class KssetteNight extends Module {
         applyCalculatedState(evaluateState());
     }
 
-    /** Returns true only when PlayState is Flixel's active state. */
+    /**
+     * Verifies whether the active game state is the actual PlayState.
+     * Used to distinguish between playing a song versus previewing the HUD in the options menu.
+     *
+     * @return True if the current active state is PlayState, false otherwise.
+     */
     function isPlayStateActive():Bool {
         return PlayState.instance != null && Std.isOfType(FlxG.state, PlayState);
     }
@@ -118,11 +133,12 @@ class KssetteNight extends Module {
      * @return "On" | "Off" | raw setting string (e.g. "Scheduled")
      */
     function getMode():String {
-        if (apiModule == null) return "Off";
-        var rawMode = Std.string(apiModule?.getKssValue("kssette_night_mode"));
-        if (rawMode == "true"  || rawMode == "On")  return "On";
-        if (rawMode == "false" || rawMode == "Off") return "Off";
-        return rawMode;
+        var rawMode = getSetting("kssette_night_mode");
+        if (rawMode == null || rawMode == "null") return "Off";
+        var strMode = Std.string(rawMode);
+        if (strMode == "true"  || strMode == "On")  return "On";
+        if (strMode == "false" || strMode == "Off") return "Off";
+        return strMode;
     }
 
     /**
@@ -149,19 +165,20 @@ class KssetteNight extends Module {
      * Opacity values accept both percentage strings ("65%") and decimals ("0.65").
      */
     function refreshSettings():Void {
-        apiModule = ModuleHandler.getModule("KssetteApi");
+
         cachedMode = getMode();
         cachedOpacity = 0.65;
-        if (apiModule != null) {
-            var rawOp = Std.string(apiModule?.getKssValue("kssette_night_opacity"));
+        var optManager = KssetteOptionsManager.instance;
+        if (optManager != null) {
+            var rawOp = Std.string(optManager.getKssValue("kssette_night_opacity"));
             if (rawOp != null && rawOp != "null") {
                 var parsed = Std.parseFloat(StringTools.replace(rawOp, "%", ""));
                 if (!Math.isNaN(parsed)) cachedOpacity = parsed / 100.0;
             }
 
             var timeStrStart = "20:00"; var timeStrEnd = "06:00";
-            var fetchedStart = Std.string(apiModule?.getKssValue("kssette_night_start"));
-            var fetchedEnd   = Std.string(apiModule?.getKssValue("kssette_night_end"));
+            var fetchedStart = Std.string(optManager.getKssValue("kssette_night_start"));
+            var fetchedEnd   = Std.string(optManager.getKssValue("kssette_night_end"));
             if (fetchedStart != null && fetchedStart != "null") timeStrStart = fetchedStart;
             if (fetchedEnd   != null && fetchedEnd   != "null") timeStrEnd   = fetchedEnd;
             cachedStartSecs = parseClockSeconds(timeStrStart, 72000);
@@ -189,7 +206,10 @@ class KssetteNight extends Module {
         return curSecs >= cachedStartSecs || curSecs < cachedEndSecs;
     }
 
-    /** Re-evaluates settings and active state; used to refresh the options menu preview. */
+    /**
+     * Triggered specifically by the options menu's preview system to re-evaluate
+     * and refresh the overlay if the user modifies night-mode settings in real time.
+     */
     public function updatePreview() {
         if (!isPreview) return;
         refreshSettings();
@@ -213,7 +233,7 @@ class KssetteNight extends Module {
         overlayGame.scrollFactor.set(0, 0); 
         overlayGame.screenCenter();
         
-        overlayGame.zIndex = 50; 
+        overlayGame.zIndex = KassetteHUDElement.Z_BACKGROUND_OVERLAYS; 
 
         if (isPreview) {
             if (previewCam != null) overlayGame.cameras = [previewCam];
@@ -222,7 +242,7 @@ class KssetteNight extends Module {
             st.refresh();
         } else {
             var state = PlayState.instance;
-            var targetCam:flixel.FlxCamera = null;
+            var targetCam:FlxCamera = null;
             if (isPlayStateActive()) {
                 targetCam = state?.camHUD;
             }
@@ -255,8 +275,7 @@ class KssetteNight extends Module {
         if (isPlayStateActive()) isPreview = false;
         if (isPreview) return;
 
-        apiModule = ModuleHandler.getModule("KssetteApi");
-        if (apiModule == null) return;
+
         
         cleanUp();
         timeCheckTimer = 0.0;
@@ -287,9 +306,16 @@ class KssetteNight extends Module {
      *   2. Re-evaluating the time window once per second via timeCheckTimer.
      *   3. Smoothly interpolating alpha towards targetAlpha (4x speed, clamped to ~120Hz).
      */
-    override public function onUpdate(event:Dynamic):Void {
-        if (apiModule == null) return;
-        
+    override public function onUpdate(event:Dynamic) {
+        var dt:Float = 0.016;
+        if (Std.isOfType(event, Float)) {
+            dt = event;
+        } else if (event != null && event.elapsed != null) {
+            dt = event.elapsed;
+        } else {
+            dt = FlxG.elapsed;
+        }
+
         // If the game started while preview was active, rebuild for gameplay.
         if (isPlayStateActive() && isPreview) {
             isPreview = false;
@@ -299,15 +325,13 @@ class KssetteNight extends Module {
 
         if (!isPreview && !isPlayStateActive()) return;
 
-        var elapsed = (event != null) ? event.elapsed : FlxG.elapsed;
-
-        updateTimer += elapsed;
+        updateTimer += dt;
         if (updateTimer < 0.008) return;
-        elapsed = updateTimer;
+        var step:Float = updateTimer;
         updateTimer = 0.0;
 
         // Re-evaluate the night time window once per second.
-        timeCheckTimer += elapsed;
+        timeCheckTimer += step;
         if (timeCheckTimer >= 1.0) {
             timeCheckTimer = 0.0;
             applyCalculatedState(evaluateState());
@@ -316,7 +340,7 @@ class KssetteNight extends Module {
         // Smoothly interpolate the overlay's alpha towards the target.
         if (overlayGame != null && overlayGame.exists && overlayGame.visible) {
             if (Math.abs(overlayGame.alpha - targetAlpha) > 0.001) {
-                overlayGame.alpha += (targetAlpha - overlayGame.alpha) * (elapsed * 4.0);
+                overlayGame.alpha += (targetAlpha - overlayGame.alpha) * (step * 4.0);
             } else {
                 overlayGame.alpha = targetAlpha;
             }
@@ -338,7 +362,7 @@ class KssetteNight extends Module {
                 overlayGame.cameras = [previewCam];
             }
         } else if (isPlayStateActive()) {
-            var currentCam:flixel.FlxCamera = PlayState.instance?.camHUD;
+            var currentCam:FlxCamera = PlayState.instance?.camHUD;
             if (currentCam == null) currentCam = FlxG.camera;
             if (overlayGame.cameras == null || overlayGame.cameras.length == 0 || overlayGame.cameras[0] != currentCam) {
                 overlayGame.cameras = [currentCam];

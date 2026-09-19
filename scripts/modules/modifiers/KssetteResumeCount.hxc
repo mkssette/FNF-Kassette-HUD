@@ -29,7 +29,7 @@ import funkin.modding.events.ScriptEvent;
  * the active NoteStyle, falling back to pixel or base funkin styles as needed.
  */
 
-class KssetteResumeCount extends Module {
+class KssetteResumeCount extends KHUDModifier {
     /** Indicates whether the resume countdown feature is enabled in the options. */
     var cachedActive:Bool = false;
     /** True if the 3-2-1 countdown animation is currently running. */
@@ -52,9 +52,6 @@ class KssetteResumeCount extends Module {
     /** The original score to lock and prevent background drift. */
     var storedScore:Int = 0;
     
-    /** Reference to the KssetteApi module for reading configurations. */
-    var apiModule:Dynamic = null;
-
     /** The cached NoteStyle ID used to resolve assets. */
     var cachedStyle:String = "funkin";
     /** Indicates if the resolved style is pixel-based. */
@@ -79,9 +76,20 @@ class KssetteResumeCount extends Module {
     var cachedImageScale:Array<Float> = [1.0, 1.0, 1.0, 1.0];
     /** The NoteStyle ID that the currently cached assets belong to. */
     var cachedAssetsStyle:String = "";
+    
+    /** Arrays to keep track of active countdown visual objects so they can be cleaned up. */
+    var activeTweens:Array<FlxTween> = [];
+    var activeSprites:Array<FlxSprite> = [];
 
+    /**
+     * Initializes the KssetteResumeCount modifier.
+     * This module intercepts pause/resume events to insert a musical 3-second countdown 
+     * before giving control back to the player, preventing immediate unfair misses.
+     */
     public function new() {
         super("KssetteResumeCount");
+        elementType = "modifier";
+        
     }
 
     /**
@@ -125,11 +133,10 @@ class KssetteResumeCount extends Module {
     override public function onCountdownStart(event) {
         super.onCountdownStart(event);
         cachedActive = false;
-        apiModule = ModuleHandler.getModule("KssetteApi");
-        if (apiModule == null) return;
+
         
-        apiModule.registerModule("KssetteResumeCount", this);
-        cachedActive = apiModule.getKssValue("kssette_resume_countdown") == true;
+
+        cachedActive = getSetting("kssette_resume_countdown") == true;
         isCounting = false;
         isResuming = false;
 
@@ -144,7 +151,8 @@ class KssetteResumeCount extends Module {
      * Per-frame update logic. Monitors for unexpected state changes 
      * and forces the song score to remain locked while the countdown is active.
      */
-    override public function onUpdate(event) {
+    override public function onUpdate(event:Dynamic) {
+        var elapsed:Float = (Std.isOfType(event, Float)) ? event : (event != null ? event.elapsed : 0);
         if (isCounting) {
             var state = PlayState.instance;
             if (state == null || state.startingSong || state.isPlayerDying || (state.conductorInUse != null && state.conductorInUse.songPosition <= 0)) {
@@ -155,16 +163,40 @@ class KssetteResumeCount extends Module {
         }
     }
 
-    /** Cancels note hits during the countdown. */
+    /**
+     * Intercepts a note hit event.
+     * If the countdown is currently active, it actively cancels the hit to prevent 
+     * the player from scoring points or triggering hit logic while the song is visually paused.
+     * 
+     * @param event The script event data for the note hit.
+     */
     override public function onNoteHit(event) { cancelIfLocked(event); }
 
-    /** Cancels note misses during the countdown. */
+    /**
+     * Intercepts a note miss event.
+     * If the countdown is active, it cancels the miss to protect the player's health 
+     * and combo from falling notes that pass the strumline before the song resumes.
+     * 
+     * @param event The script event data for the note miss.
+     */
     override public function onNoteMiss(event) { cancelIfLocked(event); }
 
-    /** Cancels ghost tap misses during the countdown. */
+    /**
+     * Intercepts a ghost miss event (empty key press).
+     * Cancels the ghost miss penalty if the countdown is running, ensuring the player 
+     * isn't penalized for warming up their fingers during the 3-2-1 sequence.
+     * 
+     * @param event The script event data for the ghost miss.
+     */
     override public function onNoteGhostMiss(event) { cancelIfLocked(event); }
     
-    /** Prevents the player from pausing again during the countdown. */
+    /**
+     * Intercepts the pause event.
+     * Prevents the player from pausing the game again while the resume countdown 
+     * is already in progress, which would cause overlapping audio or broken states.
+     * 
+     * @param event The script event indicating the game was paused.
+     */
     override public function onPause(event:ScriptEvent) { cancelIfLocked(event); }
 
     /**
@@ -350,10 +382,15 @@ class KssetteResumeCount extends Module {
                 tweenEase = FlxEase.cubeOut;
             }
             
-            FlxTween.tween(sprite, tweenParams, tweenDuration, { ease: tweenEase, onComplete: function(t:FlxTween) { 
+            var tw = FlxTween.tween(sprite, tweenParams, tweenDuration, { ease: tweenEase, onComplete: function(t:FlxTween) { 
                 if (state != null) state.remove(sprite, true); 
                 sprite.destroy(); 
+                if (activeSprites != null) activeSprites.remove(sprite);
+                if (activeTweens != null) activeTweens.remove(t);
             }});
+            
+            if (activeSprites != null) activeSprites.push(sprite);
+            if (activeTweens != null) activeTweens.push(tw);
         }
 
         if (num > 0) {
@@ -363,5 +400,29 @@ class KssetteResumeCount extends Module {
             if (state.vocals != null) state.vocals.play();
             isCounting = false;
         }
+    }
+    
+    /**
+     * Cleans up the modifier when it is destroyed.
+     * Hard-cancels any active countdown timers and immediately kills any 
+     * active sprite tweens to prevent memory leaks or null reference errors.
+     */
+    override public function destroy() {
+        if (currentTimer != null) currentTimer.cancel();
+        currentTimer = null;
+        if (resumeTimer != null) resumeTimer.cancel();
+        resumeTimer = null;
+        
+        if (activeTweens != null) {
+            for (t in activeTweens) t.cancel();
+            activeTweens = [];
+        }
+
+        if (activeSprites != null) {
+            for (s in activeSprites) s.destroy();
+            activeSprites = [];
+        }
+
+        super.destroy();
     }
 }

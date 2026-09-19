@@ -35,101 +35,124 @@ import Std;
 import Math;
 import StringTools;
 
-class KssetteHitsound extends Module {
-    /** Indicates if the game is paused; suppresses hitsound playback. */
+class KssetteHitsound extends KHUDModifier {
     var isPaused:Bool = false;
-    /** Cached reference to the hitsound audio asset. */
     var hitSound:Dynamic = null;
-    /** Cached reference to the KssetteApi module. */
-    var apiModule:Dynamic = null;
+    var _cMode:String = "Off";
+    var _cVolume:Float = 1.0;
 
+    /**
+     * Initializes the KssetteHitsound modifier.
+     * This module runs in the background during gameplay and listens for note hits or 
+     * raw keyboard inputs to play a custom sound effect based on the user's settings.
+     */
     public function new() {
         super('KssetteHitsound');
+        elementType = "modifier";
+        
     }
 
     /**
-     * Resolves and normalizes the current hitsound mode from the saved setting.
-     * Normalizes legacy boolean values (true/"On") to "On Note Hit".
-     *
-     * @return "On Note Hit" | "Anytime" | "Off"
+     * Fetches the latest user preferences for the hitsound mode and volume.
+     * Normalizes percentage strings (e.g., "50%") into float multipliers (e.g., 0.5)
+     * and maps legacy boolean toggles to the new "On Note Hit" / "Anytime" string modes.
      */
-    function getMode():String {
-        if (apiModule == null) apiModule = ModuleHandler.getModule("KssetteApi");
-        if (apiModule == null) return "Off";
-        var val = apiModule?.getKssValue("kssette_hitsound");
-        if (val == null) return "Off";
-        var s = Std.string(val);
-        if (s == "On" || s == "on" || s == "true" || val == true || s == "On Note Hit") return "On Note Hit";
-        if (s == "Anytime" || s == "anytime") return "Anytime";
-        return "Off";
-    }
+    function updateSettings() {
+        var val = getSetting("kssette_hitsound");
+        if (val == null) {
+            _cMode = "Off";
+        } else {
+            var s = Std.string(val);
+            if (s == "On" || s == "on" || s == "true" || val == true || s == "On Note Hit") _cMode = "On Note Hit";
+            else if (s == "Anytime" || s == "anytime") _cMode = "Anytime";
+            else _cMode = "Off";
+        }
 
-    /**
-     * Reads the hitsound volume setting and converts it to a float from 0.0 to 1.0.
-     * Accepts values like "80%" or "0.8"; falls back to 1.0 if unset or invalid.
-     * Reads from KssetteApi if available, otherwise falls back directly to Save.
-     */
-    function readVolume():Float {
-        if (apiModule == null) apiModule = ModuleHandler.getModule("KssetteApi");
-        var v:Dynamic = apiModule?.getKssValue("kssette_hitsound_volume");
+        var v:Dynamic = getSetting("kssette_hitsound_volume");
         if (v == null && Save.instance?.modOptions?.exists("kssette_hitsound_volume") == true) {
             v = Save.instance.modOptions.get("kssette_hitsound_volume");
         }
         if (v != null) {
             var p = Std.parseFloat(StringTools.replace(Std.string(v), "%", ""));
-            if (!Math.isNaN(p)) return p > 1.0 ? p / 100.0 : p;
+            if (!Math.isNaN(p)) _cVolume = p > 1.0 ? p / 100.0 : p;
+            else _cVolume = 1.0;
+        } else {
+            _cVolume = 1.0;
         }
-        return 1.0;
     }
 
     /**
-     * Plays the hitsound at the currently configured volume.
-     * Lazy-loads the sound asset on the first call if not already cached.
+     * Plays the cached hitsound audio file using the configured volume level.
+     * If the sound hasn't been cached yet, it securely loads it from the assets path first.
      */
     function playHitSound() {
         if (hitSound == null) hitSound = Paths.sound("play/hitsound");
-        if (hitSound != null) FunkinSound.playOnce(hitSound, readVolume());
+        if (hitSound != null) FunkinSound.playOnce(hitSound, _cVolume);
     }
 
     /**
-     * Called at the start of the song. Pre-caches the hitsound asset and resets the paused state.
-     * Loading here ensures the first hit in a song has no latency.
+     * Triggered right before the 3-2-1 countdown begins.
+     * Pre-loads the hitsound asset into memory to guarantee zero-latency playback 
+     * on the very first note hit, and ensures the component starts unpaused.
+     * 
+     * @param event The script event data regarding the countdown.
      */
     override public function onCountdownStart(event:Dynamic) {
         super.onCountdownStart(event);
+        updateSettings();
         isPaused = false;
         hitSound = Paths.sound("play/hitsound");
-        trace("[KssetteHitsound] onCountdownStart - mode=" + getMode() + " hitSoundLoaded=" + (hitSound != null));
     }
 
-    /** Sets isPaused to suppress hitsound playback during the pause menu. */
+    /**
+     * Triggered when the game is paused.
+     * Sets a flag to prevent keyboard inputs in the pause menu from triggering the hitsound.
+     * 
+     * @param event The script event indicating the game was paused.
+     */
     override function onPause(event:ScriptEvent) {
         super.onPause(event);
         isPaused = true;
     }
 
-    /** Clears isPaused when changing game state. */
+    /**
+     * Triggered when a state transition fully finishes.
+     * Resets the pause flag to re-enable hitsounds for the new state context.
+     * 
+     * @param event The script event indicating a state change completion.
+     */
     override function onStateChangeEnd(event:ScriptEvent) {
         super.onStateChangeEnd(event);
         isPaused = false;
     }
 
-    /** Clears isPaused when the player resumes from pause. */
+    /**
+     * Triggered when returning to the game from the pause menu.
+     * Forces a settings refresh so any volume or mode changes made within the options 
+     * menu while paused take effect immediately.
+     * 
+     * @param event The script event indicating the game resumed.
+     */
     override function onResume(event:ScriptEvent) {
         super.onResume(event);
+        updateSettings();
         isPaused = false;
     }
 
     /**
-     * Per-frame update. Handles "Anytime" mode: plays the hitsound
-     * whenever a note key is pressed, regardless of whether a note exists.
-     * Only executes when mode is "Anytime" and the game is not paused or dying.
+     * Per-frame update loop.
+     * Specifically handles the "Anytime" mode by constantly monitoring the player's 
+     * raw control inputs (Left, Down, Up, Right). If any directional key is pressed, 
+     * it instantly plays the hitsound, effectively creating a ghost-tapping sound effect.
+     * 
+     * @param event The update script event containing delta time.
      */
-    override public function onUpdate(event:UpdateScriptEvent) {
+    override public function onUpdate(event:Dynamic) {
+        var elapsed:Float = (Std.isOfType(event, Float)) ? event : (event != null ? event.elapsed : 0);
         super.onUpdate(event);
 
         if (isPaused) return;
-        if (getMode() != "Anytime") return;
+        if (_cMode != "Anytime") return;
 
         var state = PlayState.instance;
         if (state == null || state.isPlayerDying) return;
@@ -151,7 +174,7 @@ class KssetteHitsound extends Module {
         super.onNoteHit(event);
         
         if (isPaused) return;
-        if (getMode() != "On Note Hit") return;
+        if (_cMode != "On Note Hit") return;
 
         var state = PlayState.instance;
         if (state == null || state.isPlayerDying) return;

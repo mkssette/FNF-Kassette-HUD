@@ -1,0 +1,33 @@
+package kassettehud.util;
+
+/**
+ * KassetteHUDDatahunter
+ *
+ * Base class for all data hunters. A data hunter tracks specific engine/game state
+ * (such as break data, note counts, health icon colors, etc.) and provides it to
+ * HUD elements or other mods through the KssetteApi.
+ *
+ * Data hunters are NOT engine modules themselves; they are instantiated and driven
+ * by KssetteApi to save performance.
+ */
+import funkin.modding.module.Module;
+
+class KassetteHUDDatahunter extends Module {
+
+    public static var score:Dynamic = null;
+    public static var gammod:Dynamic = null;
+    public static var song:Dynamic = null;
+    public static var asset:Dynamic = null;
+    public static var icon:Dynamic = null;
+    public static var breakData:Dynamic = null;
+    public static var chartData:Dynamic = null;
+
+    /**
+     * Constructor for the component.
+     * @param name Value for name.
+     */
+    public function new(name:String) {
+        super(name);
+        this.active = true;
+    }
+}

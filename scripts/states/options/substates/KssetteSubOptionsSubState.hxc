@@ -1,0 +1,824 @@
+import funkin.ui.ScriptedMusicBeatSubState;
+import funkin.PlayerSettings;
+import flixel.FlxG;
+import flixel.FlxCamera;
+import flixel.FlxSprite;
+import flixel.text.FlxText;
+import flixel.text.FlxTextBorderStyle;
+import flixel.group.FlxSpriteGroup;
+import funkin.save.Save;
+import funkin.audio.FunkinSound;
+import funkin.Paths;
+import flixel.util.FlxColor;
+import flixel.math.FlxMath;
+import Math;
+import Std;
+import StringTools;
+import funkin.util.TouchUtil;
+import funkin.util.SwipeUtil;
+import funkin.util.HapticUtil;
+import funkin.modding.module.ModuleHandler;
+import kassettehud.util.KassetteHUDElement;
+import kassettehud.util.KssetteOptionsManager;
+import kassettehud.util.KassetteHUDDatahunter;
+
+class KssetteSubOptionsSubState extends ScriptedMusicBeatSubState {
+    var lowDetailMenu:Bool = false;
+    public var parent:Dynamic;
+    
+    var panelWidth:Float;
+    var screenW:Float;
+    var screenH:Float;
+    var halfScreenH:Float;
+    var optionCam:FlxCamera;
+    var menuFont:String;
+
+    
+    var isOpMenuOpen:Bool = false;
+    var opSel_Group:FlxSpriteGroup;
+    var opSel_Up:FlxText;
+    var opSel_Down:FlxText;
+    var opSel_TxtVal:FlxText;
+    var opSel_Value:Int = 100;
+    var opSel_SaveKey:String = "";
+
+    var isVolMenuOpen:Bool = false;
+    var volSel_Group:FlxSpriteGroup;
+    var volSel_Up:FlxText;
+    var volSel_Down:FlxText;
+    var volSel_TxtVal:FlxText;
+    var volSel_Value:Int = 100;
+    var volSel_SaveKey:String = "";
+
+    var isTimeMenuOpen:Bool = false;
+    var tSel_Group:FlxSpriteGroup;
+    var tSel_UpHour:FlxText;
+    var tSel_DownHour:FlxText;
+    var tSel_UpMin:FlxText;
+    var tSel_DownMin:FlxText;
+    var tSel_TxtHour:FlxText;
+    var tSel_TxtMin:FlxText;
+    var tSel_TxtColon:FlxText;
+    var tSel_Hour:Int = 0;
+    var tSel_Min:Int = 0;
+    var tSel_IsMin:Bool = false;
+    var tSel_SaveKey:String = "";
+    public var wasMenuJustClosed:Bool = false;
+    var sndScroll:Dynamic;
+    var sndOn:Dynamic;
+    var sndHit:Dynamic;
+    
+    var holdTimer:Float = 0.0;
+    var panelOnLeft:Bool = false;
+    var subActionLocked:String = "none";
+
+    /**
+     * Constructor for the component.
+     * @param parent Value for parent.
+     */
+    public function new(parent:Dynamic) {
+        var rawLowDetail = KssetteOptionsManager.instance.getKssValue("kssette_low_detail_menu");
+        lowDetailMenu = (rawLowDetail == true || Std.string(rawLowDetail) == "On" || Std.string(rawLowDetail) == "true");
+        super();
+        this.parent = parent;
+        this.persistentUpdate = true;
+        this.persistentDraw = true;
+    }
+
+    /**
+     * Executes the initSubstate logic.
+     */
+    public function initSubstate():Void {
+        var pState:Dynamic = FlxG.state;
+        this.parent = pState;
+        
+        this.panelWidth = pState.panelWidth;
+        this.screenW = pState.screenW;
+        this.screenH = pState.screenH;
+        this.halfScreenH = pState.halfScreenH;
+        this.optionCam = FlxG.cameras.list[FlxG.cameras.list.length - 1];
+        
+        var hudCam = FlxG.cameras.list[FlxG.cameras.list.length - 2];
+        this.cameras = [FlxG.camera, hudCam, this.optionCam];
+        
+        this.menuFont = Paths.font("5by7.ttf");
+        this.sndScroll = Paths.sound('ui/khud_scroll');
+        this.sndOn = Paths.sound('ui/khud_on');
+        this.sndHit = Paths.sound("play/hitsound");
+        this.panelOnLeft = false; // Force to right side
+
+    }
+
+    /**
+     * Executes the moveGroup logic.
+     * @param group Value for group.
+     * @param targetX Value for targetX.
+     * @param elapsed Value for elapsed.
+     * @param speed Value for speed.
+     */
+    function moveGroup(group:FlxSpriteGroup, targetX:Float, elapsed:Float, speed:Float) {
+        if (group == null) return;
+        if (Math.abs(group.x - targetX) < 0.1) {
+            group.x = targetX;
+            return;
+        }
+        var newX = FlxMath.lerp(group.x, targetX, (lowDetailMenu ? 1.0 : elapsed * speed));
+        group.x = newX;
+    }
+
+    /**
+     * Executes the makeOverlayText logic.
+     * @param group Value for group.
+     * @param x Value for x.
+     * @param y Value for y.
+     * @param w Value for w.
+     * @param text Value for text.
+     * @param size Value for size.
+     * @param color Value for color.
+     * @param align Value for align.
+     * @param border Value for border.
+     * @return Returns the FlxText value.
+     */
+    function makeOverlayText(group:FlxSpriteGroup, x:Float, y:Float, w:Float, text:String, size:Int, color:Int, align:String, border:Bool = false):FlxText {
+        var txt = new FlxText(x, y, w, text, size);
+        if (border) txt.setFormat(menuFont, size, color, align, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        else txt.setFormat(menuFont, size, color, align);
+        txt.scrollFactor.set(0, 0);
+        txt.antialiasing = false;
+        group.add(txt);
+        return txt;
+    }
+
+    /**
+     * Executes the createOverlayGroup logic.
+     * @param title Value for title.
+     * @param inst Value for inst.
+     * @return Returns the FlxSpriteGroup value.
+     */
+    function createOverlayGroup(title:String, inst:String = null):FlxSpriteGroup {
+        var group = new FlxSpriteGroup(0, 0);
+        group.x = panelOnLeft ? -panelWidth : screenW;
+        group.cameras = [optionCam];
+        add(group);
+
+        var bg = new FlxSprite(0, 0).makeGraphic(Std.int(panelWidth), Std.int(screenH), 0xFF000000);
+        bg.alpha = 0.95;
+        bg.scrollFactor.set(0, 0);
+        group.add(bg);
+
+        makeOverlayText(group, 10, 80, panelWidth - 20, title, 40, FlxColor.YELLOW, "center", true);
+        if (inst == null) inst = FlxG.onMobile ? "SWIPE TO CHANGE  |  TAP BACK BUTTON TO SAVE" : "SWIPE TO CHANGE  |  ENTER TO SAVE";
+        makeOverlayText(group, 10, 140, panelWidth - 20, inst, 20, FlxColor.WHITE, "center");
+        return group;
+    }
+
+    /**
+     * Executes the openOpacitySelector logic.
+     * @param saveKey Value for saveKey.
+     */
+    public function openOpacitySelector(saveKey:String) {
+        isOpMenuOpen = true; 
+        opSel_SaveKey = saveKey;
+        
+        var curVal = "65";
+        var fetched = Save.instance.modOptions.get(saveKey);
+        if (fetched != null) curVal = StringTools.replace(Std.string(fetched), "%", "");
+        
+        opSel_Value = Std.parseInt(curVal);
+        if (opSel_Value == null) opSel_Value = 65;
+        
+        opSel_Group = createOverlayGroup("ADJUST OPACITY (ESC TO CANCEL)");
+        var cY = halfScreenH;
+        var cX = panelWidth / 2;
+        
+        opSel_Up = makeOverlayText(opSel_Group, cX - 50, cY - 100, 100, "/\\", 50, FlxColor.YELLOW, "center");
+        opSel_Down = makeOverlayText(opSel_Group, cX - 50, cY + 50, 100, "\\/", 50, FlxColor.YELLOW, "center");
+        opSel_TxtVal = makeOverlayText(opSel_Group, cX - 100, cY - 40, 200, "65%", 70, FlxColor.WHITE, "center", true);
+
+        updateOpacityUI();
+    }
+
+    /**
+     * Executes the updateOpacityUI logic.
+     */
+    function updateOpacityUI() {
+        if (opSel_Group == null || opSel_TxtVal == null) return;
+        var nextText = Std.string(opSel_Value) + "%";
+        if (opSel_TxtVal.text != nextText) opSel_TxtVal.text = nextText;
+    }
+
+    /**
+     * Executes the saveOpacitySelection logic.
+     */
+    public function saveOpacitySelection() {
+        var finalStr = Std.string(opSel_Value) + "%";
+        Save.instance.modOptions.set(opSel_SaveKey, finalStr);
+        if (parent.optionItems != null) {
+            for (i in 0...parent.optionItems.length) {
+                var it = parent.optionItems[i];
+                if (it != null) it.lockedState = null;
+            }
+        }
+        Save.instance.flush();
+        
+        if (parent.descTextDisplay != null && parent.optionItems.length > 0 && parent.selectedIndex >= 0) {
+            var selItem = parent.optionItems[parent.selectedIndex];
+            if (selItem.textDisplay != null) {
+                selItem.textDisplay.text = finalStr;
+            }
+        }
+
+        if (sndOn != null) FlxG.sound.play(sndOn, 0.6);
+        closeOpacitySelector();
+        
+        parent.updatePreviews();
+    }
+
+    /**
+     * Executes the closeOpacitySelector logic.
+     */
+    public function closeOpacitySelector() {
+        if (opSel_Group != null) {
+            remove(opSel_Group);
+            opSel_Group.destroy();
+            opSel_Group = null;
+        }
+        isOpMenuOpen = false;
+        subActionLocked = "none";
+        wasMenuJustClosed = true;
+    }
+
+    /**
+     * Executes the handleOpacityInput logic.
+     * @param elapsed Value for elapsed.
+     */
+    function handleOpacityInput(elapsed:Float) {
+        var tX:Float = FlxG.mouse.screenX;
+        var tY:Float = FlxG.mouse.screenY;
+        var tJustPressed = false;
+        var swipeU = SwipeUtil.swipeUp;
+        var swipeD = SwipeUtil.swipeDown;
+        var swipeL = SwipeUtil.swipeLeft;
+        var swipeR = SwipeUtil.swipeRight;
+        
+        if (FlxG.onMobile) {
+            tJustPressed = TouchUtil.justPressed;
+        } else {
+            tJustPressed = FlxG.mouse.justPressed;
+        }
+
+        if (FlxG.onMobile && TouchUtil.justPressed) subActionLocked = "none";
+        
+        if (FlxG.onMobile && subActionLocked != "scroll" && (swipeL || swipeR)) {
+            subActionLocked = "side";
+            closeOpacitySelector();
+            return;
+        }
+
+        var oldOp = opSel_Value;
+
+        if (tJustPressed) {
+            if (tX >= opSel_Up.x - 40 && tX <= opSel_Up.x + opSel_Up.width + 40 &&
+                tY >= opSel_Up.y - 40 && tY <= opSel_Up.y + opSel_Up.height + 40) {
+                opSel_Value += 5; holdTimer = 0.1;
+                if (sndScroll != null) FlxG.sound.play(sndScroll, 0.5);
+            }
+            else if (tX >= opSel_Down.x - 40 && tX <= opSel_Down.x + opSel_Down.width + 40 &&
+                     tY >= opSel_Down.y - 40 && tY <= opSel_Down.y + opSel_Down.height + 40) {
+                opSel_Value -= 5; holdTimer = 0.1;
+                if (sndScroll != null) FlxG.sound.play(sndScroll, 0.5);
+            }
+        }
+
+        if (FlxG.mouse != null && FlxG.mouse.wheel != 0) {
+            opSel_Value += Std.int(FlxG.mouse.wheel * 5);
+            if (sndScroll != null) FlxG.sound.play(sndScroll, 0.5);
+        }
+
+        if (controls.UI_UP_P || controls.UI_RIGHT_P || (FlxG.onMobile && subActionLocked != "side" && swipeU && holdTimer <= 0)) {
+            if (FlxG.onMobile) subActionLocked = "scroll";
+            opSel_Value += 5;
+            if (FlxG.onMobile) holdTimer = 0.1;
+            if (sndScroll != null) FlxG.sound.play(sndScroll, 0.5);
+        }
+        if (controls.UI_DOWN_P || controls.UI_LEFT_P || (FlxG.onMobile && subActionLocked != "side" && swipeD && holdTimer <= 0)) {
+            if (FlxG.onMobile) subActionLocked = "scroll";
+            opSel_Value -= 5;
+            if (FlxG.onMobile) holdTimer = 0.1;
+            if (sndScroll != null) FlxG.sound.play(sndScroll, 0.5);
+        }
+
+        if (opSel_Value > 100) opSel_Value = 100;
+        if (opSel_Value < 5) opSel_Value = 5;
+        
+        if (oldOp != opSel_Value) {
+            updateOpacityUI();
+            HapticUtil.vibrate(0, 0.01, 0.15, 0.1);
+        }
+
+        if (controls.ACCEPT_P || (FlxG.onMobile && FlxG.keys.justPressed.ESCAPE)) {
+            saveOpacitySelection();
+        }
+        if (FlxG.keys.justPressed.ESCAPE && !FlxG.onMobile) {
+            closeOpacitySelector();
+        }
+    }
+
+    /**
+     * Executes the openVolumeSelector logic.
+     * @param saveKey Value for saveKey.
+     */
+    public function openVolumeSelector(saveKey:String) {
+        isVolMenuOpen = true; 
+        volSel_SaveKey = saveKey;
+        
+        var curVal = "100";
+        var fetched = Save.instance.modOptions.get(saveKey);
+        if (fetched != null) curVal = StringTools.replace(Std.string(fetched), "%", "");
+        
+        volSel_Value = Std.parseInt(curVal);
+        if (volSel_Value == null) volSel_Value = 100;
+        
+        volSel_Group = createOverlayGroup("ADJUST VOLUME (ESC TO CANCEL)");
+        var cY = halfScreenH;
+        var cX = panelWidth / 2;
+        
+        volSel_Up = makeOverlayText(volSel_Group, cX - 50, cY - 100, 100, "/\\", 50, FlxColor.YELLOW, "center");
+        volSel_Down = makeOverlayText(volSel_Group, cX - 50, cY + 50, 100, "\\/", 50, FlxColor.YELLOW, "center");
+        volSel_TxtVal = makeOverlayText(volSel_Group, cX - 100, cY - 40, 200, "100%", 70, FlxColor.WHITE, "center", true);
+
+        updateVolumeUI();
+    }
+
+    /**
+     * Executes the updateVolumeUI logic.
+     */
+    function updateVolumeUI() {
+        if (volSel_Group == null || volSel_TxtVal == null) return;
+        var nextText = Std.string(volSel_Value) + "%";
+        if (volSel_TxtVal.text != nextText) volSel_TxtVal.text = nextText;
+    }
+
+    /**
+     * Executes the saveVolumeSelection logic.
+     */
+    public function saveVolumeSelection() {
+        var finalStr = Std.string(volSel_Value) + "%";
+        Save.instance.modOptions.set(volSel_SaveKey, finalStr);
+        if (parent.optionItems != null) {
+            for (i in 0...parent.optionItems.length) {
+                var it = parent.optionItems[i];
+                if (it != null) it.lockedState = null;
+            }
+        }
+        Save.instance.flush();
+        
+        if (parent.descTextDisplay != null && parent.optionItems.length > 0 && parent.selectedIndex >= 0) {
+            var selItem = parent.optionItems[parent.selectedIndex];
+            if (selItem.textDisplay != null) {
+                selItem.textDisplay.text = finalStr;
+            }
+        }
+
+        if (sndOn != null) FlxG.sound.play(sndOn, 0.6);
+        closeVolumeSelector();
+        
+        parent.updatePreviews();
+    }
+
+    /**
+     * Executes the closeVolumeSelector logic.
+     */
+    public function closeVolumeSelector() {
+        if (volSel_Group != null) {
+            remove(volSel_Group);
+            volSel_Group.destroy();
+            volSel_Group = null;
+        }
+        isVolMenuOpen = false;
+        subActionLocked = "none";
+        wasMenuJustClosed = true;
+    }
+
+    /**
+     * Executes the handleVolumeInput logic.
+     * @param elapsed Value for elapsed.
+     */
+    function handleVolumeInput(elapsed:Float) {
+        var tX:Float = FlxG.mouse.screenX;
+        var tY:Float = FlxG.mouse.screenY;
+        var tJustPressed = false;
+        var swipeU = SwipeUtil.swipeUp;
+        var swipeD = SwipeUtil.swipeDown;
+        var swipeL = SwipeUtil.swipeLeft;
+        var swipeR = SwipeUtil.swipeRight;
+        
+        if (FlxG.onMobile) {
+            tJustPressed = TouchUtil.justPressed;
+            if (TouchUtil.touch != null) { tX = TouchUtil.touch.screenX; tY = TouchUtil.touch.screenY; }
+        } else {
+            tJustPressed = FlxG.mouse.justPressed;
+        }
+        
+        if (FlxG.onMobile && TouchUtil.justPressed) subActionLocked = "none";
+        
+        if (FlxG.onMobile && subActionLocked != "scroll" && (swipeL || swipeR)) {
+            subActionLocked = "side";
+            closeVolumeSelector();
+            return;
+        }
+
+        var oldVol = volSel_Value;
+
+        if (tJustPressed) {
+            if (tX >= volSel_Up.x - 40 && tX <= volSel_Up.x + volSel_Up.width + 40 &&
+                tY >= volSel_Up.y - 40 && tY <= volSel_Up.y + volSel_Up.height + 40) {
+                volSel_Value += 5; holdTimer = 0.1;
+            }
+            else if (tX >= volSel_Down.x - 40 && tX <= volSel_Down.x + volSel_Down.width + 40 &&
+                     tY >= volSel_Down.y - 40 && tY <= volSel_Down.y + volSel_Down.height + 40) {
+                volSel_Value -= 5; holdTimer = 0.1;
+            }
+        }
+
+        if (FlxG.mouse != null && FlxG.mouse.wheel != 0) {
+            volSel_Value += Std.int(FlxG.mouse.wheel * 5);
+        }
+
+        if (controls.UI_UP_P || controls.UI_RIGHT_P || (FlxG.onMobile && subActionLocked != "side" && swipeU && holdTimer <= 0)) {
+            if (FlxG.onMobile) subActionLocked = "scroll";
+            volSel_Value += 5;
+            if (FlxG.onMobile) holdTimer = 0.1;
+            if (sndScroll != null) FlxG.sound.play(sndScroll, 0.5);
+        }
+        if (controls.UI_DOWN_P || controls.UI_LEFT_P || (FlxG.onMobile && subActionLocked != "side" && swipeD && holdTimer <= 0)) {
+            if (FlxG.onMobile) subActionLocked = "scroll";
+            volSel_Value -= 5;
+            if (FlxG.onMobile) holdTimer = 0.1;
+            if (sndScroll != null) FlxG.sound.play(sndScroll, 0.5);
+        }
+
+        if (volSel_Value > 100) volSel_Value = 100;
+        if (volSel_Value < 0) volSel_Value = 0;
+        
+        if (oldVol != volSel_Value) {
+            if (FlxG.sound != null) {
+                if (sndHit != null) FlxG.sound.play(sndHit, volSel_Value / 100.0);
+            }
+            updateVolumeUI();
+            HapticUtil.vibrate(0, 0.01, 0.15, 0.1);
+        }
+
+        if (controls.ACCEPT_P || (FlxG.onMobile && FlxG.keys.justPressed.ESCAPE)) {
+            saveVolumeSelection();
+        }
+        if (FlxG.keys.justPressed.ESCAPE && !FlxG.onMobile) {
+            closeVolumeSelector();
+        }
+    }
+
+    /**
+     * Executes the openTimeSelector logic.
+     * @param saveKey Value for saveKey.
+     * @param textRef Value for textRef.
+     */
+    public function openTimeSelector(saveKey:String, textRef:FlxText) {
+        isTimeMenuOpen = true; 
+        tSel_SaveKey = saveKey;
+        
+        var curVal = "20:00";
+        var fetched = Save.instance.modOptions.get(saveKey);
+        if (fetched != null) curVal = Std.string(fetched);
+        
+        tSel_Hour = 20; 
+        tSel_Min = 0;
+        if (curVal != null && curVal.indexOf(":") != -1) {
+            var colonIdx = curVal.indexOf(":");
+            if (colonIdx != -1) {
+                var pSH = Std.parseInt(curVal.substr(0, colonIdx));
+                var pSM = Std.parseInt(curVal.substr(colonIdx + 1));
+                if (pSH != null) tSel_Hour = pSH;
+                if (pSM != null) tSel_Min = pSM;
+            }
+        }
+        
+        tSel_IsMin = false;
+        
+        tSel_Group = createOverlayGroup("ADJUST CLOCK", FlxG.onMobile ? "SWIPE TO MOVE & CHANGE  |  TAP BACK BUTTON TO SAVE" : "SWIPE TO MOVE & CHANGE  |  ENTER TO SAVE  |  ESC TO CANCEL");
+        var cY = halfScreenH;
+        var cX = panelWidth / 2;
+        
+        tSel_UpHour = makeOverlayText(tSel_Group, cX - 110, cY - 100, 80, "/\\", 50, FlxColor.WHITE, "center");
+        tSel_DownHour = makeOverlayText(tSel_Group, cX - 110, cY + 50, 80, "\\/", 50, FlxColor.WHITE, "center");
+        tSel_UpMin = makeOverlayText(tSel_Group, cX + 30, cY - 100, 80, "/\\", 50, FlxColor.WHITE, "center");
+        tSel_DownMin = makeOverlayText(tSel_Group, cX + 30, cY + 50, 80, "\\/", 50, FlxColor.WHITE, "center");
+        tSel_TxtHour = makeOverlayText(tSel_Group, cX - 120, cY - 40, 100, "00", 70, FlxColor.WHITE, "center", true);
+        tSel_TxtColon = makeOverlayText(tSel_Group, cX - 20, cY - 45, 40, ":", 70, FlxColor.WHITE, "center", true);
+        tSel_TxtMin = makeOverlayText(tSel_Group, cX + 20, cY - 40, 100, "00", 70, FlxColor.WHITE, "center", true);
+        
+        updateTimeUI();
+    }
+
+    /**
+     * Executes the updateTimeUI logic.
+     */
+    function updateTimeUI() {
+        if (tSel_Group == null) return;
+        var hrStr = tSel_Hour < 10 ? "0" + tSel_Hour : Std.string(tSel_Hour);
+        var minStr = tSel_Min < 10 ? "0" + tSel_Min : Std.string(tSel_Min);
+        var hourColor = !tSel_IsMin ? FlxColor.YELLOW : FlxColor.WHITE;
+        var minColor = tSel_IsMin ? FlxColor.YELLOW : FlxColor.WHITE;
+
+        if (tSel_TxtHour != null) {
+            if (tSel_TxtHour.text != hrStr) tSel_TxtHour.text = hrStr;
+            if (tSel_TxtHour.color != hourColor) tSel_TxtHour.color = hourColor;
+        }
+        if (tSel_TxtMin != null) {
+            if (tSel_TxtMin.text != minStr) tSel_TxtMin.text = minStr;
+            if (tSel_TxtMin.color != minColor) tSel_TxtMin.color = minColor;
+        }
+        if (tSel_UpHour != null && tSel_UpHour.color != hourColor) tSel_UpHour.color = hourColor;
+        if (tSel_DownHour != null && tSel_DownHour.color != hourColor) tSel_DownHour.color = hourColor;
+        if (tSel_UpMin != null && tSel_UpMin.color != minColor) tSel_UpMin.color = minColor;
+        if (tSel_DownMin != null && tSel_DownMin.color != minColor) tSel_DownMin.color = minColor;
+    }
+
+    /**
+     * Executes the saveTimeSelection logic.
+     */
+    public function saveTimeSelection() {
+        var hrStr = tSel_Hour < 10 ? "0" + tSel_Hour : Std.string(tSel_Hour);
+        var minStr = tSel_Min < 10 ? "0" + tSel_Min : Std.string(tSel_Min);
+        var finalStr = hrStr + ":" + minStr;
+        
+        Save.instance.modOptions.set(tSel_SaveKey, finalStr);
+        if (parent.optionItems != null) {
+            for (i in 0...parent.optionItems.length) {
+                var it = parent.optionItems[i];
+                if (it != null) it.lockedState = null;
+            }
+        }
+        Save.instance.flush();
+        
+        if (parent.descTextDisplay != null && parent.optionItems.length > 0 && parent.selectedIndex >= 0) {
+            var selItem = parent.optionItems[parent.selectedIndex];
+            if (selItem.textDisplay != null) {
+                selItem.textDisplay.text = finalStr;
+                selItem.textDisplay.color = 0xFF00FF00;
+            }
+        }
+
+        if (sndOn != null) FlxG.sound.play(sndOn, 0.6);
+        closeTimeSelector();
+        
+        parent.updatePreviews();
+    }
+
+    /**
+     * Executes the closeTimeSelector logic.
+     */
+    public function closeTimeSelector() {
+        if (tSel_Group != null) {
+            remove(tSel_Group);
+            tSel_Group.destroy();
+            tSel_Group = null;
+        }
+        isTimeMenuOpen = false;
+        subActionLocked = "none";
+        wasMenuJustClosed = true;
+    }
+
+    /**
+     * Executes the handleTimeInput logic.
+     * @param elapsed Value for elapsed.
+     */
+    function handleTimeInput(elapsed:Float) {
+        var tX:Float = FlxG.mouse.screenX;
+        var tY:Float = FlxG.mouse.screenY;
+        var tJustPressed = false;
+        var swipeU = SwipeUtil.swipeUp;
+        var swipeD = SwipeUtil.swipeDown;
+        var swipeL = SwipeUtil.swipeLeft;
+        var swipeR = SwipeUtil.swipeRight;
+        
+        if (FlxG.onMobile) {
+            tJustPressed = TouchUtil.justPressed;
+            if (TouchUtil.touch != null) { tX = TouchUtil.touch.screenX; tY = TouchUtil.touch.screenY; }
+        } else {
+            tJustPressed = FlxG.mouse.justPressed;
+        }
+
+        if (FlxG.onMobile && TouchUtil.justPressed) subActionLocked = "none";
+
+        var oldHour = tSel_Hour;
+        var oldMin = tSel_Min;
+        var oldIsMin = tSel_IsMin;
+
+        if (tJustPressed) {
+            if (tX >= tSel_TxtHour.x && tX <= tSel_TxtHour.x + tSel_TxtHour.width &&
+                tY >= tSel_TxtHour.y && tY <= tSel_TxtHour.y + tSel_TxtHour.height) {
+                tSel_IsMin = false;
+            } else if (tX >= tSel_TxtMin.x && tX <= tSel_TxtMin.x + tSel_TxtMin.width &&
+                       tY >= tSel_TxtMin.y && tY <= tSel_TxtMin.y + tSel_TxtMin.height) {
+                tSel_IsMin = true;
+            }
+
+            if (tX >= tSel_UpHour.x - 40 && tX <= tSel_UpHour.x + tSel_UpHour.width + 40 &&
+                tY >= tSel_UpHour.y - 40 && tY <= tSel_UpHour.y + tSel_UpHour.height + 40) {
+                tSel_IsMin = false; tSel_Hour++; holdTimer = 0.1;
+                if (sndScroll != null) FlxG.sound.play(sndScroll, 0.5);
+            } 
+            else if (tX >= tSel_DownHour.x - 40 && tX <= tSel_DownHour.x + tSel_DownHour.width + 40 &&
+                     tY >= tSel_DownHour.y - 40 && tY <= tSel_DownHour.y + tSel_DownHour.height + 40) {
+                tSel_IsMin = false; tSel_Hour--; holdTimer = 0.1;
+                if (sndScroll != null) FlxG.sound.play(sndScroll, 0.5);
+            }
+            else if (tX >= tSel_UpMin.x - 40 && tX <= tSel_UpMin.x + tSel_UpMin.width + 40 &&
+                     tY >= tSel_UpMin.y - 40 && tY <= tSel_UpMin.y + tSel_UpMin.height + 40) {
+                tSel_IsMin = true; tSel_Min++; holdTimer = 0.1;
+                if (sndScroll != null) FlxG.sound.play(sndScroll, 0.5);
+            }
+            else if (tX >= tSel_DownMin.x - 40 && tX <= tSel_DownMin.x + tSel_DownMin.width + 40 &&
+                     tY >= tSel_DownMin.y - 40 && tY <= tSel_DownMin.y + tSel_DownMin.height + 40) {
+                tSel_IsMin = true; tSel_Min--; holdTimer = 0.1;
+                if (sndScroll != null) FlxG.sound.play(sndScroll, 0.5);
+            }
+        }
+
+        if (FlxG.mouse != null && FlxG.mouse.wheel != 0) {
+            if (!tSel_IsMin) tSel_Hour += Std.int(FlxG.mouse.wheel);
+            else tSel_Min += Std.int(FlxG.mouse.wheel);
+            if (sndScroll != null) FlxG.sound.play(sndScroll, 0.5);
+        }
+
+        var swipeU = SwipeUtil.swipeUp;
+        var swipeD = SwipeUtil.swipeDown;
+
+        if (controls.UI_LEFT_P || (FlxG.onMobile && subActionLocked != "scroll" && swipeL && holdTimer <= 0)) {
+            if (FlxG.onMobile) subActionLocked = "side";
+            tSel_IsMin = !tSel_IsMin;
+            if (FlxG.onMobile) holdTimer = 0.2;
+            if (sndScroll != null) FlxG.sound.play(sndScroll, 0.5);
+        }
+        if (controls.UI_RIGHT_P || (FlxG.onMobile && subActionLocked != "scroll" && swipeR && holdTimer <= 0)) {
+            if (FlxG.onMobile) subActionLocked = "side";
+            tSel_IsMin = !tSel_IsMin;
+            if (FlxG.onMobile) holdTimer = 0.2;
+            if (sndScroll != null) FlxG.sound.play(sndScroll, 0.5);
+        }
+
+        if (controls.UI_UP_P || (FlxG.onMobile && subActionLocked != "side" && swipeU && holdTimer <= 0)) {
+            if (FlxG.onMobile) subActionLocked = "scroll";
+            if (!tSel_IsMin) tSel_Hour++; else tSel_Min++;
+            if (FlxG.onMobile) holdTimer = 0.1;
+            if (sndScroll != null) FlxG.sound.play(sndScroll, 0.5);
+        }
+        if (controls.UI_DOWN_P || (FlxG.onMobile && subActionLocked != "side" && swipeD && holdTimer <= 0)) {
+            if (FlxG.onMobile) subActionLocked = "scroll";
+            if (!tSel_IsMin) tSel_Hour--; else tSel_Min--;
+            if (FlxG.onMobile) holdTimer = 0.1;
+            if (sndScroll != null) FlxG.sound.play(sndScroll, 0.5);
+        }
+
+        if (tSel_Hour > 23) tSel_Hour = 0;
+        if (tSel_Hour < 0) tSel_Hour = 23;
+        if (tSel_Min > 59) tSel_Min = 0;
+        if (tSel_Min < 0) tSel_Min = 59;
+        
+        if (oldHour != tSel_Hour || oldMin != tSel_Min || oldIsMin != tSel_IsMin) updateTimeUI();
+
+        if (controls.ACCEPT_P || (FlxG.onMobile && FlxG.keys.justPressed.ESCAPE)) {
+            saveTimeSelection();
+        }
+        if (FlxG.keys.justPressed.ESCAPE && !FlxG.onMobile) {
+            closeTimeSelector();
+        }
+    }
+
+    /**
+     * Executes the applyFontItemState logic.
+     * @param idx Value for idx.
+     */
+    function applyFontItemState(idx:Int):Void {
+        if (idx < 0 || idx >= fontItems.length) return;
+        var item = fontItems[idx];
+        var targetAlpha = (idx == fontSelectedIndex) ? 0.3 : 0.0;
+        if (item.bg != null && item.bg.alpha != targetAlpha) item.bg.alpha = targetAlpha;
+        if (item.text != null) {
+            var targetColor = (item.fileName == fontActiveFile) ? FlxColor.YELLOW : FlxColor.WHITE;
+            if (item.text.color != targetColor) item.text.color = targetColor;
+        }
+    }
+
+    /**
+     * Sets the FontItemVisible value.
+     * @param item Value for item.
+     * @param visible Value for visible.
+     */
+    function setFontItemVisible(item:Dynamic, visible:Bool):Void {
+        if (item == null || item.bg == null) return;
+        if (item.bg.visible != visible) item.bg.visible = visible;
+        if (item.text != null && item.text.visible != visible) item.text.visible = visible;
+    }
+
+    /**
+     * Executes the updateFontItemVisibility logic.
+     * @param grpY Value for grpY.
+     * @param viewH Value for viewH.
+     */
+    function updateFontItemVisibility(grpY:Float, viewH:Float):Void {
+        var count = fontItems.length;
+        if (count <= 0) return;
+
+        var topY = -100.0 - grpY;
+        var bottomY = viewH + 100.0 - grpY;
+        var startIdx = lastFontVisibleStart < 0 ? 0 : lastFontVisibleStart;
+        if (startIdx >= count) startIdx = count - 1;
+
+        while (startIdx > 0) {
+            var prevItem = fontItems[startIdx - 1];
+            if (prevItem.y + prevItem.height < topY) break;
+            startIdx--;
+        }
+
+        while (startIdx < count) {
+            var curItem = fontItems[startIdx];
+            if (curItem.y + curItem.height >= topY) break;
+            setFontItemVisible(curItem, false);
+            startIdx++;
+        }
+
+        var endIdx = startIdx;
+        while (endIdx < count) {
+            var endItem = fontItems[endIdx];
+            if (endItem.y > bottomY) break;
+            endIdx++;
+        }
+        endIdx--;
+
+        fontVisibleStart = startIdx;
+        fontVisibleEnd = endIdx;
+
+        if (lastFontVisibleStart < 0) {
+            for (i in 0...count) {
+                if (i < fontVisibleStart || i > fontVisibleEnd) setFontItemVisible(fontItems[i], false);
+            }
+        } else {
+            var stopIdx = lastFontVisibleEnd + 1;
+            for (i in lastFontVisibleStart...stopIdx) {
+                if ((i < fontVisibleStart || i > fontVisibleEnd) && i >= 0 && i < count) {
+                    setFontItemVisible(fontItems[i], false);
+                }
+            }
+        }
+
+        if (fontVisibleEnd >= fontVisibleStart) {
+            var stopVisible = fontVisibleEnd + 1;
+            for (i in fontVisibleStart...stopVisible) {
+                setFontItemVisible(fontItems[i], true);
+            }
+        }
+
+        lastFontVisibleStart = fontVisibleStart;
+        lastFontVisibleEnd = fontVisibleEnd;
+    }
+
+    /**
+     * Executes the update logic.
+     * @param elapsed Value for elapsed.
+     */
+    override public function update(elapsed:Float):Void {
+        wasMenuJustClosed = false;
+        super.update(elapsed);
+        
+        var sw = screenW;
+        var sh = screenH;
+        
+        if (parent != null) {
+            this.panelOnLeft = false; // Force to right side
+            this.panelWidth = parent.panelWidth;
+        }
+        
+        var targetFontX = panelOnLeft ? 0 : (sw - panelWidth);
+
+        if (isOpMenuOpen) { 
+            moveGroup(opSel_Group, targetFontX, elapsed, 12);
+            if (holdTimer > 0) holdTimer -= elapsed;
+            handleOpacityInput(elapsed); 
+            return; 
+        }
+        if (isVolMenuOpen) { 
+            moveGroup(volSel_Group, targetFontX, elapsed, 12);
+            if (holdTimer > 0) holdTimer -= elapsed;
+            handleVolumeInput(elapsed); 
+            return; 
+        }
+        if (isTimeMenuOpen) { 
+            moveGroup(tSel_Group, targetFontX, elapsed, 12);
+            if (holdTimer > 0) holdTimer -= elapsed;
+            handleTimeInput(elapsed); 
+            return; 
+        }
+
+    }
+}

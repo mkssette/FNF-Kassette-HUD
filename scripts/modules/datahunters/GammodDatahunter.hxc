@@ -1,0 +1,196 @@
+package kassettehud.util;
+
+import kassettehud.util.KassetteHUDElement;
+
+import funkin.modding.module.ModuleHandler;
+import funkin.play.PlayState;
+import funkin.modding.events.ScriptEvent;
+import funkin.modding.events.UpdateScriptEvent;
+import Std;
+
+class GammodDatahunter extends KassetteHUDDatahunter {
+    public var isGammodMode:Bool = false;
+    public var gammodUnranked:Bool = false;
+    public var gammodPlaybackRate:Float = 1.0;
+    public var gammodMultiplier:Float = 1.0;
+    public var gammodAutoPlay:Bool = false;
+    public var gammodPlayerSide:String = "NORMAL";
+    public var gammodHighscoreActive:Bool = false;
+    
+    /**
+     * Toggles the GAMMOD modifier script's built-in health bar override.
+     * Prevents the modifier from forcefully hiding or moving the health bar when Kassette HUD manages it.
+     * 
+     * @param value True to enable the override, false to let the HUD manage it.
+     */
+    public function setHealthBarOverride(value:Bool) {
+        if (_gammodPlay != null) {
+            _gammodPlay.scriptSet("healthBarOverride", value);
+        }
+    }
+
+    var _gammodHandler:Dynamic = null;
+    var _gammodMult:Dynamic = null;
+    var _gammodRate:Dynamic = null;
+    var _gammodAuto:Dynamic = null;
+    var _gammodSide:Dynamic = null;
+    var _gammodPlay:Dynamic = null;
+    var _gammodCheckTimer:Float = 0.0;
+
+    /**
+     * Constructor for the component.
+     */
+    public function new() {
+        super("GammodDatahunter");
+        KassetteHUDDatahunter.gammod = this;
+    }
+
+
+    /**
+     * Clears cached references to GAMMOD module handlers.
+     * Called at the end of a song or on retry to prevent memory leaks from dangling script references.
+     */
+    public function clearGammodCache() {
+        _gammodHandler = null;
+        _gammodMult = null;
+        _gammodRate = null;
+        _gammodAuto = null;
+        _gammodSide = null;
+        _gammodPlay = null;
+    }
+
+    /**
+     * Triggered when the song ends.
+     * @param event Value for event.
+     */
+    override public function onSongEnd(event:Dynamic) {
+        clearGammodCache();
+    }
+
+    /**
+     * Hook triggered when the song is restarted.
+     * Wipes the script cache so the datahunter can safely re-acquire them upon the next countdown.
+     * 
+     * @param event The script event data.
+     */
+    override public function onSongRetry(event:Dynamic) {
+        clearGammodCache();
+    }
+
+    /**
+     * Triggered when the song countdown begins.
+     * @param event Value for event.
+     */
+    override public function onCountdownStart(event:ScriptEvent) {
+        _gammodHandler = ModuleHandler.getModule("GammodModifierHandler");
+        _gammodMult = ModuleHandler.getModule("GammodMult");
+        _gammodRate = ModuleHandler.getModule("GammodPlaybackRate");
+        _gammodAuto = ModuleHandler.getModule("GammodAutoPlay");
+        _gammodSide = ModuleHandler.getModule("GammodPlayerSide");
+        _gammodPlay = ModuleHandler.getModule("GammodPlayModule");
+
+        _gammodCheckTimer = 0.25;
+
+        if (_gammodPlay != null) {
+            var gPlay:Dynamic = _gammodPlay;
+            if (gPlay.curMultTxt != null) gPlay.curMultTxt.visible = false;
+            if (gPlay.curNoRankTxt != null) gPlay.curNoRankTxt.visible = false;
+            if (gPlay.scoreTxtFX != null) gPlay.scoreTxtFX.visible = false;
+            if (gPlay.scoreTxtFXOut != null) gPlay.scoreTxtFXOut.visible = false;
+        }
+        setHealthBarOverride(false);
+    }
+
+    /**
+     * Called every frame to update the component's state.
+     * @param event Value for event.
+     */
+    override public function onUpdate(event:UpdateScriptEvent) {
+        var state = PlayState.instance;
+        if (state == null) return;
+        
+        var elapsed = event.elapsed;
+        if (_gammodPlay != null) {
+            var gPlay:Dynamic = _gammodPlay;
+            if (gPlay.curMultTxt != null) gPlay.curMultTxt.visible = false;
+            if (gPlay.curNoRankTxt != null) gPlay.curNoRankTxt.visible = false;
+            if (gPlay.scoreTxtFX != null) gPlay.scoreTxtFX.visible = false;
+            if (gPlay.scoreTxtFXOut != null) gPlay.scoreTxtFXOut.visible = false;
+            gammodHighscoreActive = (gPlay.didHighscoreEvents == true);
+            setHealthBarOverride(false);
+        } else {
+            gammodHighscoreActive = false;
+        }
+
+        _gammodCheckTimer += elapsed;
+        if (_gammodCheckTimer < 0.25) return;
+        
+        _gammodCheckTimer = 0.0;
+
+        var gammodHandler = _gammodHandler;
+        if (gammodHandler != null) {
+            var modsOnRaw:Dynamic = gammodHandler?.mods_on;
+            if (modsOnRaw == null) modsOnRaw = gammodHandler.scriptGet("mods_on");
+            if (modsOnRaw == null) {
+                var activeArray:Dynamic = gammodHandler.getActive();
+                if (activeArray != null && activeArray.length > 0) modsOnRaw = true;
+            }
+            isGammodMode = (modsOnRaw == true);
+        } else {
+            isGammodMode = false;
+        }
+
+        var gammodMult = _gammodMult;
+        if (gammodMult != null) {
+            var unrankedRaw:Dynamic = gammodMult?.unranked;
+            if (unrankedRaw == null) unrankedRaw = gammodMult.scriptGet("unranked");
+            if (unrankedRaw == null) {
+                if (gammodMult?.isUnranked != null) {
+                    unrankedRaw = gammodMult.isUnranked();
+                }
+            }
+            gammodUnranked = (unrankedRaw == true);
+            var multRaw:Dynamic = gammodMult?.score_multiplier;
+            if (multRaw == null) multRaw = gammodMult.scriptGet("score_multiplier");
+            if (multRaw == null) {
+                if (gammodMult?.curMult != null) {
+                    multRaw = gammodMult.curMult();
+                }
+            }
+            if (multRaw != null) gammodMultiplier = multRaw;
+            else gammodMultiplier = 1.0;
+        } else {
+            gammodUnranked = false;
+            gammodMultiplier = 1.0;
+        }
+
+        var gammodRate = _gammodRate;
+        if (gammodRate != null) {
+            var rateRaw:Dynamic = gammodRate?.value;
+            if (rateRaw == null) rateRaw = gammodRate.scriptGet("value");
+            if (rateRaw != null) gammodPlaybackRate = rateRaw;
+            else gammodPlaybackRate = 1.0;
+        } else {
+            gammodPlaybackRate = 1.0;
+        }
+
+        var gammodAutoMod = _gammodAuto;
+        if (gammodAutoMod != null) {
+            var autoRaw:Dynamic = gammodAutoMod?.value;
+            if (autoRaw == null) autoRaw = gammodAutoMod.scriptGet("value");
+            gammodAutoPlay = (autoRaw != null && Std.string(autoRaw).toUpperCase() != "DISABLED");
+        } else {
+            gammodAutoPlay = false;
+        }
+
+        var gammodSideMod = _gammodSide;
+        if (gammodSideMod != null) {
+            var sideRaw:Dynamic = gammodSideMod?.value;
+            if (sideRaw == null) sideRaw = gammodSideMod.scriptGet("value");
+            if (sideRaw != null) gammodPlayerSide = Std.string(sideRaw).toUpperCase();
+            else gammodPlayerSide = "NORMAL";
+        } else {
+            gammodPlayerSide = "NORMAL";
+        }
+    }
+}

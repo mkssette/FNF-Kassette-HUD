@@ -1,0 +1,34 @@
+{
+  "details_presets": [
+    {
+      "name": "Full Stats",
+      "format": "Score: {score} | Acc: {acc} | Misses: {misses} [{rank} - {tier}]"
+    },
+    {
+      "name": "Simple Score",
+      "format": "Score: {score} | Misses: {misses}"
+    },
+    {
+      "name": "Accuracy Only",
+      "format": "Acc: {acc} [{rank} - {tier}]"
+    },
+    {
+      "name": "Hidden",
+      "format": ""
+    }
+  ],
+  "state_presets": [
+    {
+      "name": "Song & Diff",
+      "format": "Playing: {song} [{diff}]"
+    },
+    {
+      "name": "Song Only",
+      "format": "Playing: {song}"
+    },
+    {
+      "name": "Hidden",
+      "format": ""
+    }
+  ]
+}

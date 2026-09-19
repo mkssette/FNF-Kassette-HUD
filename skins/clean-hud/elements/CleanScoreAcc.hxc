@@ -1,0 +1,333 @@
+package kassettehud.util;
+
+import funkin.play.PlayState;
+import flixel.FlxG;
+import flixel.FlxCamera;
+import flixel.text.FlxText;
+import flixel.text.FlxTextBorderStyle;
+import flixel.text.FlxTextFormat;
+import flixel.util.FlxColor;
+import funkin.Paths;
+import kassettehud.util.KassetteHUDElement;
+import kassettehud.util.KssetteOptionsManager;
+import kassettehud.util.KssetteFontManager;
+import kassettehud.util.KassetteHUDDatahunter;
+import funkin.modding.module.ModuleHandler;
+import StringTools;
+import Std;
+import Math;
+
+class CleanScoreAcc extends KassetteHUDElement {
+    var scoreTxt:FlxText;
+    var accTxt:FlxText;
+
+    var previewScoreTxt:FlxText;
+    var previewAccTxt:FlxText;
+    
+    var _fmtPerfectGold:FlxTextFormat;
+    var _fmtPerfect:FlxTextFormat;
+    var _fmtExcellent:FlxTextFormat;
+    var _fmtGreat:FlxTextFormat;
+    var _fmtGood:FlxTextFormat;
+    var _fmtShit:FlxTextFormat;
+
+    var _uiUpdateTimer:Float = 0;
+
+    function getRankFormat(rank:String):FlxTextFormat {
+        var fmt:FlxTextFormat = null;
+        if (rank == null) return null;
+        switch(rank.toUpperCase()) {
+            case "PERFECT_GOLD":
+                if (_fmtPerfectGold == null) _fmtPerfectGold = new FlxTextFormat(0xFFF9E859);
+                fmt = _fmtPerfectGold;
+            case "PERFECT":
+                if (_fmtPerfect == null) _fmtPerfect = new FlxTextFormat(0xFFFFAEFF);
+                fmt = _fmtPerfect;
+            case "EXCELLENT":
+                if (_fmtExcellent == null) _fmtExcellent = new FlxTextFormat(0xFFFFFFC5);
+                fmt = _fmtExcellent;
+            case "GREAT":
+                if (_fmtGreat == null) _fmtGreat = new FlxTextFormat(0xFFDCE6F1);
+                fmt = _fmtGreat;
+            case "GOOD":
+                if (_fmtGood == null) _fmtGood = new FlxTextFormat(0xFFE19978);
+                fmt = _fmtGood;
+            case "SHIT", "LOSS":
+                if (_fmtShit == null) _fmtShit = new FlxTextFormat(0xFF4460B7);
+                fmt = _fmtShit;
+        }
+        return fmt;
+    }
+    var _lastFont:String = "";
+    var _lastScore:String = "";
+    var _lastRank:String = "";
+    var _lastAcc:Float = -1.0;
+    
+    var _lastUnranked:Bool = false;
+    var _lastMult:Float = 1.0;
+    var _lastShowAcc:Bool = true;
+
+    var _cShowScore:Bool = true;
+    var _cShowRank:Bool = true;
+    var _cAccMode:String = "Complex";
+    var _cHudVisible:Bool = true;
+    var _cDownscroll:Bool = false;
+    var _cScorePos:String = "Default";
+    var _cFont:String = "VCR OSD Mono";
+    var _cIsMobileLayout:Bool = false;
+
+    var _fmtUnranked:FlxTextFormat;
+    var _fmtMult:FlxTextFormat;
+
+    function updateSettings() {
+        _cShowScore = getSettingString("kssette_score_pos", "Default") != "Off";
+        _cShowRank = getSettingBool("kssette_show_rank");
+        _cAccMode = getSettingString("kssette_acc_mode", "Complex");
+        _cScorePos = getSettingString("kssette_score_pos", "Default");
+        _cHudVisible = isHudVisible();
+        _cDownscroll = isDownscroll();
+        _cFont = getHudFont();
+        
+        _cIsMobileLayout = false;
+        if (KssetteOptionsManager.instance != null) {
+            if (!KssetteOptionsManager.instance.isMobileLikePC()) {
+                _cIsMobileLayout = true;
+            } else if (KssetteOptionsManager.instance.getKssValue("kssette_middlescroll") == "Like Mobile") {
+                _cIsMobileLayout = true;
+            }
+        }
+    }
+
+    public function new() {
+        super("CleanScoreAcc");
+        this.name = "CleanScoreAcc";
+    }
+
+    override public function buildPreview(cam:FlxCamera) {
+        isPreview = true;
+        
+        previewScoreTxt = createText(10, FlxG.height * 0.1, 0, "S: 0", 20, 0xFFFFFFFF, "left");
+        previewScoreTxt.scrollFactor.set(0, 0);
+        safeAdd(previewScoreTxt, cam);
+        
+        previewAccTxt = createText(10, previewScoreTxt.y + 24, 0, "A: 0.00%", 20, 0xFFFFFFFF, "left");
+        previewAccTxt.scrollFactor.set(0, 0);
+        safeAdd(previewAccTxt, cam);
+    }
+
+
+
+    override public function updatePreview() {
+        updateSettings();
+        onUpdate(0);
+    }
+
+    override public function onCountdownStart(event:Dynamic) {
+        isPreview = false;
+        updateSettings();
+        isPreview = false;
+        var state = PlayState.instance;
+        if (state == null) return;
+        
+        // Hide vanilla score texts
+        if (state.scoreTxt != null) state.scoreTxt.visible = false;
+        
+        safeDestroy(scoreTxt);
+        safeDestroy(accTxt);
+
+        scoreTxt = createText(10, FlxG.height * 0.1, 0, "S: 0", 20, 0xFFFFFFFF, "left");
+        scoreTxt.scrollFactor.set(0, 0);
+        scoreTxt.cameras = [state.camHUD];
+        scoreTxt.zIndex = KassetteHUDElement.Z_HUD_MID;
+        state.add(scoreTxt);
+
+        accTxt = createText(10, scoreTxt.y + 24, 0, "A: 0.00%", 20, 0xFFFFFFFF, "left");
+        accTxt.scrollFactor.set(0, 0);
+        accTxt.cameras = [state.camHUD];
+        accTxt.zIndex = KassetteHUDElement.Z_HUD_MID;
+        state.add(accTxt);
+    }
+
+    override public function onUpdate(event:Dynamic) {
+        var elapsed:Float = (Std.isOfType(event, Float)) ? event : (event != null ? event.elapsed : 0);
+        _uiUpdateTimer += elapsed;
+        
+        var state = PlayState.instance;
+        var showHud = _cHudVisible;
+        var downscroll = _cDownscroll;
+
+        var inverted = _cScorePos == "Inverted";
+        var atTop = inverted ? !downscroll : downscroll;
+
+        var targetY = atTop ? FlxG.height * 0.1 : FlxG.height * 0.9 - 48;
+        
+        var isMobileLayout = _cIsMobileLayout;
+        
+        if (isMobileLayout && atTop) {
+            targetY += 80; // Push down to avoid top-left opponent receptors
+        }
+
+        var cachedFont = _cFont;
+
+        var fontChanged = (_lastFont != cachedFont);
+        if (fontChanged) _lastFont = cachedFont;
+
+        if (isPreview) {
+            if (previewScoreTxt != null) {
+                if (fontChanged) previewScoreTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+                previewScoreTxt.visible = showHud && _cShowScore;
+                previewScoreTxt.y = targetY;
+                previewScoreTxt.x = 10;
+            }
+            if (previewAccTxt != null) {
+                if (fontChanged) previewAccTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+                var showAcc = (_cAccMode != "Off" && _cAccMode != "null" && _cAccMode != "false");
+                previewAccTxt.visible = showHud && showAcc;
+                var baseTY = targetY;
+                if (previewScoreTxt != null && previewScoreTxt.visible) baseTY += previewScoreTxt.height;
+                previewAccTxt.y = baseTY;
+                previewAccTxt.x = 10;
+            }
+            return;
+        }
+
+        if (state == null || scoreTxt == null || accTxt == null) return;
+
+        if (fontChanged) {
+            scoreTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+            accTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        }
+
+        scoreTxt.visible = showHud;
+        accTxt.visible = showHud;
+        
+        scoreTxt.x = 10;
+        accTxt.x = 10;
+        scoreTxt.y = targetY;
+        
+        var hasMult = _lastMult != 1.0;
+        accTxt.y = targetY + scoreTxt.height;
+
+        // Anti-Overlap System
+        // No more transparency anti-overlap for side texts since they physically evade the notes now.
+        scoreTxt.alpha = 1.0;
+        accTxt.alpha = 1.0;
+        
+        if (state.scoreTxt != null) state.scoreTxt.visible = false;
+
+        // Update score
+        var gammodHunter = KassetteHUDDatahunter.gammod;
+        var isUnranked = gammodHunter != null && gammodHunter.gammodUnranked == true;
+        var multiplierValue:Float = 1.0;
+        if (gammodHunter != null && gammodHunter.gammodMultiplier != null) multiplierValue = gammodHunter.gammodMultiplier;
+
+        var scoreStr = "0";
+        var rankID = "?";
+        var scoreHunter = KassetteHUDDatahunter.score;
+        if (scoreHunter != null) {
+            scoreStr = scoreHunter.getScore(state);
+            rankID = scoreHunter.getRankID(state);
+        } else if (state != null) {
+            scoreStr = Std.string(Math.floor(state.songScore));
+        }
+
+        var updateThreshold:Float = this.isMobile == true ? 0.1 : 0.033;
+        var pendingUpdate = (_lastScore != scoreStr || _lastRank != rankID || _lastUnranked != isUnranked || _lastMult != multiplierValue);
+
+        if (pendingUpdate && _uiUpdateTimer >= updateThreshold) {
+            _uiUpdateTimer = 0.0;
+            _lastScore = scoreStr;
+            _lastRank = rankID;
+            _lastUnranked = isUnranked;
+            _lastMult = multiplierValue;
+            
+            var formattedRank = formatRank(rankID);
+            var scoreTextStr = "";
+            var unrankedStart = -1;
+            var unrankedEnd = -1;
+            var multStart = -1;
+            var multEnd = -1;
+            var rankStart = -1;
+            var rankLen = 0;
+            
+            if (_cShowScore) {
+                if (isUnranked) {
+                    scoreTextStr += "S: ";
+                    unrankedStart = scoreTextStr.length;
+                    scoreTextStr += "UNRANKED";
+                    unrankedEnd = scoreTextStr.length;
+                } else {
+                    scoreTextStr += "S: " + scoreStr;
+                }
+            }
+            
+            if (multiplierValue != 1.0) {
+                if (scoreTextStr != "") scoreTextStr += "\n";
+                multStart = scoreTextStr.length;
+                var multStr = Std.string(multiplierValue);
+                if (multStr.indexOf(".") == -1) multStr += ".0";
+                scoreTextStr += "M: " + multStr + "x";
+                multEnd = scoreTextStr.length;
+            }
+            
+            if (_cShowRank && formattedRank != "?" && formattedRank != "") {
+                if (scoreTextStr != "") scoreTextStr += " ";
+                var beforeRank = scoreTextStr.length;
+                scoreTextStr += "[" + formattedRank + "]";
+                rankStart = beforeRank + 1;
+                rankLen = formattedRank.length;
+            }
+            
+            if (scoreTxt != null) {
+                scoreTxt.text = scoreTextStr;
+                scoreTxt.clearFormats();
+                
+                var activeFont = scoreTxt.textField != null ? scoreTxt.textField.defaultTextFormat.font : cachedFont;
+
+                if (unrankedStart != -1) {
+                    if (_fmtUnranked == null) _fmtUnranked = new FlxTextFormat(0xFFFF0000);
+                    if (_fmtUnranked.format != null) _fmtUnranked.format.font = activeFont;
+                    scoreTxt.addFormat(_fmtUnranked, unrankedStart, unrankedEnd);
+                }
+
+                if (multStart != -1) {
+                    if (_fmtMult == null) _fmtMult = new FlxTextFormat(0xFF66FFFF);
+                    if (_fmtMult.format != null) _fmtMult.format.font = activeFont;
+                    scoreTxt.addFormat(_fmtMult, multStart, multEnd);
+                }
+
+                if (rankStart != -1) {
+                    var rFmt = getRankFormat(rankID);
+                    if (rFmt != null) {
+                        if (rFmt.format != null) rFmt.format.font = activeFont;
+                        scoreTxt.addFormat(rFmt, rankStart, rankStart + rankLen);
+                    }
+                }
+            }
+        }
+        
+        // Update accuracy
+        var showAcc = (_cAccMode != "Off" && _cAccMode != "null" && _cAccMode != "false");
+        
+        var acc = 0.0;
+        if (scoreHunter != null) {
+            acc = scoreHunter.getFinalAccuracy();
+        }
+        if (_lastAcc != acc || _lastShowAcc != showAcc) {
+            _lastAcc = acc;
+            _lastShowAcc = showAcc;
+            if (accTxt != null) {
+                if (showAcc) {
+                    accTxt.text = "A: " + acc + "%";
+                } else {
+                    accTxt.text = "";
+                }
+            }
+        }
+        
+        // Ensure preview pushes accTxt properly
+        if (isPreview && previewAccTxt != null && previewScoreTxt != null) {
+            previewAccTxt.y = previewScoreTxt.y + 24;
+        }
+    }
+}

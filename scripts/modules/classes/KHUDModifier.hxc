@@ -1,0 +1,72 @@
+package kassettehud.util;
+
+import funkin.play.PlayState;
+import flixel.FlxG;
+import flixel.FlxCamera;
+
+import funkin.modding.module.Module;
+import kassettehud.util.KssetteOptionsManager;
+
+class KHUDModifier extends Module {
+    public static var instances:Array<Dynamic> = [];
+    public var name:String = "Modifier";
+    public var isPreview:Bool = false;
+
+    public var playState:Dynamic;
+    public var isMobile:Bool = false;
+
+    /**
+     * Constructor for the component.
+     * @param name Value for name.
+     */
+    public function new(name:String) {
+        super(name);
+        KHUDModifier.instances.push(this);
+        this.active = true;
+        this.playState = PlayState.instance;
+        this.isMobile = KssetteOptionsManager.instance != null ? KssetteOptionsManager.instance.isMobileMode : FlxG.onMobile;
+    }
+
+    /**
+     * Gets the Setting value.
+     * @param key Value for key.
+     * @return Returns the Dynamic value.
+     */
+    public function getSetting(key:String):Dynamic {
+        return KssetteOptionsManager.instance != null ? KssetteOptionsManager.instance.getKssValue(key) : null;
+    }
+
+    // Getters have been replaced with standard instance variables initialized in the constructor to improve HScript compatibility.
+
+    // Hooks removed: inherited from Module
+
+    // ==========================================
+    // UTILITY
+    // ==========================================
+    /**
+     * Executes the isPlayStateActive logic.
+     * @return Returns the Bool value.
+     */
+    public function isPlayStateActive():Bool {
+        return playState != null && !playState.startingSong;
+    }
+
+    /**
+     * Called by the Options Menu to initialize preview elements.
+     * Override this in subclasses to create UI elements for preview mode.
+     */
+    public function buildPreview(cam:FlxCamera) {
+        isPreview = true;
+    }
+
+    /**
+     * Called by the Options Menu to update preview elements.
+     * Override this in subclasses to animate or update UI elements in preview mode.
+     */
+    public function updatePreview() {}
+
+    /**
+     * Executes the destroy logic.
+     */
+    public function destroy() {}
+}

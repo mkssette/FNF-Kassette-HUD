@@ -1,0 +1,339 @@
+import flixel.FlxSubState;
+import flixel.FlxSprite;
+import flixel.FlxG;
+import flixel.util.FlxColor;
+import flixel.text.FlxText;
+import flixel.text.FlxTextBorderStyle;
+import funkin.ui.ScriptedMusicBeatSubState;
+import funkin.audio.FunkinSound;
+import funkin.save.Save;
+import funkin.Paths;
+import funkin.PlayerSettings;
+import StringTools;
+import Std;
+
+class KssetteDiscordRPCSubState extends ScriptedMusicBeatSubState {
+    public var parent:Dynamic;
+    
+    var bgOverlay:FlxSprite;
+    
+    // Mock RPC UI
+    var rpcBg:FlxSprite;
+    var playingText:FlxText;
+    var iconSprite:FlxSprite;
+    var titleText:FlxText;
+    var detailsText:FlxText;
+    var stateText:FlxText;
+    var timeText:FlxText;
+    
+    // Options Menu
+    var options:Array<Dynamic> = [
+        { name: "Custom RPC", key: "kssette_rpc_enable", choices: ["On", "Off"], current: 0 },
+        { name: "Separator", key: "kssette_rpc_sep", choices: [" | ", " - ", " , ", " / ", "   "], current: 0 },
+        { name: "Line 1 - Item 1", key: "kssette_rpc_l1_i1", choices: ["Score", "Accuracy", "Misses", "Rank", "Tier", "Song", "Diff", "None"], current: 0 },
+        { name: "Line 1 - Item 2", key: "kssette_rpc_l1_i2", choices: ["Score", "Accuracy", "Misses", "Rank", "Tier", "Song", "Diff", "None"], current: 0 },
+        { name: "Line 1 - Item 3", key: "kssette_rpc_l1_i3", choices: ["Score", "Accuracy", "Misses", "Rank", "Tier", "Song", "Diff", "None"], current: 0 },
+        { name: "Line 2 - Item 1", key: "kssette_rpc_l2_i1", choices: ["Score", "Accuracy", "Misses", "Rank", "Tier", "Song", "Diff", "None"], current: 0 },
+        { name: "Line 2 - Item 2", key: "kssette_rpc_l2_i2", choices: ["Score", "Accuracy", "Misses", "Rank", "Tier", "Song", "Diff", "None"], current: 0 },
+        { name: "Line 2 - Item 3", key: "kssette_rpc_l2_i3", choices: ["Score", "Accuracy", "Misses", "Rank", "Tier", "Song", "Diff", "None"], current: 0 }
+    ];
+    
+    var optionBgs:Array<FlxSprite> = [];
+    var optionLabels:Array<FlxText> = [];
+    var optionValues:Array<FlxText> = [];
+    
+    var selectedIndex:Int = 0;
+    var holdTimer:Float = 0.2;
+    var menuGroupY:Float = 0;
+    var menuTargetY:Float = 0;
+    var menuStartY:Float = 320;
+    
+    /**
+     * Constructor for the component.
+     */
+    public function new() {
+        super();
+        this.persistentUpdate = true;
+        this.persistentDraw = true;
+    }
+    
+    /**
+     * Executes the initSubstate logic.
+     */
+    public function initSubstate():Void {
+        var optionCam = FlxG.cameras.list[FlxG.cameras.list.length - 1];
+        this.cameras = [optionCam];
+        
+        bgOverlay = new FlxSprite(0,0).makeGraphic(FlxG.width, FlxG.height, 0xFF000000);
+        bgOverlay.alpha = 0.85;
+        add(bgOverlay);
+        
+        var sTitle = new FlxText(0, 20, FlxG.width, "DISCORD RPC PREVIEW", 42);
+        sTitle.setFormat(parent.menuFont, 42, FlxColor.YELLOW, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        add(sTitle);
+        
+        createRPCMock();
+        createMenu();
+        loadSavedOptions();
+        updateMockText();
+        updateSelection();
+    }
+    
+    /**
+     * Executes the createRPCMock logic.
+     */
+    function createRPCMock() {
+        var scale:Float = 1.35;
+        var mockW = 450 * scale;
+        var mockH = 150 * scale;
+        var startX = (FlxG.width - mockW) / 2;
+        var startY = 70;
+        
+        var playingHeader = new FlxText(startX, startY - 25, 0, "PLAYING A GAME", Std.int(12 * scale));
+        playingHeader.setFormat(parent.menuFont, Std.int(12 * scale), 0xFFB5BAC1, "left");
+        add(playingHeader);
+        
+        rpcBg = new FlxSprite(startX, startY).makeGraphic(Std.int(mockW), Std.int(mockH), 0xFF2B2D31);
+        add(rpcBg);
+        
+        playingText = new FlxText(startX + (20 * scale), startY + (15 * scale), 0, "Playing", Std.int(14 * scale));
+        playingText.setFormat(parent.menuFont, Std.int(14 * scale), 0xFFB5BAC1, "left");
+        add(playingText);
+        
+        iconSprite = new FlxSprite(startX + (20 * scale), startY + (45 * scale)).makeGraphic(Std.int(90 * scale), Std.int(90 * scale), 0xFF00CCFF);
+        add(iconSprite);
+        
+        titleText = new FlxText(startX + (125 * scale), startY + (45 * scale), 0, "Friday Night Funkin'", Std.int(20 * scale));
+        titleText.setFormat(parent.menuFont, Std.int(20 * scale), 0xFFF2F3F5, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        add(titleText);
+        
+        detailsText = new FlxText(startX + (125 * scale), startY + (70 * scale), Std.int(300 * scale), "", Std.int(16 * scale));
+        detailsText.setFormat(parent.menuFont, Std.int(16 * scale), 0xFFB5BAC1, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        add(detailsText);
+        
+        stateText = new FlxText(startX + (125 * scale), startY + (95 * scale), Std.int(300 * scale), "", Std.int(16 * scale));
+        stateText.setFormat(parent.menuFont, Std.int(16 * scale), 0xFFB5BAC1, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        add(stateText);
+        
+        timeText = new FlxText(startX + (125 * scale), startY + (120 * scale), 0, "0:00 elapsed", Std.int(16 * scale));
+        timeText.setFormat(parent.menuFont, Std.int(16 * scale), 0xFFB5BAC1, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        add(timeText);
+    }
+    
+    /**
+     * Executes the createMenu logic.
+     */
+    function createMenu() {
+        for (i in 0...options.length) {
+            var opt = options[i];
+            
+            var bg = new FlxSprite((FlxG.width - 700)/2, menuStartY + (i * 60)).makeGraphic(700, 50, FlxColor.WHITE);
+            bg.alpha = 0.0;
+            add(bg);
+            optionBgs.push(bg);
+            
+            var lbl = new FlxText(bg.x + 20, bg.y + 10, 0, opt.name, 28);
+            lbl.setFormat(parent.menuFont, 28, FlxColor.WHITE, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+            add(lbl);
+            optionLabels.push(lbl);
+            
+            var val = new FlxText(bg.x + 350, bg.y + 10, 330, "VALUE", 28);
+            val.setFormat(parent.menuFont, 28, FlxColor.WHITE, "right", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+            add(val);
+            optionValues.push(val);
+        }
+    }
+    
+    /**
+     * Executes the loadSavedOptions logic.
+     */
+    function loadSavedOptions() {
+        // defaults matching previous options logic
+        var defaults = [
+            "On",
+            " | ",
+            "Score", "Accuracy", "Misses",
+            "Song", "Diff", "None"
+        ];
+        
+        for (i in 0...options.length) {
+            var opt = options[i];
+            var saved = Save.instance.modOptions.get(opt.key);
+            if (saved != null) {
+                var idx = opt.choices.indexOf(Std.string(saved));
+                if (idx != -1) opt.current = idx;
+            } else {
+                var idx = opt.choices.indexOf(defaults[i]);
+                if (idx != -1) opt.current = idx;
+            }
+        }
+    }
+    
+    /**
+     * Executes the saveOptions logic.
+     */
+    function saveOptions() {
+        for (opt in options) {
+            Save.instance.modOptions.set(opt.key, opt.choices[opt.current]);
+        }
+        Save.instance.flush();
+        if (parent != null) parent.updatePreviews();
+    }
+    
+    /**
+     * Executes the buildString logic.
+     * @param items Value for items.
+     * @param sep Value for sep.
+     * @return Returns the String value.
+     */
+    function buildString(items:Array<String>, sep:String):String {
+        var strParts = [];
+        for (it in items) {
+            if (it == "None") continue;
+            var mapped = "";
+            if (it == "Score") mapped = "Score: 12345";
+            else if (it == "Accuracy") mapped = "Acc: 100%";
+            else if (it == "Misses") mapped = "Misses: 0";
+            else if (it == "Rank") mapped = "[P GOLD]";
+            else if (it == "Tier") mapped = "[FC]";
+            else if (it == "Song") mapped = "Playing: Song Name";
+            else if (it == "Diff") mapped = "[NORMAL]";
+            
+            if (mapped != "") strParts.push(mapped);
+        }
+        return strParts.join(sep);
+    }
+    
+    /**
+     * Executes the updateMockText logic.
+     */
+    function updateMockText() {
+        var enable = options[0].choices[options[0].current];
+        var sep = options[1].choices[options[1].current];
+        var l1 = [options[2].choices[options[2].current], options[3].choices[options[3].current], options[4].choices[options[4].current]];
+        var l2 = [options[5].choices[options[5].current], options[6].choices[options[6].current], options[7].choices[options[7].current]];
+        
+        if (enable == "Off") {
+            rpcBg.color = 0xFF111111;
+            titleText.text = "Discord RPC is Disabled";
+            detailsText.text = "";
+            stateText.text = "";
+            timeText.text = "";
+            return;
+        } else {
+            rpcBg.color = 0xFF2B2D31;
+            titleText.text = "Friday Night Funkin'";
+            timeText.text = "0:00 elapsed";
+        }
+        
+        detailsText.text = buildString(l1, sep);
+        stateText.text = buildString(l2, sep);
+        
+        var scale = 1.35;
+        var startY = 70;
+        if (detailsText.text == "") {
+            stateText.y = startY + (70 * scale);
+            timeText.y = startY + (95 * scale);
+        } else {
+            stateText.y = startY + (95 * scale);
+            timeText.y = startY + (120 * scale);
+            if (stateText.text == "") {
+                timeText.y = startY + (95 * scale);
+            }
+        }
+    }
+    
+    /**
+     * Executes the updateSelection logic.
+     */
+    function updateSelection() {
+        for (i in 0...options.length) {
+            var isSel = (i == selectedIndex);
+            optionBgs[i].alpha = isSel ? 0.3 : 0.0;
+            optionLabels[i].color = isSel ? FlxColor.YELLOW : FlxColor.WHITE;
+            optionValues[i].text = "< " + options[i].choices[options[i].current] + " >";
+            
+            var drawColor = FlxColor.WHITE;
+            if (options[i].choices[options[i].current] == "On") drawColor = 0xFF00FF00;
+            if (options[i].choices[options[i].current] == "Off" || options[i].choices[options[i].current] == "None") drawColor = 0xFFFF0000;
+            
+            optionValues[i].color = drawColor;
+        }
+        
+        var selY = menuStartY + (selectedIndex * 60);
+        menuTargetY = 400 - selY;
+        if (menuTargetY > 0) menuTargetY = 0;
+    }
+    
+    /**
+     * Executes the update logic.
+     * @param elapsed Value for elapsed.
+     */
+    override public function update(elapsed:Float):Void {
+        super.update(elapsed);
+        
+        menuGroupY += (menuTargetY - menuGroupY) * elapsed * 15;
+        for (i in 0...options.length) {
+            var base = menuStartY + (i * 60);
+            var targetY = base + menuGroupY;
+            
+            optionBgs[i].y = targetY;
+            optionLabels[i].y = targetY + 10;
+            optionValues[i].y = targetY + 10;
+            
+            var alphaMod = 1.0;
+            if (targetY < 320) {
+                alphaMod = (targetY - 270) / 50.0;
+                if (alphaMod < 0) alphaMod = 0;
+            }
+            
+            var isSel = (i == selectedIndex);
+            optionBgs[i].alpha = (isSel ? 0.3 : 0.0) * alphaMod;
+            optionLabels[i].alpha = alphaMod;
+            optionValues[i].alpha = alphaMod;
+        }
+        
+        if (holdTimer > 0) {
+            holdTimer -= elapsed;
+            return;
+        }
+        
+        if (controls.UI_UP_P) {
+            FunkinSound.playOnce(Paths.sound("scrollMenu"));
+            selectedIndex--;
+            if (selectedIndex < 0) selectedIndex = options.length - 1;
+            updateSelection();
+        }
+        if (controls.UI_DOWN_P) {
+            FunkinSound.playOnce(Paths.sound("scrollMenu"));
+            selectedIndex++;
+            if (selectedIndex >= options.length) selectedIndex = 0;
+            updateSelection();
+        }
+        
+        if (controls.UI_LEFT_P) {
+            FunkinSound.playOnce(Paths.sound("scrollMenu"));
+            var opt = options[selectedIndex];
+            opt.current--;
+            if (opt.current < 0) opt.current = opt.choices.length - 1;
+            updateSelection();
+            updateMockText();
+            saveOptions();
+        }
+        
+        if (controls.UI_RIGHT_P) {
+            FunkinSound.playOnce(Paths.sound("scrollMenu"));
+            var opt = options[selectedIndex];
+            opt.current++;
+            if (opt.current >= opt.choices.length) opt.current = 0;
+            updateSelection();
+            updateMockText();
+            saveOptions();
+        }
+        
+        if (controls.BACK) {
+            FunkinSound.playOnce(Paths.sound("cancelMenu"));
+            close();
+        }
+    }
+}

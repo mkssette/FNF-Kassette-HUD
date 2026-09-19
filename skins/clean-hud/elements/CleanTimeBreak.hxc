@@ -1,0 +1,304 @@
+package kassettehud.util;
+
+import funkin.play.PlayState;
+import flixel.FlxG;
+import flixel.FlxCamera;
+import flixel.util.FlxColor;
+import flixel.text.FlxText;
+import flixel.text.FlxTextBorderStyle;
+import flixel.FlxSprite;
+import funkin.Paths;
+import kassettehud.util.KassetteHUDElement;
+import kassettehud.util.KssetteOptionsManager;
+import kassettehud.util.KssetteFontManager;
+import kassettehud.util.KassetteHUDDatahunter;
+import funkin.Conductor;
+import Std;
+import Math;
+import kassettehud.objects.KHUDTimeText;
+
+class CleanTimeBreak extends KassetteHUDElement {
+    var timeTxtObj:KHUDTimeText;
+    var timeBarBG:FlxSprite;
+    var timeBarFill:FlxSprite;
+    var breakBarBG:FlxSprite;
+    var breakBarFill:FlxSprite;
+
+    var pTimeTxtObj:KHUDTimeText;
+    var pTimeBarBG:FlxSprite;
+    var pTimeBarFill:FlxSprite;
+    var pBreakBarBG:FlxSprite;
+    var pBreakBarFill:FlxSprite;
+
+    var _lastSecondsTotal:Int = -1;
+
+    var _lastFont:String = "";
+    
+    var _cShowTime:Bool = true;
+    var _cShowTimeBar:Bool = true;
+    var _cShowBreakBar:Bool = true;
+    var _cScorePos:String = "Default";
+    var _cAccMode:String = "Complex";
+    var _cHudVisible:Bool = true;
+    var _cDownscroll:Bool = false;
+    var _cFont:String = "VCR OSD Mono";
+
+    function updateSettings() {
+        _cShowTime = getSettingBool("kssette_show_song_time");
+        _cShowTimeBar = getSettingBool("kssette_show_timebar");
+        _cShowBreakBar = getSettingBool("kssette_show_breakbar");
+        _cScorePos = getSettingString("kssette_score_pos", "Default");
+        _cAccMode = getSettingString("kssette_acc_mode", "Complex");
+        _cHudVisible = isHudVisible();
+        _cDownscroll = isDownscroll();
+        _cFont = getHudFont();
+    }
+
+    public function new() {
+        super("CleanTimeBreak");
+        this.name = "CleanTimeBreak";
+    }
+
+    override public function buildPreview(cam:FlxCamera) {
+        isPreview = true;
+        
+        pTimeTxtObj = new KHUDTimeText({ x: 0, y: 10, w: 0, size: 18, color: 0xFFFFFFFF, align: "left", brackets: true });
+        safeAdd(pTimeTxtObj.timeText, cam);
+
+        pTimeBarBG = new FlxSprite(0, 0).makeGraphic(100, 10, FlxColor.BLACK);
+        pTimeBarBG.scrollFactor.set(0, 0);
+        safeAdd(pTimeBarBG, cam);
+
+        pTimeBarFill = new FlxSprite(0, 0).makeGraphic(96, 6, 0xFFFFFFFF);
+        pTimeBarFill.scrollFactor.set(0, 0);
+        safeAdd(pTimeBarFill, cam);
+
+        pBreakBarBG = new FlxSprite(0, 0).makeGraphic(100, 4, 0xFF000000);
+        pBreakBarBG.scrollFactor.set(0, 0);
+        safeAdd(pBreakBarBG, cam);
+
+        pBreakBarFill = new FlxSprite(0, 0).makeGraphic(96, 2, 0xFFFFFFFF);
+        pBreakBarFill.scrollFactor.set(0, 0);
+        safeAdd(pBreakBarFill, cam);
+    }
+
+
+
+    override public function updatePreview() {
+        updateSettings();
+        onUpdate(0);
+    }
+
+    override public function onCountdownStart(event:Dynamic) {
+        isPreview = false;
+        updateSettings();
+        var state = PlayState.instance;
+        if (state == null) return;
+        
+        safeDestroy(timeTxtObj);
+        safeDestroy(timeBarBG);
+        safeDestroy(timeBarFill);
+        safeDestroy(breakBarBG);
+        safeDestroy(breakBarFill);
+
+        timeTxtObj = new KHUDTimeText({ x: 0, y: 10, w: 0, size: 18, color: 0xFFFFFFFF, align: "left", brackets: true });
+        timeTxtObj.timeText.cameras = [state.camHUD];
+        timeTxtObj.timeText.zIndex = KassetteHUDElement.Z_HUD_FRONT;
+        state.add(timeTxtObj.timeText);
+
+        timeBarBG = new FlxSprite(0, 0).makeGraphic(100, 10, FlxColor.BLACK);
+        timeBarBG.scrollFactor.set(0, 0);
+        timeBarBG.cameras = [state.camHUD];
+        timeBarBG.zIndex = KassetteHUDElement.Z_HUD_BASE;
+        state.add(timeBarBG);
+
+        timeBarFill = new FlxSprite(0, 0).makeGraphic(96, 6, 0xFFFFFFFF);
+        timeBarFill.scrollFactor.set(0, 0);
+        timeBarFill.cameras = [state.camHUD];
+        timeBarFill.zIndex = KassetteHUDElement.Z_HUD_MID;
+        state.add(timeBarFill);
+
+        breakBarBG = new FlxSprite(0, 0).makeGraphic(100, 4, 0xFF000000);
+        breakBarBG.scrollFactor.set(0, 0);
+        breakBarBG.cameras = [state.camHUD];
+        breakBarBG.zIndex = KassetteHUDElement.Z_HUD_BASE;
+        state.add(breakBarBG);
+
+        breakBarFill = new FlxSprite(0, 0).makeGraphic(96, 2, 0xFFFFFFFF);
+        breakBarFill.scrollFactor.set(0, 0);
+        breakBarFill.cameras = [state.camHUD];
+        breakBarFill.zIndex = KassetteHUDElement.Z_HUD_MID;
+        state.add(breakBarFill);
+    }
+
+    override public function onUpdate(event:Dynamic) {
+        var state = PlayState.instance;
+        var showHud = _cHudVisible;
+        var downscroll = _cDownscroll;
+
+        var inverted = _cScorePos == "Inverted";
+        var atTop = inverted ? !downscroll : downscroll;
+
+        var scoreY = atTop ? FlxG.height * 0.1 : FlxG.height * 0.9 - 48;
+        
+        var gammodHunter = KassetteHUDDatahunter.gammod;
+        var hasMult = gammodHunter != null && gammodHunter.gammodMultiplier != null && gammodHunter.gammodMultiplier != 1.0;
+        
+        var lineH:Float = 24.0;
+        if (timeTxtObj != null && timeTxtObj.timeText.height > 10) lineH = timeTxtObj.timeText.height * (20.0 / 18.0);
+        else if (pTimeTxtObj != null && pTimeTxtObj.timeText.height > 10) lineH = pTimeTxtObj.timeText.height * (20.0 / 18.0);
+
+        // Stack TimeBreak vertically underneath the Score block on the left
+        // Default spacing if neither Acc nor Mult are present
+        var targetY = scoreY + lineH; 
+        
+        // Push down for Score text (always present)
+        // Push down for Mult if present
+        if (hasMult) targetY += lineH;
+        
+        // Push down for Acc if present
+        var showAcc = _cAccMode != "Off" && _cAccMode != "null" && _cAccMode != "false";
+        if (showAcc) targetY += lineH;
+        
+        if (!atTop && targetY > FlxG.height - 30) {
+            // Ensure it doesn't fall off the screen if placed at the bottom
+            targetY = scoreY - 32; 
+        }
+        var startX = 10.0; // Same X as Score
+
+        var cachedFont = _cFont;
+
+        var fontChanged = (_lastFont != cachedFont);
+        if (fontChanged) _lastFont = cachedFont;
+
+        if (isPreview) {
+            var currentX = startX;
+            var currentY = targetY;
+
+            var ptxt = pTimeTxtObj?.timeText;
+            if (ptxt != null && ptxt.exists) {
+                if (fontChanged) ptxt.setFormat(cachedFont, 18, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+                ptxt.visible = showHud && _cShowTime;
+                ptxt.text = "[3:20]";
+                if (ptxt.visible) {
+                    ptxt.x = currentX;
+                    ptxt.y = currentY;
+                    currentX += ptxt.width + 6;
+                }
+            }
+
+            if (pTimeBarBG != null && pTimeBarBG.exists) {
+                pTimeBarBG.visible = showHud && _cShowTimeBar;
+                if (pTimeBarBG.visible) {
+                    pTimeBarBG.x = currentX;
+                    pTimeBarBG.y = targetY + 8;
+                    currentY = pTimeBarBG.y + pTimeBarBG.height + 2;
+                }
+            }
+            if (pTimeBarFill != null && pTimeBarFill.exists && pTimeBarBG != null && pTimeBarBG.exists) {
+                pTimeBarFill.visible = showHud && _cShowTimeBar;
+                if (pTimeBarFill.visible) {
+                    pTimeBarFill.x = pTimeBarBG.x + 2;
+                    pTimeBarFill.y = pTimeBarBG.y + 2;
+                    if (pTimeBarFill.scale != null) pTimeBarFill.scale.x = 0.5;
+                    pTimeBarFill.updateHitbox();
+                }
+            }
+
+            var isP:Bool = KassetteHUDElement.preview_playerTurn != false;
+            var prog:Float = KassetteHUDElement.preview_turnProgress ?? 0.0;
+
+            if (pBreakBarBG != null && pBreakBarBG.exists) {
+                pBreakBarBG.visible = showHud && _cShowBreakBar && !isP;
+                if (pBreakBarBG.visible) {
+                    pBreakBarBG.x = currentX;
+                    pBreakBarBG.y = (pTimeBarBG != null && pTimeBarBG.exists && pTimeBarBG.visible) ? currentY : targetY + 8;
+                }
+            }
+            if (pBreakBarFill != null && pBreakBarFill.exists && pBreakBarBG != null && pBreakBarBG.exists) {
+                pBreakBarFill.visible = showHud && _cShowBreakBar && !isP;
+                if (pBreakBarFill.visible) {
+                    pBreakBarFill.x = pBreakBarBG.x;
+                    pBreakBarFill.y = pBreakBarBG.y;
+                    if (pBreakBarFill.scale != null) pBreakBarFill.scale.x = 1.0 - prog;
+                    pBreakBarFill.updateHitbox();
+                }
+            }
+            return;
+        }
+
+        if (state == null || timeTxtObj == null || timeBarBG == null || timeBarFill == null || breakBarBG == null || breakBarFill == null) return;
+
+        if (fontChanged) {
+            timeTxtObj.timeText.setFormat(cachedFont, 18, 0xFFFFFFFF, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        }
+
+        timeTxtObj.timeText.visible = showHud && _cShowTime;
+        timeBarBG.visible = showHud && _cShowTimeBar;
+        timeBarFill.visible = showHud && _cShowTimeBar;
+        
+        var currentX = startX;
+        var currentY = targetY;
+
+        if (timeTxtObj.timeText.visible) {
+            timeTxtObj.timeText.x = currentX;
+            timeTxtObj.timeText.y = currentY;
+            currentX += timeTxtObj.timeText.width + 6;
+        }
+
+        if (timeBarBG.visible) {
+            timeBarBG.x = currentX;
+            timeBarBG.y = targetY + 8;
+            currentY = timeBarBG.y + timeBarBG.height + 2;
+            
+            timeBarFill.x = timeBarBG.x + 2;
+            timeBarFill.y = timeBarBG.y + 2;
+        }
+        
+        timeTxtObj.timeText.alpha = 1.0;
+        timeBarBG.alpha = 1.0;
+        timeBarFill.alpha = 1.0;
+        breakBarBG.alpha = 1.0;
+        breakBarFill.alpha = 1.0;
+
+        var curTime:Float = Conductor.instance.songPosition;
+        if (curTime < 0) curTime = 0;
+        
+        var songLen:Float = state != null ? (state.currentSongLengthMs ?? 0) : 0;
+        if (songLen <= 0 && FlxG.sound.music != null) songLen = FlxG.sound.music.length;
+
+        if (songLen <= 0) songLen = 1;
+        
+        var timeRatio = curTime / songLen;
+        if (timeRatio > 1) timeRatio = 1;
+        
+        if (timeBarFill.scale != null) timeBarFill.scale.x = timeRatio;
+        timeBarFill.updateHitbox();
+
+        // Delegate text updates to KHUDTimeText
+        if (_cShowTime) {
+            timeTxtObj.updateTimeFromState();
+            timeTxtObj.updateObject(event?.elapsed ?? 0.0);
+        }
+
+        // Break bar logic
+        var breakHunter = KassetteHUDDatahunter.breakData;
+        if (breakHunter != null && breakHunter.currentBreakData != null && breakHunter.currentBreakData.active) {
+            var ratio = 1.0 - breakHunter.currentBreakData.progress;
+            if (breakBarFill.scale != null) breakBarFill.scale.x = ratio;
+            breakBarFill.updateHitbox();
+            breakBarBG.visible = showHud && _cShowBreakBar;
+            breakBarFill.visible = showHud && _cShowBreakBar;
+            
+            if (breakBarBG.visible) {
+                breakBarBG.x = currentX;
+                breakBarBG.y = (timeBarBG?.visible ?? false) ? currentY : targetY + 8;
+                breakBarFill.x = breakBarBG.x;
+                breakBarFill.y = breakBarBG.y;
+            }
+        } else {
+            breakBarBG.visible = false;
+            breakBarFill.visible = false;
+        }
+    }
+}

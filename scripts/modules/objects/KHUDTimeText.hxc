@@ -1,0 +1,152 @@
+package kassettehud.objects;
+
+import flixel.text.FlxText;
+import flixel.util.FlxColor;
+import funkin.Conductor;
+import Std;
+import Math;
+import kassettehud.util.KssetteOptionsManager;
+import funkin.play.PlayState;
+import flixel.FlxG;
+import kassettehud.util.KssetteFontManager;
+import flixel.text.FlxTextBorderStyle;
+import kassettehud.util.KassetteHUDDatahunter;
+
+/**
+ * KHUDTimeText
+ * 
+ * Clase de texto compartido para renders de tiempo.
+ * Maneja lógicas comunes como actualización de string optimizada.
+ */
+class KHUDTimeText extends KHUDObject {
+    public var timeText:FlxText;
+    public var lastSecondsTotal:Int = -1;
+    public var formatWithBrackets:Bool = true;
+
+    /**
+     * Constructor for the component.
+     * @param options Value for options.
+     */
+    public function new(options:Dynamic = null) {
+        var x:Float = options != null && options.x != null ? options.x : 0;
+        var y:Float = options != null && options.y != null ? options.y : 0;
+        var w:Float = options != null && options.w != null ? options.w : 0;
+        var size:Int = options != null && options.size != null ? options.size : 18;
+        var color:Int = options != null && options.color != null ? options.color : 0xFFFFFFFF;
+        var align:String = options != null && options.align != null ? options.align : "left";
+        var brackets:Bool = options != null && options.brackets != null ? options.brackets : true;
+
+        super(x, y);
+        this.objectName = "KHUDTimeText";
+        this.formatWithBrackets = brackets;
+        
+        timeText = new FlxText(x, y, w, "", size);
+        var fontPath = (KssetteFontManager.instance != null) ? KssetteFontManager.instance.getHudFont() : "VCR OSD Mono";
+        timeText.setFormat(fontPath, size, color, align, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        timeText.scrollFactor.set(0, 0);
+    }
+
+    public var targetMs:Float = 0.0;
+    public var displayMs:Float = 0.0;
+    public var isSmooth:Bool = true;
+    public var hasStarted:Bool = false;
+
+    /**
+     * Define el objetivo de tiempo.
+     */
+    public function updateTime(currentMs:Float, totalMs:Float) {
+        if (totalMs <= 0) return;
+        
+        var remainingMs = totalMs - currentMs;
+        if (remainingMs < 0) remainingMs = 0;
+        
+        targetMs = remainingMs;
+    }
+
+    /**
+     * Lógica automática en partida
+     */
+    public function updateTimeFromState() {
+        var state = PlayState.instance;
+        if (state == null) return;
+        
+        var songLen:Float = state.currentSongLengthMs ?? 0;
+        if (songLen <= 0) songLen = state.songLengthInMs ?? 0;
+        if (songLen <= 0) songLen = FlxG.sound.music?.length ?? 0;
+
+        var curPos:Float = Conductor.instance.songPosition;
+        
+        if (curPos < 0) {
+            // Map countdown progress so it increases gradually
+            var crochet = Conductor.instance.crochet;
+            if (crochet <= 0) crochet = 500;
+            var countdownStart = -(crochet * 5); // Generalmente son 5 beats
+            
+            var progress = 1.0 - (curPos / countdownStart);
+            if (progress < 0) progress = 0;
+            if (progress > 1) progress = 1;
+            
+            targetMs = songLen * progress;
+            
+            if (!isSmooth) {
+                targetMs = songLen;
+                displayMs = songLen;
+                hasStarted = true;
+            }
+        } else {
+            hasStarted = true;
+            targetMs = songLen - curPos;
+            if (targetMs < 0) targetMs = 0;
+        }
+    }
+
+    /**
+     * Executes the updateObject logic.
+     * @param elapsed Value for elapsed.
+     */
+    override public function updateObject(elapsed:Float) {
+        var scoreHunter = KassetteHUDDatahunter.score;
+        if (scoreHunter != null) {
+            isSmooth = scoreHunter.cachedSmooth;
+        }
+
+        if (isSmooth && !hasStarted) {
+            // Fast lerp for countdown (adding)
+            var diff = targetMs - displayMs;
+            displayMs += diff * (1.0 - Math.exp(-elapsed * 12.0));
+            if (Math.abs(diff) < 10) displayMs = targetMs;
+        } else if (isSmooth && hasStarted) {
+            // Smooth lerp during gameplay
+            var diff = targetMs - displayMs;
+            displayMs += diff * (1.0 - Math.exp(-elapsed * 20.0));
+            if (Math.abs(diff) < 10) displayMs = targetMs;
+        } else {
+            // Without smooth
+            displayMs = targetMs;
+        }
+
+        var curSeconds = Math.max(0, displayMs / 1000);
+        var curSecInt = Std.int(curSeconds);
+        
+        if (curSecInt != lastSecondsTotal) {
+            var curMins = Std.int(curSecInt / 60);
+            var curSecRem = curSecInt % 60;
+            var secStr = (curSecRem < 10) ? "0" + curSecRem : Std.string(curSecRem);
+            
+            if (formatWithBrackets) {
+                timeText.text = "[" + curMins + ":" + secStr + "]";
+            } else {
+                timeText.text = curMins + ":" + secStr;
+            }
+            
+            lastSecondsTotal = curSecInt;
+        }
+    }
+
+    /**
+     * Executes the destroy logic.
+     */
+    override public function destroy() {
+        if (timeText != null) timeText.destroy();
+    }
+}

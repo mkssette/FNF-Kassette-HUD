@@ -1,0 +1,209 @@
+package kassettehud.util;
+
+import funkin.modding.module.Module;
+import funkin.modding.module.ModuleHandler;
+import funkin.modding.events.UpdateScriptEvent;
+import funkin.modding.events.StateChangeScriptEvent;
+import funkin.play.PlayState;
+import flixel.FlxG;
+import flixel.text.FlxText;
+import flixel.text.FlxTextBorderStyle;
+import flixel.util.FlxColor;
+import kassettehud.util.KssetteFontManager;
+import flixel.text.FlxBitmapText;
+import flixel.graphics.frames.FlxBitmapFont;
+import funkin.Paths;
+import openfl.display.BlendMode;
+import Std;
+import StringTools;
+import funkin.util.ReflectUtil;
+
+class KssetteMainManager extends Module {
+    public static var instance:Dynamic = null;
+    public var isMobileMode:Bool = false;
+    public var _isInPlayState:Bool = false;
+    public var modeText:FlxText = null;
+    var cachedModeMsg:String = "";
+
+    /**
+     * Constructor for the component.
+     */
+    public function new() {
+        super("KssetteMainManager", 1000);
+        KssetteMainManager.instance = this;
+        isMobileMode = FlxG.onMobile;
+        _isInPlayState = false;
+    }
+    
+    /**
+     * Called every frame to update the component's state.
+     * @param event Value for event.
+     */
+    override public function onUpdate(event:UpdateScriptEvent) {
+        super.onUpdate(event);
+
+        var state = PlayState.instance;
+        if (state == null) {
+            if (_isInPlayState) _isInPlayState = false;
+            return;
+        }
+
+        if (_isInPlayState) {
+            var sText = state.scoreText ?? null;
+            if (sText != null) sText.visible = false;
+            
+            var lMark = state.leftWatermarkText ?? null;
+            if (lMark != null) lMark.visible = false;
+            
+            var rMark = state.rightWatermarkText ?? null;
+            if (rMark != null) rMark.visible = false;
+            
+            var songHunter = KassetteHUDDatahunter.song;
+            var chartHunter = KassetteHUDDatahunter.chartData;
+            var gammodHunter = KassetteHUDDatahunter.gammod;
+            
+            var isBot = false;
+            var isAuto = false;
+            
+            if (chartHunter != null && chartHunter.isNativeBotplay()) isBot = true;
+            if (gammodHunter != null && gammodHunter.gammodAutoPlay) isAuto = true;
+            
+            if (isBot || isAuto) {
+                var songName = songHunter != null ? songHunter.getSongTitle() : "Unknown";
+                cachedModeMsg = 'Watching "' + songName + '" with ' + (isAuto ? "AutoPlay" : "Botplay");
+            } else {
+                cachedModeMsg = "";
+            }
+            
+            if (modeText != null && modeText.exists) {
+                if (cachedModeMsg != "") {
+                    if (modeText.text != cachedModeMsg) modeText.text = cachedModeMsg;
+                    if (!modeText.visible) modeText.visible = true;
+                    if (modeText.alpha != 1) modeText.alpha = 1;
+                    
+                    modeText.x -= 200 * event.elapsed;
+                    if (modeText.x + modeText.width < 0) modeText.x = FlxG.width;
+                } else {
+                    if (modeText.visible) modeText.visible = false;
+                }
+                
+                if (isBot || isAuto) {
+                    if (!state.startingSong && !state.isEndingSong) {
+                        if (!modeText.exists || !modeText.visible || modeText.alpha <= 0 || modeText.text != cachedModeMsg) {
+                            var scoreHunter = KassetteHUDDatahunter.score;
+                            if (scoreHunter != null && !scoreHunter.antiCheatTriggered) {
+                                scoreHunter.triggerAntiCheat();
+                                
+                                var strumlinesMod:Dynamic = ModuleHandler.getModule("KssetteStrumlines");
+                                if (strumlinesMod != null) {
+                                    strumlinesMod.applyAntiCheatPenalty();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Triggered when the game state changes.
+     * Hooks into the PlayState to build the Kassette HUD watermark and reset the 
+     * mode indicator marquee (Botplay/AutoPlay). Cleans up memory when leaving.
+     * 
+     * @param event The script event containing state transition data.
+     */
+    override public function onStateChangeEnd(event:StateChangeScriptEvent):Void {
+        super.onStateChangeEnd(event);
+        var target = event.targetState;
+        
+        if (Std.isOfType(target, PlayState)) {
+            _isInPlayState = true;
+            createHUDWatermark(target);
+            
+            if (modeText != null) {
+                modeText.destroy();
+                modeText = null;
+            }
+            modeText = new FlxText(FlxG.width, 200, 0, "", 24);
+            var hudFont = "VCR OSD Mono";
+            var fontManager = KssetteFontManager.instance;
+            if (fontManager != null) {
+                var f = fontManager.getHudFont();
+                if (f != null && f != "null" && f != "") hudFont = f;
+            }
+            modeText.setFormat(hudFont, 22, FlxColor.WHITE, "left", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+            modeText.scrollFactor.set(0, 0);
+            modeText.zIndex = KassetteHUDElement.Z_HUD_MID;
+            modeText.alpha = 0;
+            if (target.camHUD != null) modeText.cameras = [target.camHUD];
+            target.add(modeText);
+            cachedModeMsg = "";
+            
+        } else {
+            if (_isInPlayState) {
+                _isInPlayState = false;
+                if (modeText != null) {
+                    modeText.destroy();
+                    modeText = null;
+                }
+                FlxG.bitmap.clearUnused();
+            }
+        }
+    }
+
+    /**
+     * Triggered when the song countdown begins.
+     * @param event Value for event.
+     */
+    override public function onCountdownStart(event) {
+        super.onCountdownStart(event);
+        if (PlayState.instance != null) {
+            _isInPlayState = true;
+        }
+    }
+
+    /**
+     * Generates the translucent watermark text indicating the HUD version and current platform.
+     * Appends "GAMMOD" or "TEST MODE" tags if applicable, and adds it to the HUD camera.
+     * 
+     * @param state The active PlayState instance.
+     */
+    function createHUDWatermark(state:PlayState) {
+        if (state == null || state.camHUD == null) return;
+        
+        var optManager = KssetteOptionsManager.instance;
+        var isMobPC = false;
+        if (optManager != null) {
+            isMobPC = optManager.isMobileLikePC();
+        }
+        
+        var platform = isMobileMode ? (isMobPC ? "Mobile+KB" : "Mobile") : "PC";
+        var safeMargin:Float = isMobileMode ? 85 : 8;
+        
+        var timeBarPos = optManager != null ? optManager.getKssValue("kssette_timebar_pos") : "Bottom";
+        var yPos:Float = (timeBarPos == "Bottom" || timeBarPos == "Bottom Right") ? 10 : (FlxG.height - 24);
+
+        var gammodHunter = KassetteHUDDatahunter.gammod;
+        var gammodAdd:String = (gammodHunter != null && gammodHunter.isGammodMode) ? " + GAMMOD" : "";
+        var ver = KssetteUpdateManager.instance != null ? KssetteUpdateManager.instance.hudVersion : "0.3.0-a";
+        var wmTextStr = "Kassette HUD " + platform + " [" + ver + "]" + gammodAdd;
+        if (state.isChartingMode) {
+            wmTextStr = "TEST MODE";
+        }
+        var bmpFont = FlxBitmapFont.fromAngelCode(Paths.font("vcr-bmp.png"), Paths.font("vcr-bmp.fnt"));
+        var watermark = new FlxBitmapText(0, yPos, wmTextStr, bmpFont);
+        watermark.letterSpacing = -1;
+        watermark.borderStyle = FlxTextBorderStyle.OUTLINE;
+        watermark.borderColor = FlxColor.BLACK;
+        watermark.borderSize = 1;
+        watermark.alpha = 0.35; 
+        watermark.blend = BlendMode.ADD;
+        watermark.scale.set(0.85, 0.85);
+        watermark.updateHitbox();
+        watermark.x = FlxG.width - safeMargin - watermark.width;
+        watermark.zIndex = KassetteHUDElement.Z_SCREEN_OVERLAYS; 
+        watermark.cameras = [state.camHUD];
+        state.add(watermark);
+    }
+}

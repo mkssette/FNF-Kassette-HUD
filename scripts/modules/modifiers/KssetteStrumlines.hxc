@@ -35,20 +35,22 @@ package kassettehud.util;
 
 import flixel.FlxG;
 import funkin.modding.module.Module;
+import kassettehud.util.KssetteOptionsManager;
+import kassettehud.util.KassetteHUDDatahunter;
+import funkin.save.Save;
 import funkin.modding.module.ModuleHandler;
 import funkin.modding.events.ScriptEvent;
 import funkin.modding.events.UpdateScriptEvent;
 import funkin.play.PlayState;
 import funkin.play.notes.Strumline;
 import funkin.util.Constants;
-import funkin.Preferences;
 import funkin.mobile.input.ControlsHandler;
 import funkin.ui.FullScreenScaleMode;
 import Std;
 import Math;
 import StringTools;
 
-class KssMiddlescroll extends Module {
+class KssetteStrumlines extends KHUDModifier {
     /** Currently active mode string ("Off", "On", "P Style", "Glass", etc.). */
     var cachedMode:String = "Off";
     /** Cached opponent position preference ("Left" | "Right"). */
@@ -59,8 +61,7 @@ class KssMiddlescroll extends Module {
     var cachedMobileOppNotes:Bool = true;
     /** True after the first frame where we shift strumline positions. */
     var hasShifted:Bool = false;
-    /** Cached reference to KssetteApi module. */
-    var apiModule:Dynamic = null;
+    var originalScrollSpeeds:Array<Float> = [1, 1, 1, 1];
     /** Cached reference to the opponent strumline. */
     var cachedOppStrum:Dynamic = null;
     /** Cached reference to the opponent strumline receptor members array. */
@@ -86,14 +87,27 @@ class KssMiddlescroll extends Module {
     var cachedIsMobPC:Bool = true;
     /** Cached screen cutout/notch size (computed once, then reused). */
     var cachedCutoutSize:Float = -1.0;
+    var cachedShowTimeBar:Bool = false;
+    var cachedTimeBarPos:String = "";
     /** Cached opponent opacity value (0.0 - 1.0). */
     var cachedOppOpacity:Float = 1.0;
 
+    /**
+     * Constructor for the component.
+     */
     public function new() {
-        super('KssMiddlescroll'); 
+        super('KssetteStrumlines'); 
+        elementType = "modifier";
+        
     }
 
-    /** Returns true if the Dynamic value represents an "on" state. */
+    /**
+     * Helper function to robustly evaluate if a setting represents an "enabled" state.
+     * Safely parses booleans and string variants ("true", "On", "on") into a clean boolean.
+     * 
+     * @param val The dynamic raw setting value to evaluate.
+     * @return True if the value evaluates to active/enabled, false otherwise.
+     */
     function isOn(val:Dynamic):Bool {
         if (val == true) return true;
         var s = Std.string(val);
@@ -124,21 +138,20 @@ class KssMiddlescroll extends Module {
         cachedCutoutSize = -1.0;
         
         var isMobLayout = false;
-        apiModule = ModuleHandler.getModule("KssetteApi");
         
-        if (apiModule == null) return;
+        cachedShowTimeBar = getSetting("kssette_show_timebar") == true;
+        cachedTimeBarPos = Std.string(getSetting("kssette_timebar_pos"));
 
-        apiModule.registerModule("KssMiddlescroll", this);
-        
-        var rawMode:Dynamic = apiModule.getKssValue("kssette_middlescroll");
+
+        var rawMode:Dynamic = getSetting("kssette_middlescroll");
         if (rawMode == true) cachedMode = "On";
         else if (rawMode == false) cachedMode = "Off";
         else cachedMode = Std.string(rawMode);
 
-        var rawHideOpp:Dynamic = apiModule.getKssValue("kssette_hide_opponent");
+        var rawHideOpp:Dynamic = getSetting("kssette_hide_opponent");
         var hideOpp:Bool = isOn(rawHideOpp);
 
-        var rawOppOp:Dynamic = apiModule.getKssValue("kssette_opponent_opacity");
+        var rawOppOp:Dynamic = getSetting("kssette_opponent_opacity");
         var oppOpacity:Float = 1.0;
         if (rawOppOp != null) {
             var valStr = StringTools.replace(Std.string(rawOppOp), "%", "");
@@ -147,18 +160,23 @@ class KssMiddlescroll extends Module {
         }
         cachedOppOpacity = oppOpacity;
 
-        cachedOppPos = Std.string(apiModule.getKssValue("kssette_opponent_pos"));
-        var rawOppBg:Dynamic = apiModule.getKssValue("kssette_opponent_bg");
+        cachedOppPos = Std.string(getSetting("kssette_opponent_pos"));
+        var rawOppBg:Dynamic = getSetting("kssette_opponent_bg");
         cachedOppBg = isOn(rawOppBg);
         
-        var rawMobOppNotes:Dynamic = apiModule.getKssValue("kssette_mobile_opp_notes");
+        var rawMobOppNotes:Dynamic = getSetting("kssette_mobile_opp_notes");
         cachedMobileOppNotes = isOn(rawMobOppNotes);
         
         var isMob = false;
         var isMobPC = false;
         
-        if (apiModule.isMobileMode != null) isMob = apiModule.isMobileMode;
-        if (apiModule.isMobileLikePC != null) isMobPC = apiModule.isMobileLikePC();
+        var optManager = KssetteOptionsManager.instance;
+        if (optManager != null) {
+            isMob = optManager.isMobileMode == true;
+            isMobPC = optManager.isMobileLikePC() == true;
+        } else {
+            isMob = FlxG.onMobile;
+        }
         cachedIsMobPC = isMobPC;
         
         if (isMob && !isMobPC) isMobLayout = true;
@@ -167,8 +185,17 @@ class KssMiddlescroll extends Module {
         if (state == null) return;
 
         cachedIsArrows = false;
-        if (Preferences.controlsScheme == 'Arrows') {
-            cachedIsArrows = !ControlsHandler.hasExternalInputDevice;
+        if (isMobLayout) {
+            var ctrlScheme = "Arrows"; // Fallback like Preferences.hx
+            if (Save.instance != null && Save.instance.mobileOptions != null) {
+                if (Save.instance.mobileOptions.controlsScheme != null) {
+                    ctrlScheme = Std.string(Save.instance.mobileOptions.controlsScheme);
+                }
+            }
+            
+            if (ctrlScheme == 'Arrows') {
+                cachedIsArrows = true; // Use true, because we want it to work on PC as well when testing layouts
+            }
         }
 
         cachedIsPixelStyle = false;
@@ -199,6 +226,8 @@ class KssMiddlescroll extends Module {
             
             if (pRealWidth <= 0) pRealWidth = myStrum.width;
             if (pRealWidth <= 0) pRealWidth = 448; 
+            
+            myStrum.zIndex = KassetteHUDElement.Z_STRUM_NOTES;
 
             var pBg = myStrum.background;
             if (pBg != null) {
@@ -208,6 +237,12 @@ class KssMiddlescroll extends Module {
                     pBg.scale.x = (pRealWidth + padding * 2) / fWidth;
                     pBg.updateHitbox();
                     pBg.x = pStartX - padding;
+                    pBg.zIndex = KassetteHUDElement.Z_STRUM_BACKGROUNDS;
+                    
+                    myStrum.remove(pBg, true);
+                    state.remove(pBg, true);
+                    if (state.camHUD != null) pBg.cameras = [state.camHUD];
+                    state.add(pBg);
                 }
             }
         }
@@ -231,12 +266,20 @@ class KssMiddlescroll extends Module {
                     if (realWidth <= 0) realWidth = oppStrum.width;
                     if (realWidth <= 0) realWidth = 448; 
                     
+                    oppStrum.zIndex = KassetteHUDElement.Z_STRUM_NOTES;
+                    
                     var fWidth:Float = bg.frameWidth;
                     if (fWidth <= 0) fWidth = bg.width;
                     if (fWidth > 0) {
                         bg.scale.x = (realWidth + padding * 2) / fWidth;
                         bg.updateHitbox();
                         bg.x = startX - padding;
+                        bg.zIndex = KassetteHUDElement.Z_STRUM_BACKGROUNDS;
+                        
+                        oppStrum.remove(bg, true);
+                        state.remove(bg, true);
+                        if (state.camHUD != null) bg.cameras = [state.camHUD];
+                        state.add(bg);
                     }
                 } else {
                     bg.visible = false;
@@ -301,13 +344,11 @@ class KssMiddlescroll extends Module {
             if (isArrows && cachedMobileOppNotes) {
                 oppStrum.notes.visible = true;
                 oppStrum.holdNotes.visible = true;
-                oppStrum.isDownscroll = false;
+                if (!cachedIsMobPC) oppStrum.isDownscroll = false;
                 
                 if (lastNudgedStrum != oppStrum) {
-                    var nudgeY:Float = -15.0; 
-                    if (!cachedIsMobPC) {
-                        oppStrum.y += nudgeY;
-                    } else {
+                    if (cachedIsMobPC) {
+                        var nudgeY:Float = -15.0;
                         var nudgeX:Float = -65.0; 
                         oppStrum.y += nudgeY; 
                         oppStrum.x += nudgeX; 
@@ -316,9 +357,6 @@ class KssMiddlescroll extends Module {
                 }
             }
 
-            if (oppStrum.visible && cachedOppOpacity < 1.0) {
-                oppStrum.alpha = cachedOppOpacity;
-            }
         }
 
 
@@ -338,7 +376,13 @@ class KssMiddlescroll extends Module {
         }
     }
 
-    /** No additional logic needed; onCountdownStart handles retry via song restart. */
+    /**
+     * Hook triggered when the song restarts after a death or manual retry.
+     * No custom logic is strictly necessary here since `onCountdownStart` handles 
+     * the re-initialization of positions, but the hook is kept for structural completeness.
+     * 
+     * @param event The event detailing the retry action.
+     */
     override function onSongRetry(event:ScriptEvent):Void {
         super.onSongRetry(event);
     }
@@ -361,10 +405,11 @@ class KssMiddlescroll extends Module {
         var applyArrowLogic = cachedIsArrows;
         var isModActive = (cachedMode == "On" || cachedMode == "P Style" || cachedMode == "Hidden Notes" || cachedMode == "Glass" || cachedMode == "Like Mobile");
 
-        if (!isModActive && !applyArrowLogic) return;
-
         var note = event.note;
-        var isOppNote = !note.noteData.getMustHitNote();
+        var isOppNote = false;
+        if (note != null && note.noteData != null) {
+            isOppNote = !note.noteData.getMustHitNote();
+        }
 
         if (note != null && isOppNote && cachedOppStrum != null) {
             var opp = cachedOppStrum;
@@ -377,10 +422,25 @@ class KssMiddlescroll extends Module {
                     note.holdNoteSprite.alpha = 0;
                     note.holdNoteSprite.visible = false;
                 }
-                
-                // removed x=-5000 method
                 return;
+            } else if (cachedMode == "P Style") {
+                note.alpha = 0.6 * cachedOppOpacity;
+                if (note.holdNoteSprite != null) note.holdNoteSprite.alpha = 0.6 * cachedOppOpacity;
+            } else if (cachedMode == "Glass") {
+                if (note.alpha != 0.25) note.alpha = 0.25;
+                if (note.color != 0xFF666666) note.color = 0xFF666666;
+                if (note.holdNoteSprite != null) {
+                    note.holdNoteSprite.alpha = 0.25;
+                    note.holdNoteSprite.color = 0xFF666666;
+                }
+            } else {
+                note.alpha = cachedOppOpacity;
+                if (note.holdNoteSprite != null) {
+                    note.holdNoteSprite.alpha = 0.8 * cachedOppOpacity;
+                }
             }
+
+            if (!isModActive && !applyArrowLogic) return;
 
             var receptors = opp.strumlineNotes.members;
             if (receptors == null || note.direction < 0 || note.direction >= receptors.length) return;
@@ -393,20 +453,11 @@ class KssMiddlescroll extends Module {
                     
                     if (note.holdNoteSprite != null) {
                         note.holdNoteSprite.x = targetReceptor.x + (targetReceptor.width * 0.5) - (note.holdNoteSprite.width * 0.5);
-                        note.holdNoteSprite.alpha = 0.6;
                     }
                 }
-                note.alpha = 0.6;
                 return;
             } 
             else if (cachedMode == "Glass") {
-                if (note.alpha != 0.25) note.alpha = 0.25;
-                if (note.color != 0xFF666666) note.color = 0xFF666666;
-                
-                if (note.holdNoteSprite != null) {
-                    note.holdNoteSprite.alpha = 0.25;
-                    note.holdNoteSprite.color = 0xFF666666;
-                }
                 return;
             }
             
@@ -421,7 +472,7 @@ class KssMiddlescroll extends Module {
                     var defaultScale:Float = pixel ? 6.0 : 0.7;
                     targetScale = defaultScale * sizeRatio;
                 } else {
-                    var noteScaleMul:Float = pixel ? 6.0 : 0.8;
+                    var noteScaleMul:Float = pixel ? 6.0 : (!cachedIsMobPC ? 0.7 : 0.8);
                     targetScale = opp.strumlineScale.x * noteScaleMul;
                 }
                 
@@ -433,7 +484,6 @@ class KssMiddlescroll extends Module {
                         note.offset.y -= pixel ? 4 : 15;
                     }
                 }
-                note.alpha = cachedOppOpacity;
 
                 if (targetReceptor != null) {
                     var receptorW = targetReceptor.frameWidth * targetReceptor.scale.x;
@@ -443,7 +493,7 @@ class KssMiddlescroll extends Module {
                     
                     if (note.holdNoteSprite != null) {
                         var holdNote = note.holdNoteSprite;
-                        holdNote.flipY = false;
+                        holdNote.flipY = (opp.isDownscroll == true);
 
                         var holdWidthMul:Float = pixel ? 0.15 : 1.05;
                         var holdScale:Float = targetScale * holdWidthMul;
@@ -452,7 +502,6 @@ class KssMiddlescroll extends Module {
                         
                         holdNote.x = targetReceptor.x + (targetReceptor.width * 0.5) - (holdNote.graphicWidth * 0.5);
                         holdNote.updateClipping();
-                        holdNote.alpha = 0.8 * cachedOppOpacity;
                     }
                 }
             }
@@ -468,7 +517,8 @@ class KssMiddlescroll extends Module {
      *   5. One-time compact shift for active modes (pHasShifted / hasShifted gates).
      *   6. Splash repositioning (~30fps) to follow compact receptor positions.
      */
-    override function onUpdate(event:UpdateScriptEvent) {
+    override public function onUpdate(event:Dynamic) {
+        var elapsed:Float = (Std.isOfType(event, Float)) ? event : (event != null ? event.elapsed : 0);
         
         var applyArrowLogic = cachedIsArrows;
         var isModActive = (cachedMode == "On" || cachedMode == "P Style" || cachedMode == "Glass" || cachedMode == "Hidden Notes" || cachedMode == "Like Mobile");
@@ -481,7 +531,22 @@ class KssMiddlescroll extends Module {
         var oppStrum = cachedOppStrum;
 
         var isMob:Bool = FlxG.onMobile;
-        if (apiModule != null && apiModule.isMobileMode == true) isMob = true;
+        var optManager = KssetteOptionsManager.instance;
+        if (optManager != null && optManager.isMobileMode == true) isMob = true;
+        
+        if (antiCheatTriggered) {
+            if (myStrum != null) {
+                var targets = myStrum.getNotesMayHit();
+                if (targets != null) {
+                    for (note in targets) {
+                        if (note != null && note.alive && !note.hasBeenHit) {
+                            note.hasBeenHit = true;
+                            state.noteMiss(note);
+                        }
+                    }
+                }
+            }
+        }
         
         if (cachedCutoutSize < 0) {
             var cutout:Float = 0.0;
@@ -495,12 +560,8 @@ class KssMiddlescroll extends Module {
         
         var cutoutSize:Float = cachedCutoutSize;
 
-        var showTimeBar:Bool = false;
-        var timeBarPos:String = "Bottom";
-        if (apiModule != null) {
-            showTimeBar = apiModule.getKssValue("kssette_show_timebar") == true;
-            timeBarPos = Std.string(apiModule.getKssValue("kssette_timebar_pos"));
-        }
+        var showTimeBar:Bool = cachedShowTimeBar;
+        var timeBarPos:String = cachedTimeBarPos;
 
         var marginLeft:Float = Constants.STRUMLINE_X_OFFSET + cutoutSize;
         var marginRight:Float = Constants.STRUMLINE_X_OFFSET + cutoutSize;
@@ -523,7 +584,7 @@ class KssMiddlescroll extends Module {
 
         if (cachedMode == "Like Mobile" && oppStrum != null) {
             oppStrum.y = 50;
-            oppStrum.zIndex = -100;
+            oppStrum.zIndex = KassetteHUDElement.Z_STRUM_BACKGROUNDS;
             var receptors = oppStrum.strumlineNotes.members;
             if (receptors != null) {
                 for (rec in receptors) {
@@ -542,10 +603,27 @@ class KssMiddlescroll extends Module {
             }
         }
 
+        if (cachedOppStrum != null) {
+            cachedOppStrum.alpha = cachedOppOpacity;
+            
+            var currentReceptors = cachedOppStrum.strumlineNotes.members;
+            if (currentReceptors != null) {
+                for (receptor in currentReceptors) {
+                    if (receptor != null) {
+                        if (cachedMode == "Glass") receptor.alpha = 0.7;
+                        else if (cachedMode == "P Style") receptor.alpha = 0.6 * cachedOppOpacity;
+                        else if (cachedMode == "Hidden Notes") receptor.alpha = 0.0;
+                        else receptor.alpha = cachedOppOpacity;
+                    }
+                }
+            }
+        }
+
         if (!isModActive) {
             if (!pHasShifted && myStrum != null && oppStrum != null) {
                 var gSide = "NORMAL";
-                if (apiModule != null && apiModule.gammodPlayerSide != null) gSide = apiModule.gammodPlayerSide;
+                var gammodHunter = KassetteHUDDatahunter.gammod;
+                if (gammodHunter != null && gammodHunter.gammodPlayerSide != null) gSide = gammodHunter.gammodPlayerSide;
 
                 if (gSide == "OPPOSITE") {
                     if (applyArrowLogic && !cachedIsMobPC) {
@@ -571,22 +649,84 @@ class KssMiddlescroll extends Module {
             
             if (applyArrowLogic && !cachedIsMobPC && oppStrum != null) {
                 var gSide = "NORMAL";
-                if (apiModule != null && apiModule.gammodPlayerSide != null) gSide = apiModule.gammodPlayerSide;
+                var gammodHunter = KassetteHUDDatahunter.gammod;
+                if (gammodHunter != null && gammodHunter.gammodPlayerSide != null) gSide = gammodHunter.gammodPlayerSide;
                 
-                var oppRealWidth:Float = oppStrum.width;
-                var oNotes = oppStrum.strumlineNotes.members;
-                if (oNotes != null && oNotes.length > 0 && oNotes[0] != null && oNotes[oNotes.length - 1] != null) {
-                    oppRealWidth = (oNotes[oNotes.length - 1].x + oNotes[oNotes.length - 1].width) - oNotes[0].x;
+                var pLeft:Float = FlxG.width / 2;
+                var pRight:Float = FlxG.width;
+                if (myStrum != null) {
+                    pLeft = myStrum.x;
+                    pRight = myStrum.x + 448;
+                    var pNotes = myStrum.strumlineNotes.members;
+                    if (pNotes != null && pNotes.length > 0 && pNotes[0] != null) {
+                        pLeft = pNotes[0].x;
+                        var lastN = pNotes[pNotes.length - 1];
+                        if (lastN != null) pRight = lastN.x + lastN.width;
+                    }
                 }
-                if (oppRealWidth <= 0) oppRealWidth = 300; 
 
-                var safeLeft:Float = marginLeft;
-                var safeRight:Float = FlxG.width - oppRealWidth - marginRight;
+                var oNotes = oppStrum.strumlineNotes.members;
+                if (oNotes != null && oNotes.length > 0 && oNotes[0] != null) {
+                    var firstN = oNotes[0];
+                    
+                    var baseScale:Float = 0.7; 
+                    var currentScale:Float = oppStrum.strumlineScale.x;
+                    if (currentScale <= 0) currentScale = baseScale;
+                    
+                    var constantSpacing:Float = Strumline.NOTE_SPACING * baseScale; 
+                    
+                    var simulatedWidth:Float = (constantSpacing * (oNotes.length - 1)) + (firstN.frameWidth * baseScale);
+                    
+                    var margin:Float = 10;
+                    var trueAvailable = gSide == "OPPOSITE" ? (FlxG.width - margin) - (pRight + margin) : (pLeft - margin) - margin;
+                    
+                    var scaleMul = 1.0;
+                    if (trueAvailable < simulatedWidth && trueAvailable > 0) {
+                         scaleMul = trueAvailable / simulatedWidth;
+                         if (scaleMul < 0.6) scaleMul = 0.6;
+                    }
+                    
+                    var targetScale = baseScale * scaleMul;
+                    var applySpacing:Float = Strumline.NOTE_SPACING * targetScale;
+                    
+                    if (Math.abs(currentScale - targetScale) > 0.01) {
+                        oppStrum.strumlineScale.set(targetScale, targetScale);
+                    }
+                    
+                    var targetWidth = (applySpacing * (oNotes.length - 1)) + (firstN.frameWidth * targetScale);
+                    
+                    var safeLeft:Float = marginLeft;
+                    var safeRight:Float = FlxG.width - targetWidth - marginRight;
+                    
+                    var targetX:Float = gSide == "OPPOSITE" ? safeRight : safeLeft;
+                    
+                    if (gSide == "OPPOSITE") {
+                        if (targetX < pRight + margin) {
+                            targetX = pRight + margin;
+                            if (targetX + targetWidth > FlxG.width - margin) {
+                                targetX = FlxG.width - margin - targetWidth;
+                                if (targetX < pRight + margin) targetX = pRight + margin;
+                            }
+                        }
+                    } else {
+                        if (targetX + targetWidth > pLeft - margin) {
+                            targetX = pLeft - margin - targetWidth;
+                            if (targetX < margin) {
+                                targetX = margin;
+                                if (targetX + targetWidth > pLeft - margin) {
+                                    targetX = pLeft - margin - targetWidth;
+                                }
+                            }
+                        }
+                    }
 
-                if (gSide == "OPPOSITE") {
-                    oppStrum.x = safeRight;
-                } else {
-                    oppStrum.x = safeLeft;
+                    oppStrum.x = targetX;
+                    
+                    for (i in 0...oNotes.length) {
+                        if (oNotes[i] != null) {
+                            oNotes[i].x = targetX + (applySpacing * i);
+                        }
+                    }
                 }
             }
             
@@ -639,10 +779,6 @@ class KssMiddlescroll extends Module {
                 receptors[1].x = targetLeftX + Strumline.NOTE_SPACING;
                 receptors[3].x = targetRightX;
                 receptors[2].x = targetRightX - Strumline.NOTE_SPACING;
-                
-                for (receptor in receptors) {
-                    if (receptor != null) receptor.alpha = 0.6 * cachedOppOpacity;
-                }
                 hasShifted = true;
             } 
             else if ((cachedMode == "On" || cachedMode == "Like Mobile") && receptors != null && receptors.length > 0) {
@@ -667,19 +803,42 @@ class KssMiddlescroll extends Module {
                         var defaultScale:Float = pixel ? 6.0 : 0.7;
                         receptor.scale.set(defaultScale * sizeRatio, defaultScale * sizeRatio);
                         receptor.updateHitbox();
-                        receptor.alpha = cachedOppOpacity;
                     }
                 }
 
                 var compactStartX:Float = marginLeft;
+                var exactTotalWidth:Float = (targetSpacing * (receptors.length - 1)) + receptors[receptors.length - 1].width;
                 
                 if (cachedMode == "Like Mobile") {
-                    compactStartX = 10 + cachedCutoutSize;
+                    if (cachedOppPos == "Right") {
+                        compactStartX = FlxG.width - (10 + cachedCutoutSize) - exactTotalWidth;
+                    } else {
+                        compactStartX = 10 + cachedCutoutSize;
+                    }
+                } else if (cachedOppPos == "Right") {
+                    compactStartX = FlxG.width - marginRight - exactTotalWidth;
                 }
 
-                if (cachedMode != "Like Mobile" && cachedOppPos == "Right") {
-                    var exactTotalWidth:Float = (targetSpacing * (receptors.length - 1)) + receptors[receptors.length - 1].width;
-                    compactStartX = FlxG.width - marginRight - exactTotalWidth;
+                // Anti-overlap protection for Middlescroll
+                if (myStrum != null) {
+                    var pLeft = myStrum.x;
+                    var pRight = myStrum.x + 448;
+                    var pNotes = myStrum.strumlineNotes.members;
+                    if (pNotes != null && pNotes.length > 0) {
+                        pLeft = pNotes[0].x;
+                        var lastN = pNotes[pNotes.length - 1];
+                        pRight = lastN.x + lastN.width;
+                    }
+                    
+                    if (cachedOppPos != "Right") {
+                        if (compactStartX + exactTotalWidth > pLeft - 10) {
+                            compactStartX = pLeft - exactTotalWidth - 10;
+                        }
+                    } else {
+                        if (compactStartX < pRight + 10) {
+                            compactStartX = pRight + 10;
+                        }
+                    }
                 }
 
                 for (i in 0...receptors.length) {
@@ -694,11 +853,7 @@ class KssMiddlescroll extends Module {
             }
         }
 
-        // Receptors already receive the correct alpha when they are positioned.
-        // This block is kept only to handle the edge case where the strumline is
-        // rebuilt after a song retry without going through onCountdownStart.
-
-        if (cachedOppStrum == null) return;
+        // Receptor opacity moved up above the early return.
 
         splashUpdateTimer += event.elapsed;
         if (splashUpdateTimer >= 0.033) {
@@ -735,11 +890,25 @@ class KssMiddlescroll extends Module {
 
                                     splash.x = targetX;
                                 }
-                            }
                         }
                     }
                 }
             }
+        }
+    }
+    }
+    
+    public var antiCheatTriggered:Bool = false;
+
+    /**
+     * Immediately inflicts misses on all visible, un-hit notes in the player's strumline.
+     * This acts as an anti-cheat measure or fail-state enforcer, rapidly draining health.
+     */
+    public function applyAntiCheatPenalty() {
+        antiCheatTriggered = true;
+        var state = PlayState.instance;
+        if (state != null && state.playerStrumline != null) {
+            state.playerStrumline.visible = false;
         }
     }
 }

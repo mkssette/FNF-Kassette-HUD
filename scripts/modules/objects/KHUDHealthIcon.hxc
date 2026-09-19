@@ -1,0 +1,130 @@
+package kassettehud.objects;
+
+import funkin.play.components.HealthIcon;
+import flixel.math.FlxMath;
+import kassettehud.util.KassetteHUDDatahunter;
+
+/**
+ * KHUDHealthIcon
+ * 
+ * Clase compartida que envuelve un HealthIcon nativo de V-Slice.
+ * Maneja lógicas comunes como actualización de escala y animación (bop).
+ */
+class KHUDHealthIcon extends KHUDObject {
+    public var icon:Dynamic;
+    public var isPlayer:Bool = false;
+    
+    // Scale animation variables (lerp)
+    public var targetScale:Float = 1.0;
+    public var lerpSpeed:Float = 15.0; // matched CleanHealthBar speed (originally it was a custom lerp factor)
+
+    public var skinScale:Float = 1.0;
+
+    // Lógica automática
+    public var autoBop:Bool = false;
+
+    /**
+     * Constructor for the component.
+     * @param options Value for options.
+     */
+    public function new(options:Dynamic = null) {
+        var x:Float = options != null && options.x != null ? options.x : 0;
+        var y:Float = options != null && options.y != null ? options.y : 0;
+        super(x, y);
+        this.objectName = "KHUDHealthIcon";
+
+        var char:String = options != null && options.char != null ? options.char : "face";
+        this.isPlayer = options != null && options.isPlayer != null ? options.isPlayer : false;
+        
+        if (options != null && options.skinScale != null) {
+            this.skinScale = options.skinScale;
+        }
+        
+        this.targetScale = this.skinScale;
+
+        var existingIcon:Dynamic = options != null && options.existingIcon != null ? options.existingIcon : null;
+
+        if (existingIcon != null) {
+            icon = existingIcon;
+        } else {
+            icon = new HealthIcon(char, isPlayer ? 1 : 0);
+            
+            // V-Slice HealthIcon won't load the graphic until configure is called
+            icon.configure({id: char, isPixel: false, shouldBop: true, scale: 1.0, flipX: false, offsets: [0, 0]});
+        }
+    }
+
+    /**
+     * Bop! Llamar en cada beat para que el ícono brinque.
+     */
+    public function bop(scaleAmount:Float = 1.2) {
+        if (icon == null) return;
+        icon.scale.set(targetScale * scaleAmount, targetScale * scaleAmount);
+    }
+    
+    /**
+     * Lógica automática de bopping en partida
+     */
+    public function onStepHit(step:Int) {
+        if (!autoBop || icon == null) return;
+        
+        var iconHunter = KassetteHUDDatahunter.icon;
+        var bopInterval = 4;
+        
+        if (iconHunter != null) {
+            bopInterval = isPlayer ? iconHunter.cachedP1Bop : iconHunter.cachedP2Bop;
+            targetScale = (isPlayer ? iconHunter.cachedP1Scale : iconHunter.cachedP2Scale) * skinScale;
+        }
+
+        if (bopInterval > 0 && step % bopInterval == 0) {
+            bop(1.2);
+        }
+    }
+
+    /**
+     * Actualiza la escala del ícono suavizándola hacia targetScale.
+     */
+    override public function updateObject(elapsed:Float) {
+        if (icon != null) {
+            if (autoBop) {
+                // In-game mode: cancel native tween in case it restarts
+                icon.shouldBop = false;
+                icon.bopTween?.cancel();
+                icon.bopTween = null;
+                
+                // Emulate linear lerp of KassetteHUD
+                var lerpFactor = 1.0 - (elapsed * lerpSpeed);
+                if (lerpFactor < 0) lerpFactor = 0;
+                
+                icon.scale.x = targetScale + ((icon.scale.x - targetScale) * lerpFactor);
+                icon.scale.y = targetScale + ((icon.scale.y - targetScale) * lerpFactor);
+            } else {
+                // Preview mode: exponential lerp
+                var mult:Float = FlxMath.lerp(targetScale, icon.scale.x, Math.exp(-elapsed * 9 * 0.15));
+                icon.scale.set(mult, mult);
+            }
+        }
+    }
+
+    /**
+     * Actualiza la animación de perder o ganar según la vida (0.0 a 2.0).
+     */
+    public function updateHealthAnim(health:Float) {
+        if (icon == null) return;
+        
+        if (health < 0.4) {
+            icon.animation.play(isPlayer ? 'losing' : 'winning');
+        } else if (health > 1.6) {
+            icon.animation.play(isPlayer ? 'winning' : 'losing');
+        } else {
+            icon.animation.play('idle');
+        }
+    }
+
+    /**
+     * Executes the destroy logic.
+     */
+    override public function destroy() {
+        if (icon != null) icon.destroy();
+    }
+}

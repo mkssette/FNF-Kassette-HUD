@@ -25,7 +25,7 @@ package kassettehud.util;
  *   - KssetteApi.getDownscroll() - determines health bar Y for "In Health" mode
  */
 
-import funkin.modding.module.Module;
+import funkin.modding.module.ModuleHandler;
 import funkin.modding.module.ModuleHandler;
 import funkin.play.PlayState;
 import flixel.FlxG;
@@ -33,12 +33,15 @@ import flixel.FlxSprite;
 import flixel.FlxCamera;
 import Std;
 
-import funkin.Preferences;
+import flixel.util.FlxStringUtil;
 import funkin.modding.events.SubStateScriptEvent;
 import funkin.play.PauseSubState;
 import funkin.ui.FullScreenScaleMode;
+import kassettehud.util.KassetteHUDElement;
+import kassettehud.util.KssetteOptionsManager;
+import kassettehud.util.KassetteHUDDatahunter;
 
-class KssetteTimeBar extends Module {
+class KssetteTimeBar extends KassetteHUDElement {
     /** The colored foreground bar representing song progress. */
     public var timeBar:FlxSprite;
     /** The dark background behind the foreground bar. */
@@ -50,24 +53,29 @@ class KssetteTimeBar extends Module {
     /** Current position setting string (e.g., "Top", "Bottom Left"). */
     var timeBarPos:String = "Bottom";
     /** Cached reference to the KssetteApi module. */
-    var apiModule:Dynamic = null;
+    var songHunter:Dynamic = null;
+    var optManager:Dynamic = null;    /** Reference to PlayState for song position queries. */
 
-    /** Reference to PlayState for song position queries. */
-    var playState:PlayState = null;
     /** Total song duration in milliseconds; used to calculate progress ratio. */
     var songLengthMs:Float = 0.0;
     /** Timer to throttle bar updates to ~120fps instead of every frame. */
     var updateTimer:Float = 0.0;
-    /** Dedicated camera for edge mode bars (renders above all HUD layers). */
     var customCam:FlxCamera = null;
 
+    var _lastHbY:Float = -1;
+    var _lastHbX:Float = -1;
+
     /** Set to true during the options menu preview to use a custom camera instead of camHUD. */
-    public var isPreview:Bool = false;
+
     /** Camera for rendering in preview mode. */
     public var previewCam:FlxCamera = null;
 
+    /**
+     * Constructor for the component.
+     */
     public function new() {
         super("KssetteTimeBar");
+        this.name = "KssetteTimeBar";
     }
 
     /**
@@ -80,7 +88,14 @@ class KssetteTimeBar extends Module {
         return s == "On" || s == "on" || s == "true";
     }
 
-    /** Returns the HUD camera from the given PlayState instance. */
+    /**
+     * Retrieves the standard HUD camera from the current PlayState.
+     * This is used as the default render target for the time bar unless it's configured
+     * to run in an edge layout (Top/Bottom/Vertical) which requires a custom camera.
+     * 
+     * @param state The active PlayState instance.
+     * @return The `camHUD` camera of the given state.
+     */
     function hudCamera(state:PlayState):FlxCamera {
         return state.camHUD;
     }
@@ -99,9 +114,7 @@ class KssetteTimeBar extends Module {
         bar.origin.set(0, 0);
         bar.scrollFactor.set(0, 0);
         bar.zIndex = z;
-        bar.cameras = [cam];
-        if (PlayState.instance != null && !isPreview) PlayState.instance.add(bar);
-        else FlxG.state.add(bar);
+        safeAdd(bar, cam);
         return bar;
     }
 
@@ -110,19 +123,10 @@ class KssetteTimeBar extends Module {
      * Called before rebuilding the UI (e.g., at song start or when changing position).
      */
     public function cleanupUI() {
-        playState = null;
         songLengthMs = 0.0;
         updateTimer = 0.0;
-        if (timeBar != null) {
-            if (PlayState.instance != null && !isPreview) PlayState.instance.remove(timeBar, true);
-            FlxG.state.remove(timeBar, true);
-            timeBar.destroy();
-        }
-        if (timeBarBG != null) {
-            if (PlayState.instance != null && !isPreview) PlayState.instance.remove(timeBarBG, true);
-            FlxG.state.remove(timeBarBG, true);
-            timeBarBG.destroy();
-        }
+        safeDestroy(timeBar);
+        safeDestroy(timeBarBG);
         if (customCam != null) {
             FlxG.cameras.remove(customCam);
             customCam.destroy();
@@ -154,10 +158,18 @@ class KssetteTimeBar extends Module {
             targetCam = customCam;
         }
 
-        var zIdx:Int = isBorder ? 1018 : (timeBarPos == "In Health" ? 109 : 15);
+        var bgZ = KassetteHUDElement.Z_HUD_BASE;
+        var barZ = KassetteHUDElement.Z_HUD_MID;
+        if (timeBarPos == "In Health") {
+            bgZ = KassetteHUDElement.Z_HEALTH_BAR_ICON - 2;
+            barZ = KassetteHUDElement.Z_HEALTH_BAR_ICON - 1;
+        } else if (isBorder) {
+            bgZ = 1018;
+            barZ = 1019;
+        }
 
-        timeBarBG = makeBar(0, Std.int(barSize + 4), 0xFF000000, zIdx, targetCam);
-        timeBar = makeBar(2, Std.int(barSize), 0xFFFFFFFF, zIdx + 1, targetCam);
+        timeBarBG = makeBar(0, Std.int(barSize + 4), 0xFF000000, bgZ, targetCam);
+        timeBar = makeBar(2, Std.int(barSize), 0xFFFFFFFF, barZ, targetCam);
         FlxG.state.refresh();
     }
 
@@ -192,8 +204,8 @@ class KssetteTimeBar extends Module {
         var paddingY:Float = 20;
 
         var cutoutSize:Float = 0.0;
-        var isMob:Bool = FlxG.onMobile;
-        if (apiModule != null && apiModule.isMobileMode == true) isMob = true;
+        var isMob:Bool = this.isMobile;
+        var showTimeBar = getSettingBool("kssette_show_timebar");
 
         if (isMob) {
             cutoutSize = FullScreenScaleMode.gameNotchSize.x;
@@ -219,15 +231,32 @@ class KssetteTimeBar extends Module {
             case "Vertical Right":
                 cachedX = FlxG.width - currentBgW - paddingX - cutoutSize; cachedY = 0;
             case "In Health":
-                var hbX:Float = (FlxG.width - currentBgW) / 2;
-                var downscrollValue:Bool = Preferences.downscroll;
-                if (apiModule != null && apiModule.getDownscroll != null) downscrollValue = apiModule.getDownscroll();
+                var bgW = 601; // Default healthbar width
+                var hbX:Float = (FlxG.width - bgW) / 2;
+                var state = PlayState.instance;
+
+                if (state != null && state.healthBarBG != null) {
+                    // Use X already corrected by KssetteHealthBar (includes middlescroll padding)
+                    hbX = state.healthBarBG.x;
+                    bgW = Std.int(state.healthBarBG.width);
+                } else {
+                    var hbPosPref = getSettingString("kssette_healthbar_position", "Center");
+                    if (hbPosPref == "Left") {
+                        hbX = 90;
+                    } else if (hbPosPref == "Right") {
+                        hbX = FlxG.width - bgW - 90;
+                    }
+                }
+
+                // Center the timebar within the healthbar
+                hbX += (bgW - currentBgW) / 2;
+
+                var downscrollValue = isDownscroll();
                 var hbY:Float = downscrollValue ? FlxG.height * 0.11 : FlxG.height * 0.89;
                 var hbH:Float = 19;
-                if (playState != null && playState.healthBarBG != null) {
-                    hbX = playState.healthBarBG.x + (playState.healthBarBG.width - currentBgW) / 2;
-                    hbY = playState.healthBarBG.y;
-                    hbH = playState.healthBarBG.height;
+                if (state != null && state.healthBarBG != null) {
+                    hbY = state.healthBarBG.y;
+                    hbH = state.healthBarBG.height;
                 }
                 cachedX = hbX;
                 cachedY = downscrollValue ? hbY + hbH : hbY - currentBgH;
@@ -270,11 +299,8 @@ class KssetteTimeBar extends Module {
     public function updatePreview() {
         if (!isPreview) return;
 
-        apiModule = ModuleHandler.getModule("KssetteApi");
-        if (apiModule != null) {
-            cachedActive = isOn(apiModule.getKssValue("kssette_show_timebar"));
-            timeBarPos = Std.string(apiModule.getKssValue("kssette_timebar_pos"));
-        }
+        cachedActive = isOn(getSetting("kssette_show_timebar"));
+        timeBarPos = Std.string(getSetting("kssette_timebar_pos"));
 
         updatePositions();
 
@@ -300,22 +326,16 @@ class KssetteTimeBar extends Module {
         super.onCountdownStart(event);
         isPreview = false;
 
-        apiModule = ModuleHandler.getModule("KssetteApi");
-        if (apiModule == null) return;
-        
-        apiModule.registerModule("KssetteTimeBar", this);
-        cachedActive = isOn(apiModule?.getKssValue("kssette_show_timebar"));
-        timeBarPos = Std.string(apiModule?.getKssValue("kssette_timebar_pos"));
+        cachedActive = isOn(getSetting("kssette_show_timebar"));
+        timeBarPos = Std.string(getSetting("kssette_timebar_pos"));
 
         trace("[KssetteTimeBar] onCountdownStart - active=" + cachedActive + " pos=" + timeBarPos);
 
         var state = PlayState.instance;
-        playState = null;
         songLengthMs = 0.0;
         updateTimer = 0.0;
         if (state != null && state.camHUD != null) {
             setupUI(hudCamera(state));
-            playState = state;
             songLengthMs = state.currentSongLengthMs;
             updatePositions();
 
@@ -345,7 +365,13 @@ class KssetteTimeBar extends Module {
         }
     }
 
-    /** Restores bar visibility when the pause substate closes (only in edge mode). */
+    /**
+     * Restores the visibility of the time bar when the pause menu closes.
+     * This is necessary because edge-layout time bars use a dedicated camera that isn't
+     * automatically managed by the pause substate's hiding logic.
+     * 
+     * @param event The script event indicating a substate closed.
+     */
     override public function onSubStateCloseEnd(event:SubStateScriptEvent) {
         super.onSubStateCloseEnd(event);
         if (event.targetState != null && Std.isOfType(event.targetState, PauseSubState)) {
@@ -364,34 +390,61 @@ class KssetteTimeBar extends Module {
      * Throttled to ~120Hz (0.008s) to prevent sprite regeneration every frame.
      * Also mirrors camHUD's visibility to the dedicated edge camera.
      */
-    override public function onUpdate(event) {
+    override public function onUpdate(event:Dynamic) {
+        var elapsed:Float = (Std.isOfType(event, Float)) ? event : (event != null ? event.elapsed : 0);
         if (isPreview) return;
 
-        // Refleja la visibilidad de la cámara del HUD en la cámara de borde.
-        if (customCam != null && playState?.camHUD != null) {
-            if (customCam.visible != playState.camHUD.visible) customCam.visible = playState.camHUD.visible;
-            if (customCam.alpha   != playState.camHUD.alpha)   customCam.alpha   = playState.camHUD.alpha;
+        var state = PlayState.instance;
+        if (state != null && state.healthBarBG != null) {
+            var hbY = state.healthBarBG.y;
+            var hbX = state.healthBarBG.x;
+            if (hbY != _lastHbY || hbX != _lastHbX) {
+                _lastHbY = hbY;
+                _lastHbX = hbX;
+                updatePositions();
+            }
+        }
+        if (customCam != null && state?.camHUD != null) {
+            if (customCam.visible != state.camHUD.visible) customCam.visible = state.camHUD.visible;
+            if (customCam.alpha   != state.camHUD.alpha)   customCam.alpha   = state.camHUD.alpha;
         }
 
-        if (!cachedActive || timeBar == null || !timeBar.exists || playState == null || playState.conductorInUse == null) return;
+        if (!cachedActive || timeBar == null || !timeBar.exists || state == null || state.conductorInUse == null) return;
 
-        // Intenta leer la duración de la canción si no estaba disponible al inicio de la cuenta atrás.
-        if (songLengthMs <= 0) {
-            songLengthMs = playState.currentSongLengthMs;
-            if (songLengthMs <= 0) return;
-        }
+        // Try to read the song duration if it was not available at the start of the countdown.
+        if (songLengthMs <= 0.0) {
+            songLengthMs = state.currentSongLengthMs ?? 0;
+            if (songLengthMs <= 0 && FlxG.sound.music != null) songLengthMs = FlxG.sound.music.length;
+        }    
+        if (songLengthMs <= 0) return;
 
-        updateTimer += event.elapsed;
+        updateTimer += elapsed;
         if (updateTimer < 0.008) return;
         updateTimer = 0.0;
-
-        var progress:Float = playState.conductorInUse.songPosition / songLengthMs;
+        
+        if (songLengthMs <= 0.0) return;
+        var progress:Float = state.conductorInUse.songPosition / songLengthMs;
         if (progress < 0) progress = 0;
         else if (progress > 1) progress = 1;
 
-        // Aplica el progreso al eje apropiado según la orientación.
+        // Apply progress to the appropriate axis based on orientation.
         var isVertical:Bool = (timeBarPos == "Vertical Left" || timeBarPos == "Vertical Right");
         if (isVertical) { timeBar.scale.y = progress; timeBar.scale.x = 1.0; }
         else            { timeBar.scale.x = progress; timeBar.scale.y = 1.0; }
+    }
+    
+    /**
+     * Safely cleans up the KssetteTimeBar.
+     * Destroys the foreground and background sprites to prevent memory leaks 
+     * when the modifier is unregistered or the game state switches.
+     */
+    override public function destroy() {
+        if (timeBar != null) timeBar.destroy();
+        if (timeBarBG != null) timeBarBG.destroy();
+        
+        timeBar = null;
+        timeBarBG = null;
+
+        super.destroy();
     }
 }

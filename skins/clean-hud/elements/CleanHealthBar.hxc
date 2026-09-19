@@ -1,0 +1,533 @@
+package kassettehud.util;
+
+import funkin.play.PlayState;
+import flixel.FlxG;
+import flixel.FlxSprite;
+import flixel.FlxCamera;
+import funkin.Paths;
+import kassettehud.util.KassetteHUDElement;
+import kassettehud.util.KssetteOptionsManager;
+import kassettehud.util.KassetteHUDDatahunter;
+import flixel.tweens.FlxTween;
+import flixel.tweens.FlxEase;
+import funkin.Conductor;
+import flixel.util.FlxColor;
+import Std;
+import Math;
+import kassettehud.objects.KHUDHealthIcon;
+
+class CleanHealthBar extends KassetteHUDElement {
+	var previewHealthBarBG:FlxSprite;
+	var previewHealthBarFillP1:FlxSprite;
+	var previewHealthBarFillP2:FlxSprite;
+	var previewIconP1Obj:KHUDHealthIcon;
+	var previewIconP2Obj:KHUDHealthIcon;
+	var gameIconP1Obj:KHUDHealthIcon;
+	var gameIconP2Obj:KHUDHealthIcon;
+	var previewCam:FlxCamera;
+	var previewBopTimer:Float = 0;
+	var _lastPreviewBeat:Int = -1;
+
+	var iconHunter:Dynamic;
+	var _lastP1Id:String = "";
+	var _lastP2Id:String = "";
+	var _p1Color:FlxColor = 0xFF66FF33;
+	var _p2Color:FlxColor = 0xFFFF0000;
+
+	public function new() {
+		super("CleanHealthBar");
+		this.name = "CleanHealthBar";
+	}
+
+	override public function buildPreview(cam:FlxCamera) {
+		isPreview = true;
+		previewCam = cam;
+		if (iconHunter == null)
+			iconHunter = KassetteHUDDatahunter.icon;
+
+		var barShrinkRatio = 0.266;
+
+		previewHealthBarBG = new FlxSprite(0, FlxG.height * 0.89);
+		var bgGraphic = Paths.image('healthBar');
+		if (bgGraphic != null) {
+			previewHealthBarBG.loadGraphic(bgGraphic);
+		} else {
+			previewHealthBarBG.makeGraphic(601, 19, FlxColor.BLACK);
+		}
+		previewHealthBarBG.setGraphicSize(Std.int(previewHealthBarBG.frameWidth * barShrinkRatio), Std.int(previewHealthBarBG.frameHeight));
+		previewHealthBarBG.updateHitbox();
+		previewHealthBarBG.screenCenter(0x01);
+		previewHealthBarBG.scrollFactor.set(0, 0);
+		safeAdd(previewHealthBarBG, cam);
+
+		var fw = Std.int((previewHealthBarBG.width - 8) / 2);
+		var fh = Std.int(previewHealthBarBG.height - 8);
+
+		previewHealthBarFillP2 = new FlxSprite(previewHealthBarBG.x + 4, previewHealthBarBG.y + 4).makeGraphic(fw, fh, 0xFFFFFFFF);
+		previewHealthBarFillP2.color = _p2Color;
+		previewHealthBarFillP2.scrollFactor.set(0, 0);
+		safeAdd(previewHealthBarFillP2, cam);
+
+		previewHealthBarFillP1 = new FlxSprite(previewHealthBarBG.x + 4 + fw, previewHealthBarBG.y + 4).makeGraphic(fw, fh, 0xFFFFFFFF);
+		previewHealthBarFillP1.color = _p1Color;
+		previewHealthBarFillP1.scrollFactor.set(0, 0);
+		safeAdd(previewHealthBarFillP1, cam);
+
+		previewIconP1Obj = new KHUDHealthIcon({ char: "bf", isPlayer: true, skinScale: 0.7 });
+		previewIconP1Obj.icon.scale.set(0.7, 0.7);
+		previewIconP1Obj.icon.updateHitbox();
+		previewIconP1Obj.icon.flipX = true;
+		previewIconP1Obj.icon.scrollFactor.set(0, 0);
+		safeAdd(previewIconP1Obj.icon, cam);
+
+		previewIconP2Obj = new KHUDHealthIcon({ char: "dad", isPlayer: false, skinScale: 0.7 });
+		previewIconP2Obj.icon.scale.set(0.7, 0.7);
+		previewIconP2Obj.icon.updateHitbox();
+		previewIconP2Obj.icon.scrollFactor.set(0, 0);
+		safeAdd(previewIconP2Obj.icon, cam);
+
+		previewHealthBarBG.zIndex = KassetteHUDElement.Z_HEALTH_BAR_BG;
+		previewHealthBarFillP2.zIndex = KassetteHUDElement.Z_HEALTH_BAR_FILL;
+		previewHealthBarFillP1.zIndex = KassetteHUDElement.Z_HEALTH_BAR_FILL;
+		previewIconP1Obj.icon.zIndex = KassetteHUDElement.Z_HEALTH_BAR_ICON;
+		previewIconP2Obj.icon.zIndex = KassetteHUDElement.Z_HEALTH_BAR_ICON;
+	}
+
+	var _cPosPref:String = "Center";
+	var _cColored:Bool = true;
+	var _cIsCorners:Bool = false;
+	var _cHudVisible:Bool = true;
+	var _cDownscroll:Bool = false;
+
+	var _overlapTimer:Float = 0.0;
+	var _cachedOverlap:Bool = false;
+
+	// Opposite logic moved to GammodDatahunter check in onUpdate
+	var _lastOpposite:Bool = false;
+
+	function updateSettings() {
+		_cPosPref = getSettingString("kssette_healthbar_position", "Center");
+		_cColored = getSettingBool("kssette_colored_healthbar");
+		_cIsCorners = getSettingString("kssette_icon_behavior", "Bop (Vanilla)") == "Corners";
+		_cHudVisible = isHudVisible();
+		_cDownscroll = isDownscroll();
+	}
+
+	override public function updatePreview() {
+		updateSettings();
+		onUpdate(0);
+	}
+
+	override function onCountdownStart(event:Dynamic) {
+		isPreview = false;
+		updateSettings();
+		var state = PlayState.instance;
+		if (state == null)
+			return;
+		if (iconHunter == null)
+			iconHunter = KassetteHUDDatahunter.icon;
+
+		if (state.healthBarBG != null) {
+			state.healthBarBG.zIndex = KassetteHUDElement.Z_HEALTH_BAR_BG;
+			state.remove(state.healthBarBG, true);
+			state.add(state.healthBarBG);
+		}
+		if (state.healthBar != null) {
+			state.healthBar.zIndex = KassetteHUDElement.Z_HEALTH_BAR_FILL;
+			state.remove(state.healthBar, true);
+			state.add(state.healthBar);
+		}
+
+		_lastP1Id = "";
+		_lastP2Id = "";
+		if (state.iconP1 != null) {
+			state.iconP1.zIndex = KassetteHUDElement.Z_HEALTH_BAR_ICON;
+			state.remove(state.iconP1, true);
+			state.add(state.iconP1);
+            
+            gameIconP1Obj = new KHUDHealthIcon({ existingIcon: state.iconP1, isPlayer: true, skinScale: 0.7 });
+            gameIconP1Obj.autoBop = true;
+		}
+		if (state.iconP2 != null) {
+			state.iconP2.zIndex = KassetteHUDElement.Z_HEALTH_BAR_ICON;
+			state.remove(state.iconP2, true);
+			state.add(state.iconP2);
+            
+            gameIconP2Obj = new KHUDHealthIcon({ existingIcon: state.iconP2, isPlayer: false, skinScale: 0.7 });
+            gameIconP2Obj.autoBop = true;
+		}
+	}
+
+	override function onUpdate(event:Dynamic) {
+		updateSettings();
+		var elapsed:Float = (Std.isOfType(event, Float)) ? event : (event != null ? event.elapsed : 0);
+		var state = PlayState.instance;
+		if (isPreview) {
+			if (previewHealthBarBG == null || !previewHealthBarBG.exists)
+				return;
+			var cachedActive = isHudVisible();
+			previewHealthBarBG.visible = cachedActive;
+			if (previewHealthBarFillP1 != null)
+				previewHealthBarFillP1.visible = cachedActive;
+			if (previewHealthBarFillP2 != null)
+				previewHealthBarFillP2.visible = cachedActive;
+			if (previewIconP1Obj != null) {
+				previewIconP1Obj.visible = cachedActive;
+				previewIconP1Obj.updateObject(elapsed);
+			}
+			if (previewIconP2Obj != null) {
+				previewIconP2Obj.visible = cachedActive;
+				previewIconP2Obj.updateObject(elapsed);
+			}
+
+			var downscroll = isDownscroll();
+
+			var atTop = downscroll;
+
+			var hbY = atTop ? FlxG.height * 0.11 : FlxG.height * 0.89;
+			previewHealthBarBG.y = hbY;
+			if (previewHealthBarFillP1 != null)
+				previewHealthBarFillP1.y = hbY + 2;
+			if (previewHealthBarFillP2 != null)
+				previewHealthBarFillP2.y = hbY + 2;
+
+			var isMobileLayout = false;
+			if (KssetteOptionsManager.instance != null) {
+				if (!KssetteOptionsManager.instance.isMobileLikePC()) {
+					isMobileLayout = true;
+				} else if (KssetteOptionsManager.instance.getKssValue("kssette_middlescroll") == "Like Mobile") {
+					isMobileLayout = true;
+				}
+			}
+
+			var posPref = _cPosPref;
+			var mobPadding = isMobileLayout ? 300 : 90;
+
+			if (posPref == "Left") {
+				previewHealthBarBG.x = mobPadding;
+			} else if (posPref == "Right") {
+				previewHealthBarBG.x = FlxG.width - previewHealthBarBG.width - mobPadding;
+			} else {
+				previewHealthBarBG.screenCenter(0x01);
+			}
+
+			var fw = Std.int((previewHealthBarBG.width - 8) / 2);
+			if (previewHealthBarFillP1 != null)
+				previewHealthBarFillP1.x = previewHealthBarBG.x + 4 + fw;
+			if (previewHealthBarFillP2 != null)
+				previewHealthBarFillP2.x = previewHealthBarBG.x + 4;
+
+			var coloredHB = _cColored;
+			if (coloredHB) {
+				_p1Color = 0xFF31B0D1;
+				_p2Color = 0xFFAF66CE;
+			} else {
+				_p1Color = 0xFF66FF33;
+				_p2Color = 0xFFFF0000;
+			}
+			var p1Scale = 0.55;
+			var p2Scale = 0.55;
+
+			var previewOpposite = false;
+			var gammodHunter = KassetteHUDDatahunter.gammod;
+			if (gammodHunter != null && gammodHunter.gammodPlayerSide == "OPPOSITE")
+				previewOpposite = true;
+
+			if (previewOpposite) {
+				if (previewHealthBarFillP1 != null)
+					previewHealthBarFillP1.color = _p2Color;
+				if (previewHealthBarFillP2 != null)
+					previewHealthBarFillP2.color = _p1Color;
+			} else {
+				if (previewHealthBarFillP1 != null)
+					previewHealthBarFillP1.color = _p1Color;
+				if (previewHealthBarFillP2 != null)
+					previewHealthBarFillP2.color = _p2Color;
+			}
+
+			var centerY = previewHealthBarBG.y + (previewHealthBarBG.height / 2);
+
+			if (previewIconP1Obj != null && previewIconP2Obj != null) {
+				previewBopTimer += elapsed;
+
+				var beatSeconds = 60.0 / 102.0;
+				if (Conductor.instance != null && Conductor.instance.crochet > 0) {
+					beatSeconds = Conductor.instance.crochet / 1000.0;
+				}
+
+				var currentBeat = Math.floor(previewBopTimer / (beatSeconds * 2.0));
+
+				if (currentBeat != _lastPreviewBeat) {
+					_lastPreviewBeat = currentBeat;
+					previewIconP1Obj.bop(1.05);
+					previewIconP2Obj.bop(1.05);
+				}
+				
+				previewIconP1Obj.targetScale = 0.7;
+				previewIconP2Obj.targetScale = 0.7;
+				
+				var iconSize = 150.0; // Base icon size in V-Slice
+				var scaledSize = iconSize * 0.7;
+
+				previewIconP1Obj.icon.x = previewHealthBarBG.x + previewHealthBarBG.width - (scaledSize / 2);
+				previewIconP1Obj.icon.flipX = true;
+				previewIconP1Obj.icon.y = centerY - (scaledSize / 2);
+
+				previewIconP2Obj.icon.x = previewHealthBarBG.x - (scaledSize / 2);
+				previewIconP2Obj.icon.flipX = false;
+				previewIconP2Obj.icon.y = centerY - (scaledSize / 2);
+			}
+			return;
+		}
+
+		if (state == null || state.healthBarBG == null || state.healthBar == null)
+			return;
+
+		var cachedActive = isHudVisible();
+		state.healthBarBG.visible = cachedActive;
+		state.healthBar.visible = cachedActive;
+		if (state.iconP1 != null)
+			state.iconP1.visible = cachedActive;
+		if (state.iconP2 != null)
+			state.iconP2.visible = cachedActive;
+
+		var barShrinkRatio = 0.266;
+		var barX = 0.0;
+		var barY = 0.0;
+
+		if (state.healthBarBG != null) {
+			if (state.healthBarBG.scale.x != barShrinkRatio) {
+				state.healthBarBG.scale.x = barShrinkRatio;
+				state.healthBarBG.updateHitbox();
+			}
+
+			var isMobileLayout = false;
+			if (KssetteOptionsManager.instance != null) {
+				if (!KssetteOptionsManager.instance.isMobileLikePC()) {
+					isMobileLayout = true;
+				} else if (KssetteOptionsManager.instance.getKssValue("kssette_middlescroll") == "Like Mobile") {
+					isMobileLayout = true;
+				}
+			}
+
+			var posPref = _cPosPref;
+			var mobPaddingLeft = isMobileLayout ? 180.0 : 90.0;
+			var mobPaddingRight = isMobileLayout ? 180.0 : 90.0;
+
+			if (isMobileLayout && state != null && state.opponentStrumline != null && state.opponentStrumline.strumlineNotes != null) {
+				var maxOppX = 90.0;
+				for (strum in state.opponentStrumline.strumlineNotes.members) {
+					if (strum != null && strum.exists && strum.visible) {
+						var edge = strum.x + strum.width;
+						if (edge > maxOppX)
+							maxOppX = edge;
+					}
+				}
+				if (maxOppX > 90.0)
+					mobPaddingLeft = maxOppX + 30; // Dynamic padding from rightmost receptor
+			}
+
+			if (posPref == "Left") {
+				state.healthBarBG.x = mobPaddingLeft;
+			} else if (posPref == "Right") {
+				state.healthBarBG.x = FlxG.width - state.healthBarBG.width - mobPaddingRight;
+			} else {
+				state.healthBarBG.screenCenter(0x01);
+			}
+
+			var downscroll = isDownscroll();
+
+			var hbY = downscroll ? FlxG.height * 0.11 : FlxG.height * 0.89;
+
+			state.healthBarBG.y = hbY;
+			state.healthBarBG.zIndex = KassetteHUDElement.Z_HEALTH_BAR_BG;
+			barX = state.healthBarBG.x;
+			barY = state.healthBarBG.y;
+		}
+
+		if (state.healthBar != null) {
+			if (state.healthBar.scale.x != barShrinkRatio) {
+				state.healthBar.scale.x = barShrinkRatio;
+				state.healthBar.updateHitbox();
+			}
+			state.healthBar.x = barX;
+			state.healthBar.y = barY + ((state.healthBarBG.height - state.healthBar.height) / 2);
+			state.healthBar.zIndex = KassetteHUDElement.Z_HUD_MID;
+
+			if (state.currentStage != null) {
+				var dadObj = state.currentStage.getDad();
+				var p1 = state.iconP1;
+				var p2 = state.iconP2;
+				var curP1:String = "none1";
+				var curP2:String = "none2";
+
+				var id1 = p1 != null ? p1.characterId : null;
+				if (id1 == null && p1 != null)
+					id1 = p1.iconId;
+				if (id1 != null)
+					curP1 = Std.string(id1);
+
+				var id2 = p2 != null ? p2.characterId : null;
+				if (id2 == null && p2 != null)
+					id2 = p2.iconId;
+				if (id2 != null)
+					curP2 = Std.string(id2);
+
+				var isCurrentSolo:Bool = false;
+				if (KassetteHUDDatahunter.song != null) {
+					isCurrentSolo = KassetteHUDDatahunter.song.isSoloMode();
+				}
+				
+				state.healthBar.flipX = isCurrentSolo;
+			}
+		}
+
+		var p1 = state.iconP1;
+		var p2 = state.iconP2;
+		var curP1:String = "none1";
+		var curP2:String = "none2";
+
+		var id1 = p1 != null ? p1.characterId : null;
+		if (id1 == null && p1 != null)
+			id1 = p1.iconId;
+		if (id1 != null)
+			curP1 = Std.string(id1);
+
+		var id2 = p2 != null ? p2.characterId : null;
+		if (id2 == null && p2 != null)
+			id2 = p2.iconId;
+		if (id2 != null)
+			curP2 = Std.string(id2);
+
+		var isSolo:Bool = false;
+		if (KassetteHUDDatahunter.song != null) {
+			isSolo = KassetteHUDDatahunter.song.isSoloMode();
+		}
+
+		var centerY = barY + (state.healthBarBG.height / 2);
+
+		if (state.iconP1 != null) {
+			state.iconP1.autoUpdate = false;
+			if (state.iconP2 != null)
+				state.iconP2.autoUpdate = false;
+
+            if (gameIconP1Obj != null) gameIconP1Obj.updateObject(elapsed);
+            if (gameIconP2Obj != null) gameIconP2Obj.updateObject(elapsed);
+
+			var gammodPlayerSide = KassetteHUDDatahunter.gammod != null ? KassetteHUDDatahunter.gammod.gammodPlayerSide : "NORMAL";
+			var hp1 = state.health;
+			var hp2 = 2.0 - state.health;
+
+			if (gammodPlayerSide == "OPPOSITE") {
+				hp1 = 2.0 - state.health;
+				hp2 = state.health;
+			}
+
+			state.iconP1.updateHealthIcon(hp1);
+			if (state.iconP2 != null)
+				state.iconP2.updateHealthIcon(hp2);
+
+			// Removed updateHitbox() calls to prevent jittering / teleporting
+
+			if (isSolo) {
+				state.iconP1.x = barX - (state.iconP1.width / 2);
+				state.iconP1.flipX = false;
+			} else {
+				state.iconP1.x = barX + state.healthBarBG.width - (state.iconP1.width / 2);
+				state.iconP1.flipX = true;
+			}
+			state.iconP1.y = centerY - (state.iconP1.height / 2);
+			state.iconP1.zIndex = 1501;
+
+			if (isSolo && hp1 < 0.4) {
+				var curAnim = state.iconP1.animation.curAnim;
+				if (curAnim != null)
+					curAnim.curFrame = 1;
+			}
+		}
+
+		if (state.iconP2 != null && !isSolo) {
+			state.iconP2.x = barX - (state.iconP2.width / 2);
+			state.iconP2.y = centerY - (state.iconP2.height / 2);
+			state.iconP2.zIndex = 1501;
+		} else if (state.iconP2 != null) {
+			state.iconP2.visible = false;
+		}
+
+		// Anti-Overlap System
+		if (cachedActive) {
+			_overlapTimer += FlxG.elapsed;
+			if (_overlapTimer >= 0.1) {
+				_overlapTimer = 0.0;
+				var checkOverlap = false;
+				var hb = state.healthBarBG;
+				if (hb != null) {
+					var hbX = hb.x;
+					var hbY = hb.y;
+					var hbR = hbX + hb.width;
+					var hbB = hbY + hb.height;
+					
+					// Check Strumlines
+					if (state != null && state.strumLineNotes != null) {
+						for (strum in state.strumLineNotes.members) {
+							if (strum != null && strum.exists && strum.visible) {
+								if (strum.x < hbR && strum.x + strum.width > hbX && strum.y < hbB && strum.y + strum.height > hbY) {
+									checkOverlap = true;
+									break;
+								}
+							}
+						}
+					}
+					// Check Notes removed for performance (HScript iteration over thousands of notes causes lag spikes)
+				}
+				_cachedOverlap = checkOverlap;
+			}
+		}
+
+		var targetAlpha = _cachedOverlap ? 0.35 : 1.0;
+		if (state.healthBarBG != null) state.healthBarBG.alpha = targetAlpha;
+		if (state.healthBar != null) state.healthBar.alpha = targetAlpha;
+		if (state.iconP1 != null)
+			state.iconP1.alpha = targetAlpha;
+		if (state.iconP2 != null)
+			state.iconP2.alpha = targetAlpha;
+
+
+
+		var coloredHB = _cColored;
+		if (coloredHB) {
+			if (state.iconP1 != null && state.iconP2 != null && state.healthBar != null) {
+				var curP1 = state.iconP1.characterId != null ? Std.string(state.iconP1.characterId) : (state.SONG != null ? state.SONG.characters.player : "");
+				var curP2 = state.iconP2.characterId != null ? Std.string(state.iconP2.characterId) : (state.SONG != null ? state.SONG.characters.opponent : "");
+				var gammodHunter = KassetteHUDDatahunter.gammod;
+				var curOpposite = (gammodHunter != null && gammodHunter.gammodPlayerSide == "OPPOSITE");
+				if (curP1 != _lastP1Id || curP2 != _lastP2Id || _lastOpposite != curOpposite) {
+					_lastP1Id = curP1;
+					_lastP2Id = curP2;
+					_lastOpposite = curOpposite;
+					if (iconHunter != null) {
+						_p1Color = iconHunter.getIconColor(curP1, 0xFF66FF33, true);
+						_p2Color = iconHunter.getIconColor(curP2, 0xFFFF0000, false);
+					}
+					if (isSolo) {
+						if (curOpposite)
+							state.healthBar.createFilledBar(_p1Color, FlxColor.BLACK);
+						else
+							state.healthBar.createFilledBar(FlxColor.BLACK, _p1Color);
+					} else {
+						if (curOpposite)
+							state.healthBar.createFilledBar(_p1Color, _p2Color);
+						else
+							state.healthBar.createFilledBar(_p2Color, _p1Color);
+					}
+					state.healthBar.updateBar();
+				}
+			}
+		}
+	}
+
+	override function onStepHit(event:Dynamic) {
+		if (gameIconP1Obj != null) gameIconP1Obj.onStepHit(event.step);
+		if (gameIconP2Obj != null) gameIconP2Obj.onStepHit(event.step);
+	}
+}

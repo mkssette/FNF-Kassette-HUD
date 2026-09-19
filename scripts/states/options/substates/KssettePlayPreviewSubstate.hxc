@@ -1,0 +1,182 @@
+
+import funkin.ui.ScriptedMusicBeatSubState;
+import funkin.play.character.CharacterDataParser;
+import funkin.play.stage.Stage;
+import funkin.play.character.BaseCharacter;
+import funkin.play.character.SparrowCharacter;
+import funkin.play.character.AnimateAtlasCharacter;
+import funkin.play.character.MultiSparrowCharacter;
+import funkin.play.character.MultiAnimateAtlasCharacter;
+import funkin.play.character.PackerCharacter;
+
+import funkin.modding.events.ScriptEvent;
+import funkin.graphics.FunkinCamera;
+import flixel.FlxG;
+import flixel.util.FlxColor;
+import flixel.math.FlxMath;
+import funkin.graphics.FunkinSprite;
+import funkin.Paths;
+import funkin.modding.module.ModuleHandler;
+import kassettehud.util.KassetteHUDElement;
+import Std;
+import Reflect;
+import kassettehud.util.KssetteOptionsManager;
+
+class KssettePlayPreviewSubstate extends ScriptedMusicBeatSubState {
+    public var stageCam:FunkinCamera;
+    public var stage:Stage;
+    public var bf:BaseCharacter;
+    public var dad:BaseCharacter;
+    public var gf:BaseCharacter;
+
+
+    var lowDetailMenu:Bool = false;
+
+    /**
+     * Constructor for the component.
+     */
+    public function new() {
+        var rawLowDetail = KssetteOptionsManager.instance.getKssValue("kssette_low_detail_menu");
+        lowDetailMenu = (rawLowDetail == true || Std.string(rawLowDetail) == "On" || Std.string(rawLowDetail) == "true");
+        super();
+        this.persistentUpdate = true;
+        this.persistentDraw = true;
+    }
+
+    /**
+     * Executes the create logic.
+     */
+    override public function create():Void {
+        super.create();
+        
+        // apiRef removed
+        
+        if (stageCam == null) {
+            stageCam = new FunkinCamera('stageCam', 0, 0, Std.int(FlxG.width), Std.int(FlxG.height));
+            stageCam.bgColor = FlxColor.BLACK;
+            stageCam.zoom = 0.7;
+            FlxG.cameras.reset(stageCam);
+        }
+
+        var initEvent:ScriptEvent = new ScriptEvent("onCreate");
+
+        if (!lowDetailMenu) {
+            stage = new Stage("mainStage");
+            stage.onCreate(initEvent);
+            stage.cameras = [stageCam];
+            add(stage);
+
+            gf = spawnCharacter("gf", initEvent);
+            dad = spawnCharacter("dad", initEvent);
+            bf = spawnCharacter("bf", initEvent);
+        } else {
+            var bg:FunkinSprite = new FunkinSprite(0, 0);
+            bg.loadTexture("ui/menuKssette");
+            bg.scrollFactor.set(0, 0);
+            bg.cameras = [stageCam];
+            bg.setGraphicSize(Std.int(FlxG.width / stageCam.zoom), Std.int(FlxG.height / stageCam.zoom));
+            bg.updateHitbox();
+            bg.screenCenter();
+            add(bg);
+        }
+
+        var sData = stage != null ? stage._data : null;
+        var placeChar = function(char:BaseCharacter, cData:Dynamic, isPlayer:Bool) {
+            if (char == null) return;
+            char.resetCharacter(true);
+            if (cData != null) {
+                char.x = cData.position[0] - char.characterOrigin.x;
+                char.y = cData.position[1] - char.characterOrigin.y;
+                var cScale:Float = 1.0;
+                if (cData.scale != null) cScale = cScale;
+                char.setScale(char.getBaseScale() * cScale);
+                var dataFlip = char.getDataFlipX();
+                char.flipX = isPlayer ? !dataFlip : dataFlip;
+                char.originalPosition.set(char.x, char.y);
+                char.resetCameraFocusPoint();
+                if (cData.cameraOffsets != null) {
+                    char.cameraFocusPoint.x += cData.cameraOffsets[0];
+                    char.cameraFocusPoint.y += cData.cameraOffsets[1];
+                }
+                if (cData.scroll != null) {
+                    char.scrollFactor.set(cData.scroll[0], cData.scroll[1]);
+                }
+            }
+        };
+
+        var gfData = null; var dadData = null; var bfData = null;
+        if (sData != null && sData.characters != null) {
+            gfData = sData.characters.gf;
+            dadData = sData.characters.dad;
+            bfData = sData.characters.bf;
+        }
+
+        placeChar(gf, gfData, false);
+        placeChar(dad, dadData, false);
+        placeChar(bf, bfData, true);
+
+        if (gf != null) { add(gf); gf.cameras = [stageCam]; }
+        if (dad != null) { add(dad); dad.cameras = [stageCam]; }
+        if (bf != null) { add(bf); bf.cameras = [stageCam]; }
+
+        KassetteHUDElement.preview_bf = bf;
+        KassetteHUDElement.preview_dad = dad;
+
+        if (gf != null && gf.cameraFocusPoint != null) {
+            stageCam.focusOn(gf.cameraFocusPoint);
+        } else {
+            stageCam.scroll.set(0, 0);
+        }
+    }
+
+    var _bfTurn:Bool = true;
+    var _simBeat:Int = 0;
+    /**
+     * Executes the update logic.
+     * @param elapsed Value for elapsed.
+     */
+    override public function update(elapsed:Float):Void {
+        super.update(elapsed);
+    }
+
+    /**
+     * Executes the beatHit logic.
+     */
+    override public function beatHit():Void {
+        super.beatHit();
+        _simBeat++;
+        
+        if (gf != null) gf.dance();
+        
+        // Simulate turn interactivity (for camera and other modules)
+        if (_simBeat % 4 == 0) {
+            _bfTurn = !_bfTurn;
+        }
+
+        if (_bfTurn) {
+            if (dad != null) dad.dance();
+            if (bf != null) bf.dance();
+        } else {
+            if (bf != null) bf.dance();
+            if (dad != null) dad.dance();
+        }
+    }
+
+    /**
+     * Executes the spawnCharacter logic.
+     * @param charId Value for charId.
+     * @param initEvent Value for initEvent.
+     * @return Returns the BaseCharacter value.
+     */
+    function spawnCharacter(charId:String, initEvent:ScriptEvent):BaseCharacter {
+        var oldScript = CharacterDataParser.characterScriptedClass.get(charId);
+        if (oldScript != null) CharacterDataParser.characterScriptedClass.remove(charId);
+        
+        var char = CharacterDataParser.fetchCharacter(charId);
+        
+        if (oldScript != null) CharacterDataParser.characterScriptedClass.set(charId, oldScript);
+        
+        if (char != null) char.onCreate(initEvent);
+        return char;
+    }
+}

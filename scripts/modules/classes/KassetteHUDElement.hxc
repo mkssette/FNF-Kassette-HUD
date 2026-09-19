@@ -1,0 +1,453 @@
+package kassettehud.util;
+
+import funkin.play.PlayState;
+import funkin.modding.module.ModuleHandler;
+import flixel.FlxG;
+import flixel.text.FlxText;
+import flixel.text.FlxTextBorderStyle;
+import funkin.Paths;
+import openfl.utils.Assets;
+import openfl.display.BitmapData;
+import flixel.FlxCamera;
+import kassettehud.util.KssetteOptionsManager;
+import kassettehud.util.KassetteHUDDatahunter;
+import kassettehud.util.KssetteFontManager;
+
+class KassetteHUDElement {
+    public var name:String = "Element";
+    public var elementType:String = "visual";
+    public var skinId:String = "default";
+    public var active:Bool = true;
+
+    // Track objects to auto-destroy them when this element is destroyed
+    public var trackedObjects:Array<Dynamic> = [];
+
+    // Preview variables for HUD Options Menu
+    
+    // Preview variables for HUD Options Menu
+    public static var preview_bf:Dynamic = null;
+    public static var preview_dad:Dynamic = null;
+    public static var preview_scoreBopTrigger:Bool = false;
+    public static var preview_simulatedAcc:Float = 0.0;
+    public static var preview_missesCount:Int = 0;
+    public static var preview_playerTurn:Bool = true;
+    public static var preview_turnProgress:Float = 0.0;
+
+    public var isMobile:Bool = false;
+    public var isPreview:Bool = false;
+    
+    /**
+     * Constructor for the component.
+     * @param name Value for name.
+     */
+    public function new(name:String) {
+        this.name = name;
+        this.isMobile = KssetteOptionsManager.instance != null ? KssetteOptionsManager.instance.isMobileMode : FlxG.onMobile;
+    }
+
+    /** Helper shortcut to fetch Kssette settings safely */
+    /**
+     * Gets the Setting value.
+     * @param key Value for key.
+     * @return Returns the Dynamic value.
+     */
+    public function getSetting(key:String):Dynamic {
+        if (KssetteOptionsManager.instance != null) return KssetteOptionsManager.instance.getKssValue(key);
+        return null;
+    }
+
+    /** Shortcut for getting string settings safely */
+    /**
+     * Gets the SettingString value.
+     * @param key Value for key.
+     * @param defaultVal Value for defaultVal.
+     * @return Returns the String value.
+     */
+    public function getSettingString(key:String, defaultVal:String = ""):String {
+        var val = getSetting(key);
+        return val != null ? Std.string(val) : defaultVal;
+    }
+    
+    /** Shortcut for getting boolean settings safely */
+    /**
+     * Gets the SettingBool value.
+     * @param key Value for key.
+     * @param defaultVal Value for defaultVal.
+     * @return Returns the Bool value.
+     */
+    public function getSettingBool(key:String, defaultVal:Bool = false):Bool {
+        var val = getSetting(key);
+        if (val == null) return defaultVal;
+        return (val == true || Std.string(val) == "On" || Std.string(val) == "true");
+    }
+
+    /** Returns true if the global HUD visibility option is enabled */
+    /**
+     * Executes the isHudVisible logic.
+     * @return Returns the Bool value.
+     */
+    public function isHudVisible():Bool {
+        var val = getSetting("kssette_show_hud");
+        if (val == null) return true; // Default to visible on fresh saves!
+        return (val == true || Std.string(val) == "On" || Std.string(val) == "true");
+    }
+
+    /** Returns true if downscroll is currently active in gameplay or preferences */
+    /**
+     * Executes the isDownscroll logic.
+     * @return Returns the Bool value.
+     */
+    public function isDownscroll():Bool {
+        if (KssetteOptionsManager.instance != null) {
+            return KssetteOptionsManager.instance.getDownscroll();
+        }
+        return false;
+    }
+
+    // Getters have been replaced with standard instance variables initialized in the constructor to improve HScript compatibility.
+
+    /**
+     * Triggered when the song countdown begins.
+     * @param event Value for event.
+     */
+    public function onCountdownStart(event:Dynamic) {}
+    /**
+     * Called every frame to update the component's state.
+     * @param event Value for event.
+     */
+    public function onUpdate(event:Dynamic) {}
+
+    /** Logic executed exclusively when inside PlayState */
+    /**
+     * Executes the inGameplay logic.
+     * @param event Value for event.
+     */
+    public function inGameplay(event:Dynamic) {}
+    
+    /** Logic executed exclusively when inside the KssetteOptionsState Preview */
+    /**
+     * Executes the inPreview logic.
+     * @param event Value for event.
+     */
+    public function inPreview(event:Dynamic) {}
+
+    /**
+     * Triggered on every musical step.
+     * @param event Value for event.
+     */
+    public function onStepHit(event:Dynamic) {}
+    /**
+     * Triggered on every musical beat.
+     * @param event Value for event.
+     */
+    public function onBeatHit(event:Dynamic) {}
+    /**
+     * Triggered when the song officially starts.
+     * @param event Value for event.
+     */
+    public function onSongStart(event:Dynamic) {}
+    /**
+     * Executes the onSongRetry logic.
+     * @param event Value for event.
+     */
+    public function onSongRetry(event:Dynamic) {}
+    /**
+     * Triggered when the song ends.
+     * @param event Value for event.
+     */
+    public function onSongEnd(event:Dynamic) {}
+    /**
+     * Executes the onResume logic.
+     * @param event Value for event.
+     */
+    public function onResume(event:Dynamic) {}
+    /**
+     * Executes the onPause logic.
+     * @param event Value for event.
+     */
+    public function onPause(event:Dynamic) {}
+    /**
+     * Executes the onStateChangeStart logic.
+     * @param event Value for event.
+     */
+    public function onStateChangeStart(event:Dynamic) {}
+    /**
+     * Executes the onStateChangeEnd logic.
+     * @param event Value for event.
+     */
+    public function onStateChangeEnd(event:Dynamic) {}
+    /**
+     * Executes the onGhostMissNote logic.
+     * @param event Value for event.
+     */
+    public function onGhostMissNote(event:Dynamic) {}
+    /**
+     * Executes the onNoteGhostMiss logic.
+     * @param event Value for event.
+     */
+    public function onNoteGhostMiss(event:Dynamic) {}
+    /**
+     * Executes the onSubStateOpenBegin logic.
+     * @param event Value for event.
+     */
+    public function onSubStateOpenBegin(event:Dynamic) {}
+    /**
+     * Executes the onSubStateCloseEnd logic.
+     * @param event Value for event.
+     */
+    public function onSubStateCloseEnd(event:Dynamic) {}
+    /**
+     * Triggered when the player hits a note.
+     * @param event Value for event.
+     */
+    public function onNoteHit(event:Dynamic) {}
+    /**
+     * Triggered when the player misses a note.
+     * @param event Value for event.
+     */
+    public function onNoteMiss(event:Dynamic) {}
+    /**
+     * Executes the onNoteIncoming logic.
+     * @param event Value for event.
+     */
+    public function onNoteIncoming(event:Dynamic) {}
+    /**
+     * Executes the onEvent logic.
+     * @param event Value for event.
+     */
+    public function onEvent(event:Dynamic) {}
+
+    // ==========================================
+    // STANDARDIZED Z-INDEX TIERS
+    // ==========================================
+    
+    // Layer 1: Behind the HUD
+    public static var Z_BACKGROUND_OVERLAYS:Int = 10;  // Vignettes, dark backgrounds (e.g. KassetteNight)
+    public static var Z_STRUM_BACKGROUNDS:Int = 20;    // Lane backgrounds (behind HUD)
+    
+    // Layer 1.5: HUD Elements behind notes
+    public static var Z_HEALTH_BAR_BG:Int = 50;
+    public static var Z_HEALTH_BAR_FILL:Int = 60;
+    public static var Z_HEALTH_BAR_ICON:Int = 70;
+
+    // Layer 2: Main HUD Elements (Must be above notes!)
+    public static var Z_HUD_BASE:Int = 1000;             // Base panels, backgrounds
+    public static var Z_HUD_MID:Int = 1100;              // Standard HUD text, bars, score
+    public static var Z_HUD_FRONT:Int = 1200;            // Health icons, important popups
+
+    // Layer 3: Notes (Behind HUD but above backgrounds)
+    public static var Z_STRUM_NOTES:Int = 100;         // Receptors and falling notes
+
+    // Layer 4: Top Overlays
+    public static var Z_SCREEN_OVERLAYS:Int = 2000;     // Intro text, title cards, watermarks
+
+    // ==========================================
+    // STANDARDIZED UTILITY FUNCTIONS
+    // ==========================================
+
+    /** Adds an element safely to PlayState or FlxG.state, optionally assigning a camera. */
+    /**
+     * Executes the safeAdd logic.
+     * @param obj Value for obj.
+     * @param ?cam Value for ?cam.
+     */
+    public function safeAdd(obj:Dynamic, ?cam:Dynamic) {
+        if (obj == null) return;
+        if (cam != null) obj.cameras = [cam];
+        var state = PlayState.instance;
+        if (state != null && !isPreview) state.add(obj);
+        else if (FlxG.state != null) FlxG.state.add(obj);
+        
+        if (trackedObjects.indexOf(obj) == -1) {
+            trackedObjects.push(obj);
+        }
+    }
+
+    /** Removes an element safely from PlayState and FlxG.state. */
+    /**
+     * Executes the safeRemove logic.
+     * @param obj Value for obj.
+     */
+    public function safeRemove(obj:Dynamic) {
+        if (obj == null) return;
+        var state = PlayState.instance;
+        if (state != null && !isPreview) state.remove(obj, true);
+        if (FlxG.state != null) FlxG.state.remove(obj, true);
+    }
+
+    /** Safely removes and destroys an element. */
+    /**
+     * Executes the safeDestroy logic.
+     * @param obj Value for obj.
+     */
+    public function safeDestroy(obj:Dynamic) {
+        if (obj != null) {
+            safeRemove(obj);
+            obj.destroy();
+        }
+    }
+
+    /** Helper shortcut to get the current HUD font. */
+    /**
+     * Gets the HudFont value.
+     * @return Returns the String value.
+     */
+    public function getHudFont():String {
+        if (KssetteFontManager.instance != null) {
+            var f = KssetteFontManager.instance.getHudFont();
+            if (f != null && f != "null" && f != "") return f;
+        }
+        return "VCR OSD Mono";
+    }
+
+    /** 
+     * Returns the loaded image graphic from the root of the current skin.
+     * Functions like Paths.image, preserving internal folder structure (e.g., ui/hud/break).
+     */
+    public function getSkinImage(imageName:String, ?targetSkinId:String):Dynamic {
+        if (imageName == null || imageName == "") return null;
+        
+        var actualSkinId = (targetSkinId != null && targetSkinId != "") ? targetSkinId : this.skinId;
+        var bmp = _tryLoadImage(imageName, actualSkinId);
+        
+        if (bmp == null && actualSkinId != "default") {
+            bmp = _tryLoadImage(imageName, "default");
+        }
+        
+        if (bmp == null) {
+            trace("[KassetteHUDElement] Error loading skin image: " + imageName);
+        }
+        
+        return bmp;
+    }
+
+    /**
+     * Executes the _tryLoadImage logic.
+     * @param imageName Value for imageName.
+     * @param skinIdToUse Value for skinIdToUse.
+     * @return Returns the Dynamic value.
+     */
+    private function _tryLoadImage(imageName:String, skinIdToUse:String):Dynamic {
+        var relativePath = "skins/" + skinIdToUse + "/images/" + imageName + ".png";
+        
+        // 1. Try standard Assets system
+        try {
+            if (Assets.exists(relativePath)) {
+                return Assets.getBitmapData(relativePath);
+            }
+        } catch(e:Dynamic) {}
+        
+        // 2. Fallback to direct filesystem access across all mod folders
+        var _localAssetHunter = KassetteHUDDatahunter.asset;
+        if (_localAssetHunter != null && _localAssetHunter.getModFolders != null) {
+            try {
+                var folders:Array<String> = _localAssetHunter.getModFolders();
+                for (folder in folders) {
+                    var directPath = "mods/" + folder + "/" + relativePath;
+                    
+                    var bmp = BitmapData.fromFile(directPath);
+                    if (bmp != null) return bmp;
+                    
+                    var winPath = directPath.split("/").join("\\");
+                    bmp = BitmapData.fromFile(winPath);
+                    if (bmp != null) return bmp;
+                }
+            } catch(e:Dynamic) {}
+        } else {
+            // Failsafe if assetHunter isn't ready
+            try {
+                var directPath = "mods/FNF-Kassette-HUD/" + relativePath;
+                var bmp = BitmapData.fromFile(directPath);
+                if (bmp != null) return bmp;
+                
+                var winPath = directPath.split("/").join("\\");
+                bmp = BitmapData.fromFile(winPath);
+                if (bmp != null) return bmp;
+            } catch(e:Dynamic) {}
+        }
+        
+        return null;
+    }
+
+    /** Creates and formats a FlxText object automatically. */
+    /**
+     * Executes the createText logic.
+     * @param x Value for x.
+     * @param y Value for y.
+     * @param w Value for w.
+     * @param text Value for text.
+     * @param size Value for size.
+     * @param color Value for color.
+     * @param align Value for align.
+     * @return Returns the FlxText value.
+     */
+    public function createText(x:Float, y:Float, w:Float, text:String, size:Int, color:Int = 0xFFFFFFFF, align:String = "left"):FlxText {
+        var t = new FlxText(x, y, w, text, size);
+        t.setFormat(getHudFont(), size, color, align, FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        return t;
+    }
+
+    /** Returns the display label for a judgement identifier. */
+    /**
+     * Gets the JudgeName value.
+     * @param name Value for name.
+     * @return Returns the String value.
+     */
+    public function getJudgeName(name:String):String {
+        switch(name) {
+            case 'sick': return 'Sicks';
+            case 'good': return "Goods";
+            case 'bad': return "Bads";
+            case 'shit': return "Shits";
+            case 'miss': return "Misses";
+            case 'maxCombo': return "Max Combo";
+            default: return "???";
+        }
+    }
+
+    /** Formats a rank ID to its abbreviated display form. */
+    /**
+     * Executes the formatRank logic.
+     * @param id Value for id.
+     * @return Returns the String value.
+     */
+    public function formatRank(id:String):String {
+        if (id == null || id == "" || id == "?") return "?";
+        switch(id) {
+            case "PERFECT_GOLD": return "P [GOLD]";
+            case "PERFECT": return "P";
+            case "EXCELLENT": return "E";
+            case "GREAT": return "G";
+            case "GOOD": return "Gd";
+            case "LOSS": return "L";
+            default: return "?";
+        }
+    }
+
+    /**
+     * Executes the destroy logic.
+     */
+    public function destroy() {
+        for (obj in trackedObjects) {
+            if (obj != null) {
+                try {
+                    safeRemove(obj);
+                    obj.destroy();
+                } catch(e:Dynamic) {}
+            }
+        }
+        trackedObjects = [];
+    }
+
+    /**
+     * Executes the buildPreview logic.
+     * @param cam Value for cam.
+     */
+    public function buildPreview(cam:FlxCamera) {
+        this.isPreview = true;
+    }
+    /**
+     * Executes the updatePreview logic.
+     */
+    public function updatePreview() {}
+}

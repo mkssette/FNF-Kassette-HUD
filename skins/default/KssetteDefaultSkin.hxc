@@ -1,0 +1,36 @@
+package kassettehud.util;
+
+import kassettehud.util.KassetteHUDSkin;
+import kassettehud.util.KassetteHUDElement;
+
+class KssetteDefaultSkin extends KassetteHUDSkin {
+    /**
+     * Constructor for the component.
+     * @param ?_id Value for ?_id.
+     */
+    public function new(?_id:String) {
+        super({
+            id: "default",
+            name: "Default Skin",
+            author: "Mikassette",
+            description: "The default Kassette HUD skin."
+        });
+    }
+
+    /**
+     * Instantiates and registers all visual elements associated with the Default Skin.
+     * These elements will be automatically loaded and managed by the MainManager.
+     * 
+     * @return An array containing instantiated KassetteHUDElement objects.
+     */
+    override public function buildElements():Dynamic {
+        // Assuming base classes are available (imported or in the same base scope)
+        return [
+            new KssetteHealthBar(),
+            new KssetteTimeBar(),
+            new KssetteAccuracy(),
+            new KssetteShowTitle(),
+            new KssetteBreakBar()
+        ];
+    }
+}

@@ -1,0 +1,167 @@
+package kassettehud.util;
+
+import funkin.api.discord.DiscordClient;
+import funkin.play.PlayState;
+import funkin.Highscore;
+import funkin.modding.module.Module;
+import kassettehud.util.KssetteOptionsManager;
+import kassettehud.util.KassetteHUDDatahunter;
+import Std;
+import StringTools;
+import flixel.FlxG;
+
+class KssetteDiscordRPC extends KHUDModifier {
+    var _timer:Float = 0;
+    var _lastScore:Int = -1;
+    var _lastMisses:Int = -1;
+
+    /**
+     * Initializes the KssetteDiscordRPC modifier.
+     * This module runs in the background and is responsible for updating the Discord Rich Presence
+     * status based on the player's performance, current song, and configured display preferences.
+     */
+    public function new() {
+        super("KssetteDiscordRPC");
+        this.name = "KssetteDiscordRPC";
+    }
+    
+    /**
+     * Constructs a formatted string for the Discord Rich Presence status or details field.
+     * This method maps configured layout items (e.g., "Score", "Accuracy", "Misses") to their 
+     * corresponding runtime values and joins them using the specified separator.
+     * 
+     * @param items An array of item identifiers configured by the user (e.g., ["Score", "Accuracy", "None"]).
+     * @param sep The string separator used to join the mapped values (e.g., " | ").
+     * @param state Reference to the current PlayState instance.
+     * @param acc Formatted accuracy string (e.g., "98.5%").
+     * @param rank The player's current rank letter (e.g., "S", "A").
+     * @param fcTier The player's current combo tier (e.g., "SFC", "GFC", "Clear").
+     * @param currentScore The player's current numerical score.
+     * @param currentMisses The number of notes the player has missed.
+     * @param songName The name of the song currently being played.
+     * @param diff The difficulty level of the current chart (e.g., "NORMAL", "HARD").
+     * @return The fully constructed string ready to be sent to Discord Client.
+     */
+    function buildString(items:Array<String>, sep:String, state:Dynamic, acc:String, rank:String, fcTier:String, currentScore:Int, currentMisses:Int, songName:String, diff:String):String {
+        var strParts = [];
+        for (it in items) {
+            if (it == "None") continue;
+            var mapped = "";
+            if (it == "Score") mapped = "Score: " + currentScore;
+            else if (it == "Accuracy") mapped = "Acc: " + acc;
+            else if (it == "Misses") mapped = "Misses: " + currentMisses;
+            else if (it == "Rank") mapped = "[" + rank + "]";
+            else if (it == "Tier") mapped = "[" + fcTier + "]";
+            else if (it == "Song") mapped = "Playing: " + songName;
+            else if (it == "Diff") mapped = "[" + diff.toUpperCase() + "]";
+            
+            if (mapped != "") strParts.push(mapped);
+        }
+        return strParts.join(sep);
+    }
+
+    /**
+     * Updates the Discord Rich Presence every frame.
+     * To prevent rate-limiting, the presence is only sent to Discord if the score/misses have changed
+     * and at least 1.0 second has passed, or if 5.0 seconds have passed unconditionally.
+     * It dynamically fetches the user's preferred layout from `KssetteOptionsManager` 
+     * and compiles the final strings using `buildString()`.
+     * 
+     * @param event The update event containing delta time (`elapsed`).
+     */
+    override public function onUpdate(event:Dynamic) {
+        if (isPreview) return; // Do not update RPC during options preview
+        if (FlxG.onMobile) return; // Discord RPC does not exist on Mobile
+        
+        var optManager = KssetteOptionsManager.instance;
+        if (optManager != null) {
+            var rpcEnable = optManager.getKssValue("kssette_rpc_enable");
+            if (rpcEnable == "Off" || rpcEnable == false) return;
+        }
+        
+        if (PlayState.instance != null && Highscore.tallies != null) {
+            _timer += event.elapsed;
+            
+            var state = PlayState.instance;
+            var currentScore = Std.int(state.songScore);
+            var currentMisses = Highscore.tallies.missed;
+            
+            if (((currentScore != _lastScore || currentMisses != _lastMisses) && _timer >= 1.0) || _timer >= 5.0) {
+                _timer = 0;
+                _lastScore = currentScore;
+                _lastMisses = currentMisses;
+                
+                var acc = "0%";
+                var rank = "?";
+                var fcTier = "Clear";
+                
+                var scoreHunter = KassetteHUDDatahunter.score;
+                if (scoreHunter != null) {
+                    acc = scoreHunter.getAccuracy(state) + "%";
+                    
+                    var rawRank = scoreHunter.getRankID(state);
+                    if (rawRank == "PERFECT_GOLD") rank = "P GOLD";
+                    else if (rawRank == "PERFECT") rank = "P";
+                    else if (rawRank == "EXCELLENT") rank = "E";
+                    else if (rawRank == "GREAT") rank = "G";
+                    else if (rawRank == "GOOD") rank = "Go";
+                    else if (rawRank == "LOSS") rank = "L";
+                    else rank = rawRank;
+                    
+                    fcTier = scoreHunter.getComboTier(state);
+                }
+                
+                var diff = state.currentDifficulty;
+                if (diff == null) diff = "NORMAL";
+                var songName = "Unknown";
+                if (state.currentChart != null && state.currentChart.songName != null) {
+                    songName = state.currentChart.songName;
+                }
+                
+                var sep = " | ";
+                var l1 = ["Score", "Accuracy", "Misses"];
+                var l2 = ["Song", "Diff", "None"];
+                
+                if (optManager != null) {
+                    var oSep = optManager.getKssValue("kssette_rpc_sep");
+                    if (oSep != null) sep = Std.string(oSep);
+                    
+                    var v_l1_i1 = optManager.getKssValue("kssette_rpc_l1_i1");
+                    if (v_l1_i1 != null) l1[0] = Std.string(v_l1_i1);
+                    
+                    var v_l1_i2 = optManager.getKssValue("kssette_rpc_l1_i2");
+                    if (v_l1_i2 != null) l1[1] = Std.string(v_l1_i2);
+                    
+                    var v_l1_i3 = optManager.getKssValue("kssette_rpc_l1_i3");
+                    if (v_l1_i3 != null) l1[2] = Std.string(v_l1_i3);
+                    
+                    var v_l2_i1 = optManager.getKssValue("kssette_rpc_l2_i1");
+                    if (v_l2_i1 != null) l2[0] = Std.string(v_l2_i1);
+                    
+                    var v_l2_i2 = optManager.getKssValue("kssette_rpc_l2_i2");
+                    if (v_l2_i2 != null) l2[1] = Std.string(v_l2_i2);
+                    
+                    var v_l2_i3 = optManager.getKssValue("kssette_rpc_l2_i3");
+                    if (v_l2_i3 != null) l2[2] = Std.string(v_l2_i3);
+                }
+                
+                var detailsText = buildString(l1, sep, state, acc, rank, fcTier, currentScore, currentMisses, songName, diff);
+                var stateText = buildString(l2, sep, state, acc, rank, fcTier, currentScore, currentMisses, songName, diff);
+                
+                var largeImg = state.discordRPCAlbum;
+                var smallImg = state.discordRPCIcon;
+                
+                try {
+                    var presenceObj:Dynamic = {
+                        largeImageKey: largeImg,
+                        smallImageKey: smallImg
+                    };
+                    if (stateText != "") presenceObj.state = stateText;
+                    if (detailsText != "") presenceObj.details = detailsText;
+                    
+                    DiscordClient.setPresence(presenceObj);
+                } catch(e:Dynamic) {}
+            }
+        }
+    }
+}

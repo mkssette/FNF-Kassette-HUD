@@ -20,7 +20,6 @@ package kassettehud.util;
  *   - AlbumRegistry (for album art graphics)
  */
 
-import funkin.modding.module.Module;
 import funkin.modding.module.ModuleHandler;
 import funkin.play.PlayState;
 import flixel.FlxG;
@@ -28,16 +27,19 @@ import flixel.text.FlxText;
 import flixel.text.FlxTextBorderStyle;
 import flixel.tweens.FlxTween;
 import flixel.tweens.FlxEase;
+import kassettehud.util.KassetteHUDElement;
+import kassettehud.util.KssetteOptionsManager;
+import kassettehud.util.KassetteHUDDatahunter;
 import flixel.FlxSprite;
 import funkin.Paths;
 import funkin.data.freeplay.album.AlbumRegistry;
 import Std;
 
-class KssetteShowTitle extends Module {
+class KssetteShowTitle extends KassetteHUDElement {
     var titleTxt:FlxText;
     var artistTxt:FlxText;
     var albumSprite:FlxSprite;
-    var apiModule:Dynamic = null;
+
     var isActive:Bool = false;
     
     var titleTargetX:Float = 0;
@@ -50,14 +52,23 @@ class KssetteShowTitle extends Module {
     var animAlbum:String = "On";
     var isFadingOut:Bool = false;
 
-    public var isPreview:Bool = false;
-    public var previewCam:flixel.FlxCamera = null;
+
+    public var previewCam:FlxCamera = null;
     var previewTimer:Float = 0.0;
+    
+    // Datahunters
+    var songHunter:Dynamic = null;
+    var optManager:Dynamic = null;
+    
     var cachedTitleFont:String = "";
     var cachedArtistFont:String = "";
 
+    /**
+     * Constructor for the component.
+     */
     public function new() {
         super("KssetteShowTitle");
+        this.name = "KssetteShowTitle";
     }
 
     /**
@@ -67,9 +78,7 @@ class KssetteShowTitle extends Module {
     function killObj(obj:Dynamic) {
         if (obj != null) {
             FlxTween.cancelTweensOf(obj);
-            if (PlayState.instance != null && !isPreview) PlayState.instance.remove(obj);
-            FlxG.state.remove(obj);
-            obj.destroy();
+            safeDestroy(obj);
         }
     }
 
@@ -92,16 +101,19 @@ class KssetteShowTitle extends Module {
         var titleFontKey = "vcr.ttf";
         var artistFontKey = "vcr.ttf";
 
-        var tk = apiModule.getKssValue("kssette_intro_font_title");
+        var tk = getSetting("kssette_intro_font_title");
         if (tk != null) titleFontKey = Std.string(tk);
 
-        var ak = apiModule.getKssValue("kssette_intro_font_artist");
+        var ak = getSetting("kssette_intro_font_artist");
         if (ak != null) artistFontKey = Std.string(ak);
 
         cachedTitleFont = "VCR OSD Mono";
         cachedArtistFont = "VCR OSD Mono";
-        cachedTitleFont = Std.string(apiModule.resolveCustomFont(titleFontKey));
-        cachedArtistFont = Std.string(apiModule.resolveCustomFont(artistFontKey));
+        var globalAssetHunter = KassetteHUDDatahunter.asset;
+        if (globalAssetHunter != null) {
+            cachedTitleFont = Std.string(globalAssetHunter.resolveCustomFont(titleFontKey));
+            cachedArtistFont = Std.string(globalAssetHunter.resolveCustomFont(artistFontKey));
+        }
     }
 
     /**
@@ -134,7 +146,7 @@ class KssetteShowTitle extends Module {
      * Initializes the intro UI elements based on the current song and settings.
      * @param cam The camera to render the UI on.
      */
-    function setupUI(cam:flixel.FlxCamera) {
+    function setupUI(cam:FlxCamera) {
         cleanUp();
         if (!isActive) return;
 
@@ -159,11 +171,12 @@ class KssetteShowTitle extends Module {
                 }
             }
 
+            var sh = KassetteHUDDatahunter.song != null ? KassetteHUDDatahunter.song : songHunter;
             if (titleStr == "Unknown" || titleStr == "null") {
-                titleStr = Std.string(apiModule.getSongTitle());
+                titleStr = sh != null ? Std.string(sh.getSongTitle()) : "Unknown";
             }
             if (artistStr == "Unknown Artist" || artistStr == "null") {
-                artistStr = Std.string(apiModule.getSongArtist());
+                artistStr = sh != null ? Std.string(sh.getSongArtist()) : "Unknown Artist";
             }
         }
 
@@ -172,16 +185,11 @@ class KssetteShowTitle extends Module {
         var titleBaseSize = 44;
         var artistBaseSize = 32;
 
-        titleBaseSize = (apiModule != null) ? apiModule.getFontSize(44, "kssette_size_intro") : 44;
-        artistBaseSize = (apiModule != null) ? apiModule.getFontSize(32, "kssette_size_intro") : 32;
-
-        var showAlbum:String = "On";
-        var rawAlbum = (apiModule != null) ? apiModule.getKssValue("kssette_intro_album") : null;
-        if (rawAlbum != null) showAlbum = Std.string(rawAlbum);
+        var showAlbum = getSettingBool("kssette_intro_album", true);
 
         var albumArtAsset:String = null;
 
-        if (showAlbum == "On" || showAlbum == "true") {
+        if (showAlbum) {
             if (isPreview) {
                 albumArtAsset = "freeplay/albumRoll/freeplayAlbum/spritemap1";
             } else {
@@ -302,21 +310,15 @@ class KssetteShowTitle extends Module {
         }
         
         if (albumSprite != null) {
-            albumSprite.cameras = [cam];
-            albumSprite.zIndex = 100000;
-            if (PlayState.instance != null && !isPreview) PlayState.instance.add(albumSprite);
-            else FlxG.state.add(albumSprite);
+            albumSprite.zIndex = KassetteHUDElement.Z_SCREEN_OVERLAYS;
+            safeAdd(albumSprite, cam);
         }
 
-        artistTxt.cameras = [cam]; 
-        artistTxt.zIndex = 100001;
-        if (PlayState.instance != null && !isPreview) PlayState.instance.add(artistTxt);
-        else FlxG.state.add(artistTxt);
+        artistTxt.zIndex = KassetteHUDElement.Z_SCREEN_OVERLAYS;
+        safeAdd(artistTxt, cam);
 
-        titleTxt.cameras = [cam]; 
-        titleTxt.zIndex = 100002;
-        if (PlayState.instance != null && !isPreview) PlayState.instance.add(titleTxt);
-        else FlxG.state.add(titleTxt);
+        titleTxt.zIndex = KassetteHUDElement.Z_SCREEN_OVERLAYS;
+        safeAdd(titleTxt, cam);
 
         if (artistStr == "Unknown Artist" || artistStr == "null" || artistStr == "") {
             artistTxt.visible = false;
@@ -340,9 +342,9 @@ class KssetteShowTitle extends Module {
                 FlxTween.cancelTweensOf(albumSprite);
                 albumSprite.y = FlxG.height + 300;
                 albumSprite.alpha = 1;
-                FlxTween.tween(albumSprite, {y: albBaseY}, 0.4, {ease: FlxEase.expoOut, startDelay: 0.2, onComplete: function(t1:FlxTween) {
-                    FlxTween.tween(albumSprite, {y: albBaseY}, 3.0 - 0.2, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
-                        FlxTween.tween(albumSprite, {y: -350}, 0.5, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
+                if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {y: albBaseY}, 0.4, {ease: FlxEase.expoOut, startDelay: 0.2, onComplete: function(t1:FlxTween) {
+                    if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {y: albBaseY}, 3.0 - 0.2, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
+                        if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {y: -350}, 0.5, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
                             if (!isPreview && albumSprite != null) killObj(albumSprite);
                         }});
                     }});
@@ -353,9 +355,9 @@ class KssetteShowTitle extends Module {
                 FlxTween.cancelTweensOf(titleTxt);
                 titleTxt.y = -200;
                 titleTxt.alpha = 1;
-                FlxTween.tween(titleTxt, {y: tBaseY}, 0.4, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
-                    FlxTween.tween(titleTxt, {y: tBaseY}, 3.0, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
-                        FlxTween.tween(titleTxt, {y: -200}, 0.5, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
+                if (titleTxt != null && titleTxt.exists) FlxTween.tween(titleTxt, {y: tBaseY}, 0.4, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
+                    if (titleTxt != null && titleTxt.exists) FlxTween.tween(titleTxt, {y: tBaseY}, 3.0, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
+                        if (titleTxt != null && titleTxt.exists) FlxTween.tween(titleTxt, {y: -200}, 0.5, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
                             if (!isPreview && titleTxt != null) killObj(titleTxt);
                         }});
                     }});
@@ -365,9 +367,9 @@ class KssetteShowTitle extends Module {
                 FlxTween.cancelTweensOf(artistTxt);
                 artistTxt.y = FlxG.height + 200;
                 artistTxt.alpha = 1;
-                FlxTween.tween(artistTxt, {y: aBaseY}, 0.4, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
-                    FlxTween.tween(artistTxt, {y: aBaseY}, 3.0, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
-                        FlxTween.tween(artistTxt, {y: FlxG.height + 200}, 0.5, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
+                if (artistTxt != null && artistTxt.exists) FlxTween.tween(artistTxt, {y: aBaseY}, 0.4, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
+                    if (artistTxt != null && artistTxt.exists) FlxTween.tween(artistTxt, {y: aBaseY}, 3.0, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
+                        if (artistTxt != null && artistTxt.exists) FlxTween.tween(artistTxt, {y: FlxG.height + 200}, 0.5, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
                             if (!isPreview && artistTxt != null) killObj(artistTxt);
                         }});
                     }});
@@ -386,9 +388,9 @@ class KssetteShowTitle extends Module {
             // Album is on Right. Starts on Right.
                     albumSprite.y = albBaseY;
                     albumSprite.x = FlxG.width + 300;
-                    FlxTween.tween(albumSprite, {x: albTargetX}, 1.0, {ease: FlxEase.expoOut, startDelay: 0.0, onComplete: function(t1:FlxTween) {
-                        FlxTween.tween(albumSprite, {x: albTargetX - 30}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
-                            FlxTween.tween(albumSprite, {x: FlxG.width + 300}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
+                    if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {x: albTargetX}, 1.0, {ease: FlxEase.expoOut, startDelay: 0.0, onComplete: function(t1:FlxTween) {
+                        if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {x: albTargetX - 30}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
+                            if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {x: FlxG.width + 300}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
                                 if (!isPreview && albumSprite != null) killObj(albumSprite);
                             }});
                         }});
@@ -397,9 +399,9 @@ class KssetteShowTitle extends Module {
             // Album is on Left. Starts on Left.
                     albumSprite.y = albBaseY;
                     albumSprite.x = -300;
-                    FlxTween.tween(albumSprite, {x: albTargetX}, 1.0, {ease: FlxEase.expoOut, startDelay: 0.0, onComplete: function(t1:FlxTween) {
-                        FlxTween.tween(albumSprite, {x: albTargetX + 30}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
-                            FlxTween.tween(albumSprite, {x: -300}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
+                    if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {x: albTargetX}, 1.0, {ease: FlxEase.expoOut, startDelay: 0.0, onComplete: function(t1:FlxTween) {
+                        if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {x: albTargetX + 30}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
+                            if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {x: -300}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
                                 if (!isPreview && albumSprite != null) killObj(albumSprite);
                             }});
                         }});
@@ -407,9 +409,9 @@ class KssetteShowTitle extends Module {
                 } else {
                     albumSprite.y = FlxG.height + 300;
                     albumSprite.x = albTargetX;
-                    FlxTween.tween(albumSprite, {y: albBaseY}, 1.0, {ease: FlxEase.expoOut, startDelay: 0.0, onComplete: function(t1:FlxTween) {
-                        FlxTween.tween(albumSprite, {y: albBaseY - 30}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
-                            FlxTween.tween(albumSprite, {y: -300}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
+                    if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {y: albBaseY}, 1.0, {ease: FlxEase.expoOut, startDelay: 0.0, onComplete: function(t1:FlxTween) {
+                        if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {y: albBaseY - 30}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
+                            if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {y: -300}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
                                 if (!isPreview && albumSprite != null) killObj(albumSprite);
                             }});
                         }});
@@ -421,9 +423,9 @@ class KssetteShowTitle extends Module {
                 FlxTween.cancelTweensOf(titleTxt);
                 titleTxt.y = FlxG.height + 50;
                 titleTxt.alpha = 1;
-                FlxTween.tween(titleTxt, {y: tBaseY}, 1.0, {ease: FlxEase.expoOut, startDelay: 0.1, onComplete: function(t1:FlxTween) {
-                    FlxTween.tween(titleTxt, {y: tBaseY - 30}, 3.4, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
-                        FlxTween.tween(titleTxt, {y: -200}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
+                if (titleTxt != null && titleTxt.exists) FlxTween.tween(titleTxt, {y: tBaseY}, 1.0, {ease: FlxEase.expoOut, startDelay: 0.1, onComplete: function(t1:FlxTween) {
+                    if (titleTxt != null && titleTxt.exists) FlxTween.tween(titleTxt, {y: tBaseY - 30}, 3.4, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
+                        if (titleTxt != null && titleTxt.exists) FlxTween.tween(titleTxt, {y: -200}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
                             if (!isPreview && titleTxt != null) killObj(titleTxt);
                         }});
                     }});
@@ -433,9 +435,9 @@ class KssetteShowTitle extends Module {
                 FlxTween.cancelTweensOf(artistTxt);
                 artistTxt.y = FlxG.height + 100;
                 artistTxt.alpha = 1;
-                FlxTween.tween(artistTxt, {y: aBaseY}, 1.0, {ease: FlxEase.expoOut, startDelay: 0.2, onComplete: function(t1:FlxTween) {
-                    FlxTween.tween(artistTxt, {y: aBaseY - 30}, 3.3, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
-                        FlxTween.tween(artistTxt, {y: -200}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
+                if (artistTxt != null && artistTxt.exists) FlxTween.tween(artistTxt, {y: aBaseY}, 1.0, {ease: FlxEase.expoOut, startDelay: 0.2, onComplete: function(t1:FlxTween) {
+                    if (artistTxt != null && artistTxt.exists) FlxTween.tween(artistTxt, {y: aBaseY - 30}, 3.3, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
+                        if (artistTxt != null && artistTxt.exists) FlxTween.tween(artistTxt, {y: -200}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
                             if (!isPreview && artistTxt != null) killObj(artistTxt);
                         }});
                     }});
@@ -448,26 +450,26 @@ class KssetteShowTitle extends Module {
                 FlxTween.cancelTweensOf(albumSprite);
                 if (animPos == "Left") {
                     albumSprite.x = FlxG.width + 300;
-                    FlxTween.tween(albumSprite, {x: albTargetX}, 1.0, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
-                        FlxTween.tween(albumSprite, {x: albTargetX - 30}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
-                            FlxTween.tween(albumSprite, {x: FlxG.width + 300}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
+                    if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {x: albTargetX}, 1.0, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
+                        if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {x: albTargetX - 30}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
+                            if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {x: FlxG.width + 300}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
                                 if (!isPreview && albumSprite != null) killObj(albumSprite);
                             }});
                         }});
                     }});
                 } else if (animPos == "Right") {
                     albumSprite.x = -300;
-                    FlxTween.tween(albumSprite, {x: albTargetX}, 1.0, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
-                        FlxTween.tween(albumSprite, {x: albTargetX + 30}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
-                            FlxTween.tween(albumSprite, {x: -300}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
+                    if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {x: albTargetX}, 1.0, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
+                        if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {x: albTargetX + 30}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
+                            if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {x: -300}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
                                 if (!isPreview && albumSprite != null) killObj(albumSprite);
                             }});
                         }});
                     }});
                 } else {
-                    FlxTween.tween(albumSprite, {y: albBaseY}, 1.0, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
-                        FlxTween.tween(albumSprite, {y: albBaseY - 30}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
-                            FlxTween.tween(albumSprite, {y: -300}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
+                    if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {y: albBaseY}, 1.0, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
+                        if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {y: albBaseY - 30}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
+                            if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {y: -300}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
                                 if (!isPreview && albumSprite != null) killObj(albumSprite);
                             }});
                         }});
@@ -478,9 +480,9 @@ class KssetteShowTitle extends Module {
                 FlxTween.cancelTweensOf(titleTxt);
                 titleTxt.x = -totalTitleWidth - 200;
                 titleTxt.alpha = 0;
-                FlxTween.tween(titleTxt, {x: titleTargetX - (floatDist/2), alpha: 1}, 1.0, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
-                    FlxTween.tween(titleTxt, {x: titleTargetX + (floatDist/2)}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
-                        FlxTween.tween(titleTxt, {x: FlxG.width + 200, alpha: 0}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
+                if (titleTxt != null && titleTxt.exists) FlxTween.tween(titleTxt, {x: titleTargetX - (floatDist/2), alpha: 1}, 1.0, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
+                    if (titleTxt != null && titleTxt.exists) FlxTween.tween(titleTxt, {x: titleTargetX + (floatDist/2)}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
+                        if (titleTxt != null && titleTxt.exists) FlxTween.tween(titleTxt, {x: FlxG.width + 200, alpha: 0}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
                             if (!isPreview && titleTxt != null) killObj(titleTxt);
                         }});
                     }});
@@ -491,9 +493,9 @@ class KssetteShowTitle extends Module {
                 FlxTween.cancelTweensOf(artistTxt);
                 artistTxt.x = FlxG.width + 200;
                 artistTxt.alpha = 0;
-                FlxTween.tween(artistTxt, {x: artistTargetX + (floatDist/2), alpha: 1}, 1.0, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
-                    FlxTween.tween(artistTxt, {x: artistTargetX - (floatDist/2)}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
-                        FlxTween.tween(artistTxt, {x: -artistTxt.width - 200, alpha: 0}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
+                if (artistTxt != null && artistTxt.exists) FlxTween.tween(artistTxt, {x: artistTargetX + (floatDist/2), alpha: 1}, 1.0, {ease: FlxEase.expoOut, onComplete: function(t1:FlxTween) {
+                    if (artistTxt != null && artistTxt.exists) FlxTween.tween(artistTxt, {x: artistTargetX - (floatDist/2)}, 3.5, {ease: FlxEase.linear, onComplete: function(t2:FlxTween) {
+                        if (artistTxt != null && artistTxt.exists) FlxTween.tween(artistTxt, {x: -artistTxt.width - 200, alpha: 0}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t3:FlxTween) {
                             if (!isPreview && artistTxt != null) killObj(artistTxt);
                         }});
                     }});
@@ -511,18 +513,14 @@ class KssetteShowTitle extends Module {
         cleanUp();
         isPreview = false;
 
-        apiModule = ModuleHandler.getModule("KssetteApi");
-        if (apiModule == null) return;
-
-            var rawStyle = (apiModule != null) ? apiModule.getKssValue("kssette_intro_text") : null;
-            animStyle = Std.string(rawStyle);
-            
-            var rawPos = (apiModule != null) ? apiModule.getKssValue("kssette_intro_pos") : null;
-            if (rawPos != null) animPos = Std.string(rawPos);
-            else animPos = "Center";
-            
-            isActive = (animStyle != "Off" && animStyle != "false");
+        var rawStyle = getSetting("kssette_intro_text");
+        animStyle = Std.string(rawStyle);
         
+        var rawPos = getSetting("kssette_intro_pos");
+        if (rawPos != null) animPos = Std.string(rawPos);
+        else animPos = "Center";
+        
+        isActive = (animStyle != "Off" && animStyle != "false");
         if (!isActive) return;
 
         var state = PlayState.instance;
@@ -545,26 +543,23 @@ class KssetteShowTitle extends Module {
      * Prepares the UI for the options menu preview mode.
      * @param cam The preview camera to render onto.
      */
-    public function buildPreview(cam:flixel.FlxCamera) {
+    public function buildPreview(cam:FlxCamera) {
         isPreview = true;
         isFadingOut = false;
         previewCam = cam;
         
-        apiModule = ModuleHandler.getModule("KssetteApi");
-        if (apiModule != null) {
-            var rawStyle = apiModule.getKssValue("kssette_intro_text");
-            animStyle = Std.string(rawStyle);
-            
-            var rawPos = apiModule.getKssValue("kssette_intro_pos");
-            if (rawPos != null) animPos = Std.string(rawPos);
-            else animPos = "Center";
-            
-            var rawAlbum = apiModule.getKssValue("kssette_intro_album");
-            if (rawAlbum != null) animAlbum = Std.string(rawAlbum);
-            else animAlbum = "On";
-            
-            isActive = (animStyle != "Off" && animStyle != "false");
-        }
+        var rawStyle = getSetting("kssette_intro_text");
+        animStyle = Std.string(rawStyle);
+        
+        var rawPos = getSetting("kssette_intro_pos");
+        if (rawPos != null) animPos = Std.string(rawPos);
+        else animPos = "Center";
+        
+        var rawAlbum = getSetting("kssette_intro_album");
+        if (rawAlbum != null) animAlbum = Std.string(rawAlbum);
+        else animAlbum = "On";
+        
+        isActive = (animStyle != "Off" && animStyle != "false");
 
         setupUI(cam);
         if (isActive) {
@@ -582,16 +577,16 @@ class KssetteShowTitle extends Module {
      * Refreshes the preview state, pulling new settings from KssetteApi.
      */
     public function updatePreview() {
-        if (!isPreview || apiModule == null) return;
+        if (!isPreview) return;
 
-        var rawStyle = apiModule.getKssValue("kssette_intro_text");
+        var rawStyle = getSetting("kssette_intro_text");
         var currentActive = (Std.string(rawStyle) != "Off" && Std.string(rawStyle) != "false");
         var newStyle = Std.string(rawStyle);
         
-        var rawPos = apiModule.getKssValue("kssette_intro_pos");
+        var rawPos = getSetting("kssette_intro_pos");
         var newPos = rawPos != null ? Std.string(rawPos) : "Center";
         
-        var rawAlbum = apiModule.getKssValue("kssette_intro_album");
+        var rawAlbum = getSetting("kssette_intro_album");
         var newAlbum = rawAlbum != null ? Std.string(rawAlbum) : "On";
         
         var oldTitleFont = cachedTitleFont;
@@ -626,15 +621,15 @@ class KssetteShowTitle extends Module {
         isFadingOut = true;
         if (titleTxt != null && titleTxt.visible) {
             FlxTween.cancelTweensOf(titleTxt);
-            FlxTween.tween(titleTxt, {alpha: 0}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t:FlxTween) { if (!isPreview && titleTxt != null) killObj(titleTxt); }});
+            if (titleTxt != null && titleTxt.exists) FlxTween.tween(titleTxt, {alpha: 0}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t:FlxTween) { if (!isPreview && titleTxt != null) killObj(titleTxt); }});
         }
         if (artistTxt != null && artistTxt.visible) {
             FlxTween.cancelTweensOf(artistTxt);
-            FlxTween.tween(artistTxt, {alpha: 0}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t:FlxTween) { if (!isPreview && artistTxt != null) killObj(artistTxt); }});
+            if (artistTxt != null && artistTxt.exists) FlxTween.tween(artistTxt, {alpha: 0}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t:FlxTween) { if (!isPreview && artistTxt != null) killObj(artistTxt); }});
         }
         if (albumSprite != null && albumSprite.visible) {
             FlxTween.cancelTweensOf(albumSprite);
-            FlxTween.tween(albumSprite, {alpha: 0}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t:FlxTween) { if (!isPreview && albumSprite != null) killObj(albumSprite); }});
+            if (albumSprite != null && albumSprite.exists) FlxTween.tween(albumSprite, {alpha: 0}, 1.0, {ease: FlxEase.expoIn, onComplete: function(t:FlxTween) { if (!isPreview && albumSprite != null) killObj(albumSprite); }});
         }
     }
 
@@ -643,18 +638,20 @@ class KssetteShowTitle extends Module {
      * the intro needs to fade out before the first note hits.
      */
     override public function onUpdate(event:Dynamic) {
+        var elapsed:Float = (Std.isOfType(event, Float)) ? event : (event != null ? event.elapsed : 0);
         if (isPreview && isActive) {
             if (previewTimer > 0) {
-                previewTimer -= event.elapsed;
+                previewTimer -= elapsed;
                 if (previewTimer <= 0) {
+                    previewTimer = 0.0;
                     startAnim();
-                    previewTimer = 12.0;
                 }
             }
         } else if (!isPreview && isActive && !isFadingOut) {
             var state = PlayState.instance;
-            if (state != null && state.conductorInUse != null && apiModule != null) {
-                var notes = apiModule.playerNoteTimes;
+            if (state != null && state.conductorInUse != null) {
+                var breakHunter = KassetteHUDDatahunter.breakData;
+                var notes = breakHunter != null ? breakHunter.playerNoteTimes : [];
                 if (notes != null && notes.length > 0) {
                     var firstNoteTime = notes[0].start;
                     var currentTime = state.conductorInUse.songPosition;
@@ -664,5 +661,20 @@ class KssetteShowTitle extends Module {
                 }
             }
         }
+    }
+    
+    /**
+     * Cleans up spawned elements when the modifier is disabled or destroyed.
+     */
+    override public function destroy() {
+        if (titleTxt != null) titleTxt.destroy();
+        if (artistTxt != null) artistTxt.destroy();
+        if (albumSprite != null) albumSprite.destroy();
+        
+        titleTxt = null;
+        artistTxt = null;
+        albumSprite = null;
+        
+        super.destroy();
     }
 }

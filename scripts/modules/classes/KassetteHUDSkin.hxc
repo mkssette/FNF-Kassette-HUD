@@ -1,0 +1,306 @@
+package kassettehud.util;
+
+import funkin.modding.module.Module;
+import funkin.modding.module.ModuleHandler;
+import funkin.play.PlayState;
+
+class KassetteHUDSkin extends Module {
+    public var skinId:String = "unknown";
+    public var skinName:String = "Unknown Skin";
+    public var author:String = "Unknown";
+    public var description:String = "No description";
+
+    public var elements = [];
+    public var isBuilt:Bool = false;
+    public var disabledOptions:Array<String> = [];
+    var _previewUpdateTimer:Float = 0.0;
+
+    /**
+     * Constructor for the component.
+     * @param config Value for config.
+     */
+    public function new(config:Dynamic = null) {
+        var id = "unknown";
+        var name = "Unknown Skin";
+        var author = "Unknown";
+        var desc = "No description";
+
+        if (config != null) {
+            if (config.id != null) id = Std.string(config.id);
+            if (config.name != null) name = Std.string(config.name);
+            if (config.author != null) author = Std.string(config.author);
+            if (config.description != null) desc = Std.string(config.description);
+        }
+        
+        // Give the module a unique ID so V-Slice does not overwrite it
+        super(id + "SkinModule");
+        
+        this.skinId = id;
+        this.skinName = name;
+        this.author = author;
+        this.description = desc;
+        this.active = false; // The Manager will decide if it is activated
+
+        trace("[KassetteHUDSkin] Initializing skin: " + this.skinId);
+        
+        // Auto-register in the Manager only if it is not the base class
+        if (this.skinId != "unknown") {
+            var manager:Dynamic = ModuleHandler.getModule("KassetteSkinManager");
+            if (manager != null) {
+                manager.registerSkin(this);
+            } else {
+                trace("[KassetteHUDSkin] WARNING: KassetteSkinManager not found! Skin will not be registered.");
+            }
+        }
+    }
+
+    /**
+     * A ser sobrescrito por las skins hijas
+     * @return The returned Dynamic.
+     */
+    public function buildElements():Dynamic {
+        return [];
+    }
+
+    /**
+     * Executes the ensureElements logic.
+     */
+    public function ensureElements() {
+        if (isBuilt) return;
+        elements = buildElements();
+        for (el in elements) {
+            el.skinId = this.skinId;
+        }
+        isBuilt = true;
+    }
+
+    /**
+     * Executes the destroyElements logic.
+     */
+    public function destroyElements() {
+        for (el in elements) {
+            el.destroy();
+        }
+        elements = [];
+        isBuilt = false;
+    }
+
+    /**
+     * Executes the addElement logic.
+     * @param element Value for element.
+     */
+    public function addElement(element:Dynamic) {
+        if (element != null) {
+            element.skinId = this.skinId;
+            elements.push(element);
+        }
+    }
+
+    /**
+     * Gets the Element value.
+     * @param elementName Value for elementName.
+     * @return Returns the Dynamic value.
+     */
+    public function getElement(elementName:String):Dynamic {
+        for (el in elements) {
+            if (el != null && el.name == elementName) {
+                return el;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Triggered when the song countdown begins.
+     * @param event Value for event.
+     */
+    override public function onCountdownStart(event:Dynamic) {
+        if (!active) return;
+        
+        var state = PlayState.instance;
+        if (state != null && state.isChartingMode && state.isMinimalMode) {
+            state.isMinimalMode = false;
+            if (state.initStage != null) state.initStage();
+            if (state.initCharacters != null) state.initCharacters();
+            state.refresh();
+        }
+        
+        ensureElements();
+        for (el in elements) {
+            if (el != null) {
+                el.isPreview = false;
+                el.onCountdownStart(event);
+            }
+        }
+    }
+
+    /**
+     * Called every frame to update the component's state.
+     * @param event Value for event.
+     */
+    override public function onUpdate(event:Dynamic) {
+        if (!active) return;
+        
+        var inPlayState = (PlayState.instance != null && FlxG.state == PlayState.instance);
+        if (inPlayState) {
+            for (el in elements) {
+                if (el != null) el.onUpdate(event);
+            }
+        } else {
+            var elapsed:Float = (Std.isOfType(event, Float)) ? event : (event != null ? event.elapsed : 0);
+            _previewUpdateTimer += elapsed;
+            if (_previewUpdateTimer >= 0.033) {
+                for (el in elements) {
+                    if (el != null) el.onUpdate(_previewUpdateTimer);
+                }
+                _previewUpdateTimer = 0.0;
+            }
+        }
+    }
+
+    /**
+     * Triggered when the player hits a note.
+     * @param event Value for event.
+     */
+    override public function onNoteHit(event:Dynamic) {
+        if (!active) return;
+        for (el in elements) {
+            if (el != null) el.onNoteHit(event);
+        }
+    }
+
+    /**
+     * Triggered when the song ends.
+     * @param event Value for event.
+     */
+    override public function onSongEnd(event:Dynamic) {
+        if (!active) return;
+        for (el in elements) {
+            if (el != null) el.onSongEnd(event);
+        }
+    }
+
+    /**
+     * Executes the onSongRetry logic.
+     * @param event Value for event.
+     */
+    override public function onSongRetry(event:Dynamic) {
+        if (!active) return;
+        for (el in elements) {
+            if (el != null) el.onSongRetry(event);
+        }
+    }
+
+    /**
+     * Triggered on every musical step.
+     * @param event Value for event.
+     */
+    override public function onStepHit(event:Dynamic) {
+        if (!active) return;
+        for (el in elements) {
+            if (el != null) el.onStepHit(event);
+        }
+    }
+
+    /**
+     * Triggered on every musical beat.
+     * @param event Value for event.
+     */
+    override public function onBeatHit(event:Dynamic) {
+        if (!active) return;
+        for (el in elements) {
+            if (el != null) el.onBeatHit(event);
+        }
+    }
+
+    /**
+     * Triggered when the song officially starts.
+     * @param event Value for event.
+     */
+    override public function onSongStart(event:Dynamic) {
+        if (!active) return;
+        for (el in elements) {
+            if (el != null) el.onSongStart(event);
+        }
+    }
+
+    /**
+     * Executes the onResume logic.
+     * @param event Value for event.
+     */
+    override public function onResume(event:Dynamic) {
+        if (!active) return;
+        for (el in elements) el.onResume(event);
+    }
+
+    /**
+     * Executes the onPause logic.
+     * @param event Value for event.
+     */
+    override public function onPause(event:Dynamic) {
+        if (!active) return;
+        for (el in elements) el.onPause(event);
+    }
+
+    /**
+     * Executes the onStateChangeStart logic.
+     * @param event Value for event.
+     */
+    override public function onStateChangeStart(event:Dynamic) {
+        if (!active) return;
+        for (el in elements) el.onStateChangeStart(event);
+    }
+
+    /**
+     * Executes the onStateChangeEnd logic.
+     * @param event Value for event.
+     */
+    override public function onStateChangeEnd(event:Dynamic) {
+        if (!active) return;
+        for (el in elements) el.onStateChangeEnd(event);
+    }
+
+    /**
+     * Triggered when the player misses a note.
+     * @param event Value for event.
+     */
+    override public function onNoteMiss(event:Dynamic) {
+        if (!active) return;
+        for (el in elements) el.onNoteMiss(event);
+    }
+
+    /**
+     * Executes the onNoteIncoming logic.
+     * @param event Value for event.
+     */
+    override public function onNoteIncoming(event:Dynamic) {
+        if (!active) return;
+        for (el in elements) el.onNoteIncoming(event);
+    }
+
+    /**
+     * Executes the onSubStateOpenBegin logic.
+     * @param event Value for event.
+     */
+    override public function onSubStateOpenBegin(event:Dynamic) {
+        if (!active) return;
+        for (el in elements) el.onSubStateOpenBegin(event);
+    }
+
+    /**
+     * Executes the onSubStateCloseEnd logic.
+     * @param event Value for event.
+     */
+    override public function onSubStateCloseEnd(event:Dynamic) {
+        if (!active) return;
+        for (el in elements) el.onSubStateCloseEnd(event);
+    }
+
+    /**
+     * Cleans up the component when it is destroyed.
+     * @param event Value for event.
+     */
+    override public function onDestroy(event:Dynamic) {
+        destroyElements();
+    }
+}

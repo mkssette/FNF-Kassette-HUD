@@ -1,0 +1,364 @@
+package kassettehud.util;
+
+import kassettehud.util.KassetteHUDElement;
+
+import funkin.Highscore;
+import funkin.play.scoring.Scoring;
+import funkin.play.PlayState;
+import Math;
+import Std;
+import funkin.modding.events.ScriptEvent;
+import funkin.modding.events.UpdateScriptEvent;
+import kassettehud.util.KssetteOptionsManager;
+
+class ScoreDatahunter extends KassetteHUDDatahunter {
+    public var lastRankScore:Int = -1;
+    public var lastRankMisses:Int = -1;
+    public var cachedRank:String = "?";
+    
+    public var lastTierMisses:Int = -1;
+    public var lastTierGoods:Int = -1;
+    public var lastTierBads:Int = -1;
+    public var lastTierShits:Int = -1;
+    public var cachedTier:String = "N/A";
+
+    public var totalNotes:Int = 0;
+    
+    public var antiCheatTriggered:Bool = false;
+    
+    /**
+     * Flags the current session as cheating (e.g. Botplay enabled while attempting to hide it).
+     * Once triggered, most getters will return 0 or unranked status.
+     */
+    public function triggerAntiCheat() {
+        antiCheatTriggered = true;
+    }
+    
+    public var displayedAcc:Float = 0.0;
+    public var targetAcc:Float = 0.0;
+    
+    public var cachedAccMode:String = "Classic";
+    public var cachedSmooth:Bool = true;
+    
+    /**
+     * Constructor for the component.
+     */
+    public function new() {
+        super("ScoreDatahunter");
+        KassetteHUDDatahunter.score = this;
+    }
+
+    /**
+     * Called every frame to update the component's state.
+     * @param event Value for event.
+     */
+    override public function onUpdate(event:UpdateScriptEvent) {
+        var elapsed = event.elapsed;
+        var state = PlayState.instance;
+        if (state == null) return;
+        
+        var optManager = KssetteOptionsManager.instance;
+        var accMode = cachedAccMode;
+        var isSmooth = cachedSmooth;
+        
+        if (accMode == "Ascending") {
+            var songProgress:Float = 0.0;
+            if (state.currentSongLengthMs > 0 && state.conductorInUse != null) {
+                songProgress = state.conductorInUse.songPosition / state.currentSongLengthMs;
+            }
+            targetAcc = getAscendingAccuracy(state, songProgress);
+        } else if (accMode == "Classic") {
+            targetAcc = getAccuracy(state);
+        } else {
+            targetAcc = 0.0;
+        }
+
+        if (isSmooth) {
+            displayedAcc += (targetAcc - displayedAcc) * (elapsed * 8);
+            if (Math.abs(targetAcc - displayedAcc) < 0.001) displayedAcc = targetAcc;
+        } else {
+            displayedAcc = targetAcc;
+        }
+    }
+
+    /**
+     * Re-reads the accuracy calculation mode (Classic vs Ascending) and 
+     * smooth display preference from the global options manager.
+     */
+    public function updateSettings() {
+        var optManager = KssetteOptionsManager.instance;
+        if (optManager != null) {
+            var rawMode = optManager.getKssValue("kssette_acc_mode");
+            if (rawMode != null) cachedAccMode = Std.string(rawMode);
+            var rawSmooth = optManager.getKssValue("kssette_smooth_display");
+            if (rawSmooth != null) cachedSmooth = (rawSmooth == "On" || rawSmooth == true || rawSmooth == "true");
+        }
+    }
+
+    /**
+     * Executes the onResume logic.
+     * @param event Value for event.
+     */
+    override public function onResume(event:ScriptEvent) {
+        updateSettings();
+    }
+
+    /**
+     * Triggered when the song countdown begins.
+     * @param event Value for event.
+     */
+    override public function onCountdownStart(event:ScriptEvent) {
+        updateSettings();
+
+        lastRankScore = -1;
+        lastRankMisses = -1;
+        cachedRank = "?";
+        lastTierMisses = -1;
+        lastTierGoods = -1;
+        lastTierBads = -1;
+        lastTierShits = -1;
+        cachedTier = "N/A";
+
+        var state = PlayState.instance;
+        if (state != null && state.currentChart != null && state.currentChart.notes != null) {
+            var count:Int = 0;
+            for (note in state.currentChart.notes) {
+                var isPlayer = false;
+                try {
+                    if (note.getMustHitNote() == true) isPlayer = true;
+                } catch(e:Dynamic) {
+                    var d = note?.data;
+                    if (d == null) d = note?.d;
+                    if (d != null && Std.parseInt(Std.string(d)) >= 4) isPlayer = true;
+                    if (note?.mustHitNote == true) isPlayer = true;
+                }
+                if (isPlayer) count++;
+            }
+            totalNotes = (count == 0) ? Std.int(state.currentChart.notes.length / 2) : count;
+        } else {
+            totalNotes = 0;
+        }
+    }
+
+    /**
+     * Calculates the letter rank based on the current score and tallies.
+     * Caches the result to avoid expensive recalculations if the score and misses haven't changed.
+     * 
+     * @param state The active PlayState instance.
+     * @return A string representing the rank (e.g., "PERFECT", "GOOD").
+     */
+    public function getRankID(state:PlayState):String {
+        if (antiCheatTriggered) return "Unranked";
+        var t = Highscore.tallies;
+        if (t == null || (t.totalNotesHit + t.missed) <= 0) return "?";
+        
+        if (state.songScore == lastRankScore && t.missed == lastRankMisses && cachedRank != "?") return cachedRank;
+
+        lastRankScore = state.songScore;
+        lastRankMisses = t.missed;
+        cachedRank = Scoring.calculateRank({
+            score: state.songScore,
+            tallies: {
+                sick: t.sick,
+                good: t.good,
+                bad: t.bad,
+                shit: t.shit,
+                miss: t.missed,
+                combo: t.combo,
+                maxCombo: t.maxCombo,
+                totalNotesHit: t.totalNotesHit,
+                totalNotes: t.totalNotesHit + t.missed
+            }
+        });
+        return cachedRank;
+    }
+
+    /**
+     * Evaluates the player's full combo status (SFC, GFC, FC, SDCB, Clear).
+     * Caches the string to prevent repeated evaluations when hit stats remain static.
+     * 
+     * @param state The active PlayState instance.
+     * @return The combo tier string.
+     */
+    public function getComboTier(state:PlayState):String {
+        if (antiCheatTriggered) return "N/A";
+        var t = Highscore.tallies;
+        if (t == null) return "N/A";
+        
+        if (t.missed == lastTierMisses && t.good == lastTierGoods && t.bad == lastTierBads && t.shit == lastTierShits && cachedTier != "N/A") return cachedTier;
+
+        lastTierMisses = t.missed;
+        lastTierGoods = t.good;
+        lastTierBads = t.bad;
+        lastTierShits = t.shit;
+
+        if (t.missed == 0) {
+            if (t.good == 0 && t.bad == 0 && t.shit == 0) cachedTier = "SFC";
+            else if (t.bad == 0 && t.shit == 0) cachedTier = "GFC";
+            else cachedTier = "FC";
+        } else {
+            cachedTier = (t.missed < 10) ? "SDCB" : "Clear";
+        }
+        return cachedTier;
+    }
+
+    /**
+     * Computes the raw accuracy percentage based on total notes hit versus total possible.
+     * Floors the value to two decimal places (e.g., 98.76).
+     * 
+     * @param state The active PlayState instance.
+     * @return The calculated accuracy percentage.
+     */
+    public function getAccuracy(state:PlayState):Float {
+        if (antiCheatTriggered) return 0.0;
+        var t = Highscore.tallies;
+        if (t == null) return 0.0;
+        var total:Int = t.totalNotesHit + t.missed;
+        if (total <= 0) return 0.0;
+        var raw:Float = ((t.sick + t.good - t.missed) / total) * 100;
+        return Math.floor(Math.max(0, raw) * 100) / 100;
+    }
+
+    /**
+     * Modifies the accuracy value to artificially climb from 0% to the true percentage 
+     * as the song progresses. Used for the "Ascending" accuracy option.
+     * 
+     * @param state The active PlayState instance.
+     * @param songProgress Float representing song completion (0.0 to 1.0).
+     * @return The adjusted accuracy percentage.
+     */
+    public function getAscendingAccuracy(state:PlayState, songProgress:Float):Float {
+        if (state == null) return 0.0;
+
+        var realAcc:Float = getAccuracy(state);
+        var totalPlayerNotes:Int = totalNotes;
+        var processed:Int = 0;
+        
+        if (Highscore.tallies != null) {
+            processed = Highscore.tallies.sick + Highscore.tallies.good + Highscore.tallies.bad + Highscore.tallies.shit + Highscore.tallies.missed;
+            if (Highscore.tallies?.totalNotes != null) {
+                var realTotal:Dynamic = Highscore.tallies.totalNotes;
+                if (realTotal != null && realTotal > 0) totalPlayerNotes = Std.int(realTotal);
+            }
+        }
+
+        if (processed > totalPlayerNotes) totalPlayerNotes = processed;
+
+        var noteProgress:Float = (totalPlayerNotes > 0) ? (processed / totalPlayerNotes) : 1.0;
+        if (noteProgress > 1.0) noteProgress = 1.0;
+        
+        if (Math.isNaN(songProgress) || songProgress < 0) songProgress = 0;
+        if (songProgress >= 0.995) noteProgress = 1.0;
+        
+        return realAcc * noteProgress;
+    }
+
+    /**
+     * Gets the Sicks value.
+     * @return Returns the Int value.
+     */
+    public function getSicks():Int {
+        if (Highscore.tallies != null) return Highscore.tallies.sick;
+        return 0;
+    }
+    /**
+     * Gets the Goods value.
+     * @return Returns the Int value.
+     */
+    public function getGoods():Int {
+        if (Highscore.tallies != null) return Highscore.tallies.good;
+        return 0;
+    }
+    /**
+     * Gets the Bads value.
+     * @return Returns the Int value.
+     */
+    public function getBads():Int {
+        if (Highscore.tallies != null) return Highscore.tallies.bad;
+        return 0;
+    }
+    /**
+     * Gets the Shits value.
+     * @return Returns the Int value.
+     */
+    public function getShits():Int {
+        if (Highscore.tallies != null) return Highscore.tallies.shit;
+        return 0;
+    }
+    /**
+     * Gets the Misses value.
+     * @return Returns the Int value.
+     */
+    public function getMisses():Int {
+        if (Highscore.tallies != null) return Highscore.tallies.missed;
+        return 0;
+    }
+    /**
+     * Gets the MaxCombo value.
+     * @return Returns the Int value.
+     */
+    public function getMaxCombo():Int {
+        if (Highscore.tallies != null) return Highscore.tallies.maxCombo;
+        return 0;
+    }
+    /**
+     * Gets the Combo value.
+     * @return Returns the Int value.
+     */
+    public function getCombo():Int {
+        if (Highscore.tallies != null) return Highscore.tallies.combo;
+        return 0;
+    }
+    /**
+     * Gets the TotalNotesHit value.
+     * @return Returns the Int value.
+     */
+    public function getTotalNotesHit():Int {
+        if (Highscore.tallies != null) return Highscore.tallies.totalNotesHit;
+        return 0;
+    }
+    
+    /**
+     * Gets the TotalNotes value.
+     * @return Returns the Int value.
+     */
+    public function getTotalNotes():Int {
+        if (Highscore.tallies != null) {
+            var tn = Highscore.tallies?.totalNotes;
+            if (tn != null && tn > 0) return Std.int(tn);
+        }
+        return totalNotes;
+    }
+
+    /**
+     * Formats the raw integer score into a string with comma separators (e.g. 123,456).
+     * Returns "0" if the anti-cheat system was triggered.
+     * 
+     * @param state The active PlayState instance.
+     * @return The formatted score string.
+     */
+    public function getScore(state:PlayState):String {
+        if (antiCheatTriggered) return "0";
+        if (state == null) return "0";
+        var rawScore = Math.floor(state.songScore);
+        var scoreStr = Std.string(rawScore);
+        
+        var result = "";
+        var len = scoreStr.length;
+        for (i in 0...len) {
+            if (i > 0 && (len - i) % 3 == 0 && scoreStr.charAt(i - 1) != "-") {
+                result += ",";
+            }
+            result += scoreStr.charAt(i);
+        }
+        return result;
+    }
+
+    /**
+     * Gets the FinalAccuracy value.
+     * @return Returns the Float value.
+     */
+    public function getFinalAccuracy():Float {
+        return Math.floor(displayedAcc * 100) / 100;
+    }
+}

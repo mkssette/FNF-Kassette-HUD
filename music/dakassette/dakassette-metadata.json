@@ -2,7 +2,7 @@
   "timeFormat": "ms",
   "artist": "Zelta",
   "songName": "Da Kassette (Kassette HUD Options Theme)",
-  "timeChanges": [{"bpm": 93 }],
+  "timeChanges": [{"t": 0, "bpm": 93 }],
   "generatedBy": "Manual",
   "looped": true,
   "version": "2.0.0"

@@ -1,0 +1,168 @@
+package kassettehud.util;
+
+import funkin.play.PlayState;
+import flixel.FlxG;
+import flixel.FlxCamera;
+import flixel.text.FlxText;
+import flixel.text.FlxTextBorderStyle;
+import funkin.Paths;
+import kassettehud.util.KassetteHUDElement;
+import kassettehud.util.KssetteOptionsManager;
+import kassettehud.util.KssetteFontManager;
+import kassettehud.util.KassetteHUDDatahunter;
+import Std;
+
+class CleanJudgements extends KassetteHUDElement {
+    var sickTxt:FlxText;
+    var missTxt:FlxText;
+
+    var _lastSick:Int = -1;
+    var _lastMiss:Int = -1;
+
+    var pSickTxt:FlxText;
+    var pMissTxt:FlxText;
+    
+    var _lastFont:String = "";
+    
+    var _cShowSicks:Bool = true;
+    var _cShowMisses:Bool = true;
+    var _cScorePos:String = "Default";
+    var _cHudVisible:Bool = true;
+    var _cDownscroll:Bool = false;
+    var _cFont:String = "VCR OSD Mono";
+    var _cIsMobileLayout:Bool = false;
+
+    function updateSettings() {
+        _cShowSicks = getSettingString("kssette_judge_pos", "Underneath") != "Off";
+        _cShowMisses = getSettingBool("kssette_show_misses");
+        _cScorePos = getSettingString("kssette_score_pos", "Default");
+        _cHudVisible = isHudVisible();
+        _cDownscroll = isDownscroll();
+        _cFont = getHudFont();
+        
+        _cIsMobileLayout = false;
+        if (KssetteOptionsManager.instance != null) {
+            if (!KssetteOptionsManager.instance.isMobileLikePC()) {
+                _cIsMobileLayout = true;
+            } else if (KssetteOptionsManager.instance.getKssValue("kssette_middlescroll") == "Like Mobile") {
+                _cIsMobileLayout = true;
+            }
+        }
+    }
+
+    public function new() {
+        super("CleanJudgements");
+        this.name = "CleanJudgements";
+    }
+
+    override public function buildPreview(cam:FlxCamera) {
+        isPreview = true;
+        
+        pSickTxt = createText(FlxG.width - 210, FlxG.height * 0.1, 200, "Sick: 0", 20, 0xFFFFFFFF, "right");
+        pSickTxt.scrollFactor.set(0, 0);
+        safeAdd(pSickTxt, cam);
+        
+        pMissTxt = createText(FlxG.width - 210, pSickTxt.y + 24, 200, "Miss: 0", 20, 0xFFFFFFFF, "right");
+        pMissTxt.scrollFactor.set(0, 0);
+        safeAdd(pMissTxt, cam);
+    }
+
+
+
+    override public function updatePreview() {
+        updateSettings();
+        onUpdate(0);
+    }
+
+    override public function onCountdownStart(event:Dynamic) {
+        isPreview = false;
+        updateSettings();
+        var state = PlayState.instance;
+        if (state == null) return;
+        
+        safeDestroy(sickTxt);
+        safeDestroy(missTxt);
+
+        sickTxt = createText(FlxG.width - 210, FlxG.height * 0.1, 200, "Sick: 0", 20, 0xFFFFFFFF, "right");
+        sickTxt.scrollFactor.set(0, 0);
+        sickTxt.cameras = [state.camHUD];
+        sickTxt.zIndex = KassetteHUDElement.Z_HUD_MID;
+        state.add(sickTxt);
+
+        missTxt = createText(FlxG.width - 210, sickTxt.y + 24, 200, "Miss: 0", 20, 0xFFFFFFFF, "right");
+        missTxt.scrollFactor.set(0, 0);
+        missTxt.cameras = [state.camHUD];
+        missTxt.zIndex = KassetteHUDElement.Z_HUD_MID;
+        state.add(missTxt);
+    }
+
+    override public function onUpdate(event:Dynamic) {
+        var state = PlayState.instance;
+        var showHud = _cHudVisible;
+        var downscroll = _cDownscroll;
+
+        var inverted = _cScorePos == "Inverted";
+        var atTop = inverted ? !downscroll : downscroll;
+
+        var targetY = atTop ? FlxG.height * 0.1 : FlxG.height * 0.9 - 48;
+        
+        var isMobileLayout = _cIsMobileLayout;
+        if (isMobileLayout && atTop) {
+            targetY += 80; // Push down to avoid top-left opponent receptors and keep symmetry
+        }
+
+        var cachedFont = _cFont;
+
+        var fontChanged = (_lastFont != cachedFont);
+        if (fontChanged) _lastFont = cachedFont;
+
+        if (isPreview) {
+            if (pSickTxt != null) {
+                if (fontChanged) pSickTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "right", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+                pSickTxt.visible = showHud && _cShowSicks;
+                pSickTxt.y = targetY;
+            }
+            if (pMissTxt != null) {
+                if (fontChanged) pMissTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "right", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+                pMissTxt.visible = showHud && _cShowMisses;
+                pMissTxt.y = _cShowSicks ? targetY + pSickTxt.height : targetY;
+            }
+            return;
+        }
+
+        if (state == null || sickTxt == null || missTxt == null) return;
+
+        if (fontChanged) {
+            sickTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "right", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+            missTxt.setFormat(cachedFont, 20, 0xFFFFFFFF, "right", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+        }
+
+        sickTxt.visible = showHud && _cShowSicks;
+        missTxt.visible = showHud && _cShowMisses;
+        sickTxt.y = targetY;
+        missTxt.y = _cShowSicks ? targetY + sickTxt.height : targetY;
+
+        // Anti-Overlap System
+        // No more transparency anti-overlap for side texts since they physically evade the notes now.
+        sickTxt.alpha = 1.0;
+        missTxt.alpha = 1.0;
+
+        var sickCount = 0;
+        var missCount = 0;
+        
+        var scoreHunter = KassetteHUDDatahunter.score;
+        if (scoreHunter != null) {
+            sickCount = scoreHunter.getSicks();
+            missCount = scoreHunter.getMisses();
+        }
+
+        if (_lastSick != sickCount) {
+            sickTxt.text = "Sicks: " + sickCount;
+            _lastSick = sickCount;
+        }
+        if (_lastMiss != missCount) {
+            missTxt.text = "Misses: " + missCount;
+            _lastMiss = missCount;
+        }
+    }
+}

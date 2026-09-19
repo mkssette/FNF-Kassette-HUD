@@ -1,19 +1,22 @@
-package kassettehud.util;
 
 import funkin.modding.module.Module;
 import funkin.modding.module.ModuleHandler;
 import funkin.play.PlayState;
-import funkin.Preferences;
+import kassettehud.util.KassetteHUDElement;
+import kassettehud.util.KssetteOptionsManager;
+import kassettehud.util.KassetteHUDDatahunter;
 import funkin.Paths;
 import funkin.data.notestyle.NoteStyleRegistry;
 import funkin.play.components.HealthIcon;
 import funkin.play.notes.Strumline;
+import funkin.play.notes.NoteSprite;
 import funkin.util.Constants;
 import flixel.FlxG;
 import flixel.FlxSprite;
 import flixel.FlxCamera;
 import flixel.tweens.FlxTween;
 import flixel.tweens.FlxEase;
+import flixel.util.FlxTimer;
 import Std;
 import Math;
 
@@ -21,19 +24,15 @@ import StringTools;
 import funkin.ui.FullScreenScaleMode;
 import funkin.Conductor;
 
-class KssetteHUDPreview extends Module {
+import funkin.ui.ScriptedMusicBeatSubState;
+
+class KssetteHUDPreview extends ScriptedMusicBeatSubState {
     public var isPreview:Bool = false;
     public var previewCam:FlxCamera = null;
-    var apiModule:Dynamic = null;
+    var bgOptionsText:FlxText;
 
     var playerStrumPreview:Strumline;
     var opponentStrumPreview:Strumline;
-    
-    var healthBarBG:FlxSprite;
-    var healthBarFillP1:FlxSprite;
-    var healthBarFillP2:FlxSprite;
-    var iconP1:HealthIcon;
-    var iconP2:HealthIcon;
 
     var bopTimer:Float = 0.0;
     var cachedActive:Bool = true;
@@ -43,27 +42,45 @@ class KssetteHUDPreview extends Module {
 
     var fakeNotes:Array<FlxSprite> = [];
     var noteTimer:Float = 0.0;
-    var targetNoteDelay:Float = 2.0;
+    var targetNoteDelay:Float = 0.1;
     var ghostTimer:Float = 0.0;
+    var elapsedTime:Float = 0.0;
     var targetGhostDelay:Float = 3.0;
     var noteCount:Int = 0;
     var playerTurn:Bool = true;
     
     var bfIdleTimer:Float = 0.0;
     var dadIdleTimer:Float = 0.0;
+    var dadDancesCount:Int = 0;
     var isArrowsScheme:Bool = false;
     var canSpawnOpp:Bool = true;
+    var cachedNoteStyle:Dynamic = null;
 
+    /**
+     * Constructor for the component.
+     */
     public function new() {
-        super("KssetteHUDPreview");
+        super();
+        this.persistentUpdate = true;
+        this.persistentDraw = true;
     }
 
+    /**
+     * Executes the killObj logic.
+     * @param obj Value for obj.
+     */
     function killObj(obj:Dynamic) {
         if (obj == null) return;
-        FlxG.state.remove(obj);
-        obj?.destroy();
+        try {
+            FlxG.state.remove(obj, true);
+            obj.kill();
+        } catch(e:Dynamic) {}
     }
 
+    /**
+     * Executes the cancelStrum logic.
+     * @param strum Value for strum.
+     */
     function cancelStrum(strum:Dynamic) {
         if (strum == null || !strum.exists) return;
         if (strum.strumlineNotes != null) {
@@ -74,6 +91,9 @@ class KssetteHUDPreview extends Module {
         FlxTween.cancelTweensOf(strum);
     }
 
+    /**
+     * Executes the cancelStrumTweens logic.
+     */
     public function cancelStrumTweens() {
         if (previewInTween != null) {
             previewInTween?.cancel();
@@ -87,16 +107,14 @@ class KssetteHUDPreview extends Module {
         cancelStrum(opponentStrumPreview);
     }
 
+    /**
+     * Executes the cleanUp logic.
+     */
     public function cleanUp() {
         cancelStrumTweens();
 
         killObj(playerStrumPreview);
         killObj(opponentStrumPreview);
-        killObj(healthBarBG);
-        killObj(healthBarFillP1);
-        killObj(healthBarFillP2);
-        killObj(iconP1);
-        killObj(iconP2);
         
         for (note in fakeNotes) {
             killObj(note);
@@ -105,175 +123,135 @@ class KssetteHUDPreview extends Module {
 
         playerStrumPreview = null;
         opponentStrumPreview = null;
-        healthBarBG = null;
-        healthBarFillP1 = null;
-        healthBarFillP2 = null;
-        iconP1 = null;
-        iconP2 = null;
     }
 
+    /**
+     * Executes the onStateChangeStart logic.
+     * @param event Value for event.
+     */
     override public function onStateChangeStart(event:Dynamic) {
         super.onStateChangeStart(event);
         isPreview = false;
         cleanUp();
     }
 
+    /**
+     * Sets the upUI value.
+     * @param cam Value for cam.
+     */
     public function setupUI(cam:FlxCamera) {
         cleanUp();
-
-        healthBarBG = new FlxSprite(0, FlxG.height * 0.89);
-        try {
-            healthBarBG.loadGraphic(Paths.image('healthBar'));
-        } catch(e:Dynamic) {
-            healthBarBG.makeGraphic(601, 19, 0xFF000000);
-        }
-        healthBarBG.screenCenter(0x01);
-        healthBarBG.scrollFactor.set(0, 0);
-        healthBarBG.cameras = [cam];
-        healthBarBG.zIndex = 110;
-        FlxG.state.add(healthBarBG);
-
-        var fw = Std.int((healthBarBG.width - 8) / 2);
-        var fh = Std.int(healthBarBG.height - 8);
-
-        healthBarFillP2 = new FlxSprite(healthBarBG.x + 4, healthBarBG.y + 4).makeGraphic(fw, fh, 0xFFFFFFFF);
-        healthBarFillP2.color = 0xFFFF0000;
-        healthBarFillP2.scrollFactor.set(0, 0);
-        healthBarFillP2.cameras = [cam];
-        healthBarFillP2.zIndex = 111;
-        FlxG.state.add(healthBarFillP2);
-
-        healthBarFillP1 = new FlxSprite(healthBarBG.x + 4 + fw, healthBarBG.y + 4).makeGraphic(fw, fh, 0xFFFFFFFF);
-        healthBarFillP1.color = 0xFF66FF33;
-        healthBarFillP1.scrollFactor.set(0, 0);
-        healthBarFillP1.cameras = [cam];
-        healthBarFillP1.zIndex = 111;
-        FlxG.state.add(healthBarFillP1);
-
-        iconP1 = new HealthIcon('bf', true);
-        iconP1.autoUpdate = false;
-        try {
-            iconP1.loadGraphic(Paths.image('icons/icon-bf'), true, 150, 150);
-            iconP1.animation.add('icon', [0, 1], 0, false, true);
-            iconP1.animation.play('icon');
-        } catch(e:Dynamic) {}
-        iconP1.cameras = [cam];
-        iconP1.scrollFactor.set(0, 0);
-        iconP1.zIndex = 112;
-        FlxG.state.add(iconP1);
-
-        iconP2 = new HealthIcon('dad', false);
-        iconP2.autoUpdate = false;
-        try {
-            iconP2.loadGraphic(Paths.image('icons/icon-dad'), true, 150, 150);
-            iconP2.animation.add('icon', [0, 1], 0, false, false);
-            iconP2.animation.play('icon');
-        } catch(e:Dynamic) {}
-        iconP2.cameras = [cam];
-        iconP2.scrollFactor.set(0, 0);
-        iconP2.zIndex = 112;
-        FlxG.state.add(iconP2);
     }
 
+    /**
+     * Executes the buildPreview logic.
+     * @param cam Value for cam.
+     */
     public function buildPreview(cam:FlxCamera) {
         isPreview = true;
         previewCam = cam;
         
-        apiModule = ModuleHandler.getModule("KssetteApi");
-        
         setupUI(cam);
-        updatePreview();
+        updatePreview(0.0);
     }
 
-    public function updatePreview() {
-        if (!isPreview || healthBarBG == null || !healthBarBG.exists) return;
+    /**
+     * Executes the updatePreview logic.
+     * @param elapsed Value for elapsed.
+     */
+    public function updatePreview(elapsed:Float) {
+        if (!isPreview) { return; }
         
-        if (apiModule == null) apiModule = ModuleHandler.getModule("KssetteApi");
-        if (apiModule == null) return;
+        elapsedTime += elapsed;
 
         var isMob = false;
         var isMobPC = false;
         try {
-            if (apiModule != null) {
-                isMob = apiModule.isMobileMode == true;
-                isMobPC = apiModule.isMobileLikePC() == true;
+            var optManager = KssetteOptionsManager.instance;
+            if (optManager != null) {
+                isMob = optManager.isMobileMode == true;
+                isMobPC = optManager.isMobileLikePC() == true;
             }
         } catch(e:Dynamic) {}
 
         isArrowsScheme = false;
         if (isMob && !isMobPC) {
-            try {
-                if (Std.string(Preferences.controlsScheme) == "Arrows") isArrowsScheme = true;
-            } catch(e:Dynamic) {}
             if (!isArrowsScheme) {
+                var ctrlScheme = "Arrows"; // Fallback like Preferences.hx
                 try {
-                    if (Save.instance?.mobileOptions?.controlsScheme != null) {
-                        if (Std.string(Save.instance.mobileOptions.controlsScheme) == "Arrows") isArrowsScheme = true;
+                    if (Save.instance != null && Save.instance.mobileOptions != null) {
+                        if (Save.instance.mobileOptions.controlsScheme != null) {
+                            ctrlScheme = Std.string(Save.instance.mobileOptions.controlsScheme);
+                        }
                     }
                 } catch(e:Dynamic) {}
+                
+                if (ctrlScheme == "Arrows") isArrowsScheme = true;
             }
         }
 
         var downscroll = false;
-        if (apiModule != null && apiModule.getDownscroll != null) downscroll = apiModule.getDownscroll();
-        else downscroll = Preferences.downscroll;
+        if (KssetteOptionsManager.instance != null) downscroll = KssetteOptionsManager.instance.getDownscroll();
+        else downscroll = false;
         
-        var rawMs:Dynamic = apiModule.getKssValue("kssette_middlescroll");
+        var rawMs:Dynamic = KssetteOptionsManager.instance != null ? KssetteOptionsManager.instance.getKssValue("kssette_middlescroll") : null;
         var ms:String = "";
         if (rawMs == true) ms = "On";
         else if (rawMs == false) ms = "Off";
         else ms = Std.string(rawMs);
         
-        var oppPos = Std.string(apiModule.getKssValue("kssette_opponent_pos"));
-        var coloredHB = apiModule.getKssValue("kssette_colored_healthbar") == true;
+        var oppPos = Std.string(KssetteOptionsManager.instance != null ? KssetteOptionsManager.instance.getKssValue("kssette_opponent_pos") : null);
+        var coloredHB = KssetteOptionsManager.instance != null && KssetteOptionsManager.instance.getKssValue("kssette_colored_healthbar") == true;
 
         var strumYOffset = 50.0;
-        try { strumYOffset = Constants.STRUMLINE_Y_OFFSET; } catch(e:Dynamic) {}
+        strumYOffset = Constants.STRUMLINE_Y_OFFSET;
 
         var targetY = downscroll ? FlxG.height - 150.0 : strumYOffset;
         var startY = downscroll ? targetY + 300.0 : targetY - 300.0;
         var currentY:Float = (playerStrumPreview != null && playerStrumPreview.exists) ? playerStrumPreview.y : startY;
 
         cancelStrumTweens();
+        cachedNoteStyle = NoteStyleRegistry.instance.fetchDefault();
 
-        if (playerStrumPreview != null) {
-            killObj(playerStrumPreview);
-            playerStrumPreview = null;
-        }
-        if (opponentStrumPreview != null) {
-            killObj(opponentStrumPreview);
-            opponentStrumPreview = null;
-        }
-
-        var noteStyle = NoteStyleRegistry.instance.fetchDefault();
-
-        var hideOpp = Std.string(apiModule.getKssValue("kssette_hide_opponent")) == "On" || Std.string(apiModule.getKssValue("kssette_hide_opponent")) == "true";
+        var hideOpp = KssetteOptionsManager.instance != null && (Std.string(KssetteOptionsManager.instance.getKssValue("kssette_hide_opponent")) == "On" || Std.string(KssetteOptionsManager.instance.getKssValue("kssette_hide_opponent")) == "true");
         var showOpp = (ms != "Hidden Notes") && !(ms == "Off" && hideOpp);
+        
         if (showOpp) {
-            opponentStrumPreview = new Strumline(noteStyle, false);
-            opponentStrumPreview.cameras = [previewCam];
-            opponentStrumPreview.scrollFactor.set(0, 0);
-            opponentStrumPreview.zIndex = 10;
-            var obg = opponentStrumPreview?.background; if (obg != null) obg.visible = false;
-            
+            if (opponentStrumPreview == null || !opponentStrumPreview.exists) {
+                opponentStrumPreview = new Strumline(cachedNoteStyle, false);
+                opponentStrumPreview.cameras = [previewCam];
+                opponentStrumPreview.scrollFactor.set(0, 0);
+                opponentStrumPreview.zIndex = 10;
+                FlxG.state.add(opponentStrumPreview);
+            }
             var oppAlphaVal = 1.0;
-            var rawOppOp:Dynamic = apiModule.getKssValue("kssette_opponent_opacity");
+            var rawOppOp:Dynamic = KssetteOptionsManager.instance != null ? KssetteOptionsManager.instance.getKssValue("kssette_opponent_opacity") : null;
             if (rawOppOp != null) {
                 var valStr = StringTools.replace(Std.string(rawOppOp), "%", "");
                 var valNum = Std.parseFloat(valStr);
                 if (!Math.isNaN(valNum)) oppAlphaVal = valNum / 100.0;
             }
             opponentStrumPreview.alpha = oppAlphaVal;
+            opponentStrumPreview.visible = true;
             
-            FlxG.state.add(opponentStrumPreview);
+            var oppBgOption = KssetteOptionsManager.instance != null && (Std.string(KssetteOptionsManager.instance.getKssValue("kssette_opponent_bg")) == "On" || Std.string(KssetteOptionsManager.instance.getKssValue("kssette_opponent_bg")) == "true");
+            var msOn = (ms != "Off" && ms != "null" && ms != "");
+            if (msOn) oppBgOption = false; // Disabled on Middle Scroll
+            var obg = opponentStrumPreview?.background; if (obg != null) obg.visible = oppBgOption;
+        } else {
+            if (opponentStrumPreview != null) {
+                opponentStrumPreview.visible = false;
+            }
         }
 
-        playerStrumPreview = new Strumline(noteStyle, true);
-        playerStrumPreview.cameras = [previewCam];
-        playerStrumPreview.scrollFactor.set(0, 0);
-        playerStrumPreview.zIndex = 10;
-        var pbg = playerStrumPreview?.background; if (pbg != null) pbg.visible = false;
-        FlxG.state.add(playerStrumPreview);
+        if (playerStrumPreview == null || !playerStrumPreview.exists) {
+            playerStrumPreview = new Strumline(cachedNoteStyle, true);
+            playerStrumPreview.cameras = [previewCam];
+            playerStrumPreview.scrollFactor.set(0, 0);
+            playerStrumPreview.zIndex = 10;
+            FlxG.state.add(playerStrumPreview);
+        }
+        var pbg = playerStrumPreview?.background; if (pbg != null) pbg.visible = true;
 
         var halfW = FlxG.width / 2.0;
         var cutoutSize = FullScreenScaleMode.gameCutoutSize?.x != null ? FullScreenScaleMode.gameCutoutSize.x / 2.5 : 0.0;
@@ -283,12 +261,12 @@ class KssetteHUDPreview extends Module {
         var isGlass = (ms == "Glass");
         var sxOff = Constants.STRUMLINE_X_OFFSET != null ? Constants.STRUMLINE_X_OFFSET : 50.0;
         
-        var oppNotesActive = apiModule.getKssValue("kssette_mobile_opp_notes") == true;
+        var oppNotesActive = KssetteOptionsManager.instance != null && KssetteOptionsManager.instance.getKssValue("kssette_mobile_opp_notes") == true;
 
         if (isArrowsScheme) {
             playerStrumPreview.x = 0;
             var pNotes:Array<Dynamic> = null;
-            try { pNotes = playerStrumPreview.strumlineNotes.members; } catch(e:Dynamic) {}
+            pNotes = playerStrumPreview.strumlineNotes.members;
             
             if (pNotes != null) {
                 var hintW = 146.0;
@@ -308,11 +286,11 @@ class KssetteHUDPreview extends Module {
             if (opponentStrumPreview != null && opponentStrumPreview.exists) {
                 opponentStrumPreview.x = 0; 
                 var oppReceptors:Array<Dynamic> = null;
-                try { oppReceptors = opponentStrumPreview.strumlineNotes.members; } catch(e:Dynamic) {}
+                oppReceptors = opponentStrumPreview.strumlineNotes.members;
                 
                 if (oppReceptors != null && oppReceptors.length >= 4) {
                     var defScale:Float = 0.7;
-                    try { defScale = noteStyle.getStrumlineScale(); } catch(e:Dynamic) {}
+                    if (cachedNoteStyle != null) defScale = cachedNoteStyle.getStrumlineScale();
                     var noteSpace = 112.0;
                     var sizeRatio = 0.55; 
                     var targetSpacing = noteSpace * sizeRatio;
@@ -345,15 +323,35 @@ class KssetteHUDPreview extends Module {
             if (showOpp && opponentStrumPreview != null && opponentStrumPreview.exists) {
                 if (!msOn) {
                     opponentStrumPreview.x = sxOff + cutoutSize;
+                    
+                    var oppReceptors:Array<Dynamic> = null;
+                    oppReceptors = opponentStrumPreview.strumlineNotes.members;
+                    
+                    if (oppReceptors != null && oppReceptors.length >= 4) {
+                        var defScale:Float = 0.7;
+                        if (cachedNoteStyle != null) defScale = cachedNoteStyle.getStrumlineScale();
+                        
+                        var noteSpace = 112.0;
+                        for (i in 0...4) {
+                            var rec = oppReceptors[i];
+                            if (rec != null && rec.exists) {
+                                rec.scale.set(defScale, defScale);
+                                rec.updateHitbox();
+                                rec.alpha = 1.0 * opponentStrumPreview.alpha;
+                                rec.color = 0xFFFFFFFF;
+                                rec.x = opponentStrumPreview.x + (noteSpace * i);
+                            }
+                        }
+                    }
                 } else {
                     opponentStrumPreview.x = 0; 
                     
                     var oppReceptors:Array<Dynamic> = null;
-                    try { oppReceptors = opponentStrumPreview.strumlineNotes.members; } catch(e:Dynamic) {}
+                    oppReceptors = opponentStrumPreview.strumlineNotes.members;
                     
                     if (oppReceptors != null && oppReceptors.length >= 4) {
                         var defScale:Float = 0.7;
-                        try { defScale = noteStyle.getStrumlineScale(); } catch(e:Dynamic) {}
+                        if (cachedNoteStyle != null) defScale = cachedNoteStyle.getStrumlineScale();
 
                         var noteSpace = 112.0;
                         var nw = (oppReceptors[0] != null && oppReceptors[0].exists) ? oppReceptors[0].width : noteSpace;
@@ -434,30 +432,12 @@ class KssetteHUDPreview extends Module {
             previewOutTween = FlxTween.tween(opponentStrumPreview, {y: oppTargetY}, 0.3, {ease: FlxEase.cubeOut});
         }
 
-        cachedActive = apiModule.getKssValue("kssette_show_hud") == true;
-        healthBarBG.visible = cachedActive;
-        if (healthBarFillP1 != null && healthBarFillP1.exists) healthBarFillP1.visible = cachedActive;
-        if (healthBarFillP2 != null && healthBarFillP2.exists) healthBarFillP2.visible = cachedActive;
-        if (iconP1 != null && iconP1.exists) iconP1.visible = cachedActive;
-        if (iconP2 != null && iconP2.exists) iconP2.visible = cachedActive;
-
-        var hbY = downscroll ? FlxG.height * 0.11 : FlxG.height * 0.89;
-        healthBarBG.y = hbY;
-        if (healthBarFillP1 != null && healthBarFillP1.exists) healthBarFillP1.y = hbY + 4;
-        if (healthBarFillP2 != null && healthBarFillP2.exists) healthBarFillP2.y = hbY + 4;
-
-        var p1Color = 0xFF66FF33; 
-        var p2Color = 0xFFFF0000;
-        
-        if (coloredHB) {
-            p1Color = 0xFF31B0D1; 
-            p2Color = 0xFFAF66CE; 
-        }
-
-        if (healthBarFillP1 != null && healthBarFillP1.exists) healthBarFillP1.color = p1Color;
-        if (healthBarFillP2 != null && healthBarFillP2.exists) healthBarFillP2.color = p2Color;
+        cachedActive = KssetteOptionsManager.instance != null && KssetteOptionsManager.instance.getKssValue("kssette_show_hud") == true;
     }
 
+    /**
+     * Executes the spawnFakeNote logic.
+     */
     function spawnFakeNote() {
         if (!isPreview || playerStrumPreview == null) return;
         
@@ -465,18 +445,18 @@ class KssetteHUDPreview extends Module {
         var oppNotesActive = false;
         var isMob = false;
         var isMobPC = false;
-        try {
-            if (apiModule != null) {
-                var rawMs:Dynamic = apiModule.getKssValue("kssette_middlescroll");
-                if (rawMs == true) ms = "On";
-                else if (rawMs == false) ms = "Off";
-                else ms = Std.string(rawMs);
-                
-                oppNotesActive = apiModule.getKssValue("kssette_mobile_opp_notes") == true;
-                isMob = apiModule.isMobileMode == true;
-                isMobPC = apiModule.isMobileLikePC() == true;
-            }
-        } catch(e:Dynamic) {}
+        
+        var optManager = KssetteOptionsManager.instance;
+        if (optManager != null) {
+            var rawMs:Dynamic = optManager.getKssValue("kssette_middlescroll");
+            if (rawMs == true) ms = "On";
+            else if (rawMs == false) ms = "Off";
+            else ms = Std.string(rawMs);
+            
+            oppNotesActive = optManager.getKssValue("kssette_mobile_opp_notes") == true;
+            isMob = optManager.isMobileMode == true;
+            isMobPC = optManager.isMobileLikePC() == true;
+        }
 
         var isPlayer = true;
         canSpawnOpp = true;
@@ -496,7 +476,7 @@ class KssetteHUDPreview extends Module {
         
         var strum = isPlayer ? playerStrumPreview : opponentStrumPreview;
         var pNotes = null;
-        try { pNotes = strum.strumlineNotes.members; } catch(e:Dynamic) {}
+        pNotes = strum.strumlineNotes.members;
         if (pNotes == null || pNotes.length < 4) return;
         
         var dir = Std.random(4);
@@ -504,10 +484,11 @@ class KssetteHUDPreview extends Module {
         if (rec == null || !rec.exists) return;
         
         var downscroll = false;
-        if (apiModule != null && apiModule.getDownscroll != null) downscroll = apiModule.getDownscroll();
+        if (KassetteHUDDatahunter.song != null) downscroll = KassetteHUDDatahunter.song.getDownscroll();
         
-        var style = NoteStyleRegistry.instance.fetchDefault();
-        var fake = new funkin.play.notes.NoteSprite(style, dir);
+        var style = cachedNoteStyle;
+        if (style == null) style = NoteStyleRegistry.instance.fetchDefault();
+        var fake = new NoteSprite(style, dir);
         fake.direction = dir; 
         
         fake.scale.set(rec.scale.x, rec.scale.y);
@@ -523,12 +504,24 @@ class KssetteHUDPreview extends Module {
         fake.zIndex = 9;
         fake.ID = dir;
         fake.health = isPlayer ? 1 : 0;
-        fake.alpha = 0.8;
+        var oppAlphaVal = 1.0;
+        if (!isPlayer && KssetteOptionsManager.instance != null) {
+            var rawOppOp = KssetteOptionsManager.instance.getKssValue("kssette_opponent_opacity");
+            if (rawOppOp != null) {
+                var valStr = StringTools.replace(Std.string(rawOppOp), "%", "");
+                var valNum = Std.parseFloat(valStr);
+                if (!Math.isNaN(valNum)) oppAlphaVal = valNum / 100.0;
+            }
+        }
+
+        fake.alpha = isPlayer ? 0.8 : oppAlphaVal;
         
-        var ms = Std.string(apiModule.getKssValue("kssette_middlescroll"));
+        var ms = Std.string(KssetteOptionsManager.instance != null ? KssetteOptionsManager.instance.getKssValue("kssette_middlescroll") : null);
         if (!isPlayer && ms == "Glass") {
             fake.alpha = 0.25;
             fake.color = 0xFF666666;
+        } else if (!isPlayer && ms == "P Style") {
+            fake.alpha = 0.6 * oppAlphaVal;
         }
         
         if (!isPlayer && !canSpawnOpp) {
@@ -539,49 +532,37 @@ class KssetteHUDPreview extends Module {
         var fallTime = 2.5;
         
         var isPlayerNote = isPlayer;
+        var dirStr = ["singLEFT", "singDOWN", "singUP", "singRIGHT"][dir];
         FlxTween.tween(fake, {y: targetY}, fallTime, {ease: FlxEase.linear, onComplete: function(t) {
             if (strum != null && strum.exists && fake.visible) {
-                try {
-                    strum.playConfirm(dir);
-                    new flixel.util.FlxTimer().start(0.15, function(tmr) {
-                        if (strum != null && strum.exists) strum.playStatic(dir);
-                    });
-                } catch(e:Dynamic) {}
+                strum.playConfirm(dir);
+                new FlxTimer().start(0.15, function(tmr) {
+                    if (strum != null && strum.exists) strum.playStatic(dir);
+                });
             }
             
-            try {
-                var char = isPlayerNote ? apiModule.preview_bf : apiModule.preview_dad;
-                if (char != null) {
-                    char.playSingAnimation(dir, false, "");
-                    char.holdTimer = 0.0;
-                    
-                    var strum = isPlayerNote ? playerStrumPreview : opponentStrumPreview;
-                    if (strum != null && strum.exists) {
-                        try {
-                            var rec = strum.strumlineNotes.members[dir];
-                            if (rec != null && rec.exists) {
-                                rec.playConfirm();
-                                rec.confirmHoldTimer = 0.0;
-                            }
-                        } catch(e:Dynamic) {}
-                    }
-                    
-                    if (isPlayerNote) {
-                        bfIdleTimer = 0.6;
-                        try { 
-                            apiModule.preview_scoreBopTrigger = true;
-                            apiModule.preview_simulatedAcc += 25.0;
-                            if (apiModule.preview_simulatedAcc > 100.0) apiModule.preview_simulatedAcc = 100.0;
-                        } catch(e:Dynamic) {}
-                    }
-                    else {
-                        dadIdleTimer = 0.6;
-                        try {
-                            apiModule.preview_simulatedAcc = 0.0;
-                        } catch(e:Dynamic) {}
+            var char = isPlayerNote ? KassetteHUDElement.preview_bf : KassetteHUDElement.preview_dad;
+            if (char != null) {
+                char.playAnimation(dirStr, true);
+                KassetteHUDElement.preview_scoreBopTrigger = true;
+                KassetteHUDElement.preview_simulatedAcc += 25.0;
+                if (KassetteHUDElement.preview_simulatedAcc > 100.0) KassetteHUDElement.preview_simulatedAcc = 100.0;
+            }
+            else {
+                dadIdleTimer = 0.6;
+                KassetteHUDElement.preview_simulatedAcc = 0.0;
+            }
+            
+            if (char != null) {
+                var strum = isPlayerNote ? playerStrumPreview : opponentStrumPreview;
+                if (strum != null && strum.exists) {
+                    var rec = strum.strumlineNotes.members[dir];
+                    if (rec != null && rec.exists) {
+                        rec.playConfirm();
+                        rec.confirmHoldTimer = 0.0;
                     }
                 }
-            } catch(e:Dynamic) {}
+            }
             
             if (fakeNotes.indexOf(fake) != -1) fakeNotes.remove(fake);
             killObj(fake);
@@ -590,22 +571,24 @@ class KssetteHUDPreview extends Module {
         FlxG.state.add(fake);
     }
 
+    /**
+     * Executes the spawnGhostTap logic.
+     */
     function spawnGhostTap() {
-        if (apiModule == null || apiModule.preview_bf == null) return;
-        var char = apiModule.preview_bf;
+        if (KassetteHUDElement.preview_bf == null) return;
+        var char = KassetteHUDElement.preview_bf;
         var dir = Std.random(4);
         
-        var ghostTapping = Std.string(apiModule.getKssValue("kssette_ghost_tapping"));
-        var ghostSing = Std.string(apiModule.getKssValue("kssette_ghost_sing"));
+        var optManager = KssetteOptionsManager.instance;
+        var ghostTapping = Std.string(optManager != null ? optManager.getKssValue("kssette_ghost_tapping") : null);
+        var ghostSing = Std.string(optManager != null ? optManager.getKssValue("kssette_ghost_sing") : null);
         
         if (playerStrumPreview != null && playerStrumPreview.exists) {
-            try {
-                var rec = playerStrumPreview.strumlineNotes.members[dir];
-                if (rec != null && rec.exists) {
-                    rec.playPress();
-                    rec.confirmHoldTimer = 0.0;
-                }
-            } catch(e:Dynamic) {}
+            var rec = playerStrumPreview.strumlineNotes.members[dir];
+            if (rec != null && rec.exists) {
+                rec.playPress();
+                rec.confirmHoldTimer = 0.0;
+            }
         }
         
         var isMiss = false;
@@ -622,28 +605,31 @@ class KssetteHUDPreview extends Module {
             if (hasPlayerNotes) isMiss = true;
         }
         
+        var dirStr = ["singLEFT", "singDOWN", "singUP", "singRIGHT"][dir];
         if (isMiss) {
-            try {
-                char.playSingAnimation(dir, true, "");
-                bfIdleTimer = 0.6;
-                apiModule.preview_simulatedAcc = 0.0;
-                apiModule.preview_scoreBopTrigger = true; 
-            } catch(e:Dynamic) {}
+            bfIdleTimer = 0.6;
+            KassetteHUDElement.preview_simulatedAcc = 0.0;
+            char.playAnimation(dirStr + "miss", true);
         } else {
             if (ghostSing == "On" || ghostSing == "true") {
-                try {
-                    char.playSingAnimation(dir, false, "");
-                    bfIdleTimer = 0.6;
-                } catch(e:Dynamic) {}
+                bfIdleTimer = 0.6;
+                char.playAnimation(dirStr, true);
             }
         }
     }
 
-    override public function onUpdate(event:Dynamic) {
+    /**
+     * Executes the update logic.
+     * @param elapsed Value for elapsed.
+     */
+    override public function update(elapsed:Float):Void {
+        super.update(elapsed);
+        elapsedTime += elapsed;
+        if (!isPreview) {
+            return;
+        }
 
-        if (!isPreview) return;
-
-        if (Std.isOfType(FlxG.state, PlayState)) {
+        if (PlayState.instance != null) {
             if (FlxG.state.subState == null) {
                 isPreview = false;
                 cleanUp();
@@ -652,15 +638,21 @@ class KssetteHUDPreview extends Module {
         }
         
         if (bfIdleTimer > 0) {
-            bfIdleTimer -= event.elapsed;
+            bfIdleTimer -= elapsed;
             if (bfIdleTimer <= 0) {
-                try { if (apiModule.preview_bf != null) apiModule.preview_bf.dance(true); } catch(e:Dynamic) {}
+                if (KassetteHUDElement.preview_bf != null) KassetteHUDElement.preview_bf.dance(true);
             }
         }
         if (dadIdleTimer > 0) {
-            dadIdleTimer -= event.elapsed;
+            dadIdleTimer -= elapsed;
             if (dadIdleTimer <= 0) {
-                try { if (apiModule.preview_dad != null) apiModule.preview_dad.dance(true); } catch(e:Dynamic) {}
+                if (KassetteHUDElement.preview_dad != null) KassetteHUDElement.preview_dad.dance(true);
+            }
+        } else {
+            var c = Math.floor(elapsedTime / 4.0);
+            if (c > dadDancesCount) {
+                dadDancesCount = c;
+                if (KassetteHUDElement.preview_dad != null) KassetteHUDElement.preview_dad.dance(true);
             }
         }
         
@@ -669,28 +661,58 @@ class KssetteHUDPreview extends Module {
             beatDuration = Conductor.instance.crochet / 1000.0;
         }
 
-        noteTimer += event.elapsed;
-        if (noteTimer > targetNoteDelay) {
-            noteTimer = 0;
-            var beatsToWait = 2 + Std.random(3); // Wait 2, 3, or 4 beats
-            targetNoteDelay = beatsToWait * beatDuration;
-            spawnFakeNote();
+        var rawLowDetail = KssetteOptionsManager.instance != null ? KssetteOptionsManager.instance.getKssValue("kssette_low_detail_menu") : false;
+        var lowDetailMenu = (rawLowDetail == true || Std.string(rawLowDetail) == "On" || Std.string(rawLowDetail) == "true");
+
+        if (!lowDetailMenu) {
+            noteTimer += elapsed;
+            if (noteTimer > targetNoteDelay) {
+                noteTimer = 0;
+                var beatsToWait = 2 + Std.random(3); // Wait 2, 3, or 4 beats
+                targetNoteDelay = beatsToWait * beatDuration;
+                spawnFakeNote();
+            }
+        } else {
+            noteTimer += elapsed;
+            if (noteTimer > targetNoteDelay) {
+                noteTimer = 0;
+                var beatsToWait = 2 + Std.random(3);
+                targetNoteDelay = beatsToWait * beatDuration;
+                KassetteHUDElement.preview_scoreBopTrigger = true;
+                KassetteHUDElement.preview_simulatedAcc += 25.0;
+                if (KassetteHUDElement.preview_simulatedAcc > 100.0) KassetteHUDElement.preview_simulatedAcc = 100.0;
+            }
         }
         
-        if (apiModule != null) {
-            apiModule.preview_playerTurn = playerTurn;
+        if (true) {
+            KassetteHUDElement.preview_playerTurn = playerTurn;
             var prog = ((noteCount - 1) + (noteTimer / targetNoteDelay)) / 4.0;
             if (prog < 0) prog = 0;
             if (prog > 1) prog = 1;
-            apiModule.preview_turnProgress = prog;
+            KassetteHUDElement.preview_turnProgress = prog;
         }
         
-        ghostTimer += event.elapsed;
-        if (ghostTimer > targetGhostDelay) {
-            ghostTimer = 0;
-            var ghostBeatsToWait = 3 + Std.random(5); // Wait 3 to 7 beats
-            targetGhostDelay = ghostBeatsToWait * beatDuration;
-            spawnGhostTap();
+        if (!lowDetailMenu) {
+            ghostTimer += elapsed;
+            if (ghostTimer > targetGhostDelay) {
+                ghostTimer = 0;
+                var ghostBeatsToWait = 3 + Std.random(5); // Wait 3 to 7 beats
+                targetGhostDelay = ghostBeatsToWait * beatDuration;
+                spawnGhostTap();
+            }
+        } else {
+            ghostTimer += elapsed;
+            if (ghostTimer > targetGhostDelay) {
+                ghostTimer = 0;
+                var ghostBeatsToWait = 3 + Std.random(5);
+                targetGhostDelay = ghostBeatsToWait * beatDuration;
+                
+                var optManager = KssetteOptionsManager.instance;
+                var ghostTapping = Std.string(optManager != null ? optManager.getKssValue("kssette_ghost_tapping") : null);
+                if (ghostTapping == "Off" || ghostTapping == "false" || ghostTapping == "In Breaks") {
+                    KassetteHUDElement.preview_simulatedAcc = 0.0;
+                }
+            }
         }
         
         for (note in fakeNotes) {
@@ -698,55 +720,14 @@ class KssetteHUDPreview extends Module {
                 var isPlayer = note.health == 1;
                 var strum = isPlayer ? playerStrumPreview : opponentStrumPreview;
                 if (strum != null && strum.exists) {
-                    try {
-                        var rec = strum.strumlineNotes.members[note.ID];
-                        if (rec != null && rec.exists) {
-                            note.x = rec.x + (rec.width - note.width) / 2.0;
-                            note.alpha = strum.alpha * 0.8;
-                        }
-                    } catch(e:Dynamic) {}
+                    var rec = strum.strumlineNotes.members[note.ID];
+                    if (rec != null && rec.exists) {
+                        note.x = rec.x + (rec.width - note.width) / 2.0;
+                        note.alpha = strum.alpha * 0.8;
+                    }
                 }
             }
         }
 
-        if (cachedActive && iconP1 != null && iconP1.exists && iconP2 != null && iconP2.exists && healthBarBG != null && healthBarBG.exists) {
-            bopTimer += event.elapsed;
-            if (bopTimer >= beatDuration) { 
-                bopTimer = 0;
-                iconP1.scale.set(1.2, 1.2);
-                iconP2.scale.set(1.2, 1.2);
-            }
-            
-            var bopRecover = event.elapsed * 1.5;
-            var prevScale = iconP1.scale.x;
-            if (iconP1.scale.x > 1.0) iconP1.scale.x -= bopRecover;
-            if (iconP1.scale.y > 1.0) iconP1.scale.y -= bopRecover;
-            if (iconP1.scale.x < 1.0) iconP1.scale.x = 1.0;
-            if (iconP1.scale.y < 1.0) iconP1.scale.y = 1.0;
-
-            iconP2.scale.x = iconP1.scale.x;
-            iconP2.scale.y = iconP1.scale.y;
-
-            if (prevScale != iconP1.scale.x) {
-                iconP1.updateHitbox();
-                iconP2.updateHitbox();
-            }
-
-            iconP1.y = healthBarBG.y - (iconP1.height / 2) + 10;
-            iconP2.y = healthBarBG.y - (iconP2.height / 2) + 10;
-            
-            var hw = Std.int((healthBarBG.width - 8) / 2);
-            var iconPos = Std.string(apiModule.getKssValue("kssette_icon_pos"));
-            if (iconPos == "Corners") {
-                var centerY = healthBarBG.y + (healthBarBG.height / 2);
-                iconP1.x = healthBarBG.x + healthBarBG.width + 75 - iconP1.width;
-                iconP2.x = healthBarBG.x + 75 - iconP2.width;
-                iconP1.y = centerY + 75 - iconP1.height;
-                iconP2.y = centerY + 75 - iconP2.height;
-            } else {
-                iconP1.x = healthBarBG.x + hw - 26;
-                iconP2.x = healthBarBG.x + hw - (iconP2.width - 26);
-            }
-        }
     }
 }

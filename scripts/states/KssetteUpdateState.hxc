@@ -9,9 +9,10 @@ import flixel.util.FlxColor;
 import flixel.tweens.FlxTween;
 import funkin.Paths;
 import funkin.audio.FunkinSound;
-import funkin.modding.base.ScriptedMusicBeatState;
+import funkin.ui.ScriptedMusicBeatState;
 import funkin.ui.mainmenu.MainMenuState;
 import funkin.modding.module.ModuleHandler;
+import kassettehud.util.KssetteUpdateManager;
 import funkin.util.WindowUtil;
 import funkin.util.TouchUtil;
 
@@ -35,6 +36,9 @@ class KssetteUpdateState extends ScriptedMusicBeatState {
     
     var canProceed:Bool = false;
 
+    /**
+     * Executes the create logic.
+     */
     override public function create():Void {
         super.create();
         
@@ -68,9 +72,9 @@ class KssetteUpdateState extends ScriptedMusicBeatState {
         titleText.borderSize = 3;
         add(titleText);
         
-        var apiMod:Dynamic = ModuleHandler.getModule("KssetteApi");
-        if (apiMod != null && apiMod.latestVersion != null) {
-            latestVersion = Std.string(apiMod.latestVersion);
+        var updMgr:Dynamic = ModuleHandler.getModule("KssetteUpdateManager");
+        if (updMgr != null && updMgr.latestVersion != null) {
+            latestVersion = Std.string(updMgr.latestVersion);
         }
         
         infoText = new FlxText(0, 130, FlxG.width, "Fetching data from GameBanana...", 28);
@@ -107,6 +111,9 @@ class KssetteUpdateState extends ScriptedMusicBeatState {
         fetchGameBananaData();
     }
     
+    /**
+     * Executes the fetchGameBananaData logic.
+     */
     function fetchGameBananaData() {
         var urlUpdates = "https://gamebanana.com/apiv11/Mod/657203/Updates?_t=" + FlxG.random.int(0, 999999);
         var loaderUpdates = new URLLoader();
@@ -181,6 +188,11 @@ class KssetteUpdateState extends ScriptedMusicBeatState {
         loaderUpdates.load(new URLRequest(urlUpdates));
     }
     
+    /**
+     * Gets the BadgeColor value.
+     * @param cat Value for cat.
+     * @return Returns the Int value.
+     */
     function getBadgeColor(cat:String):Int {
         if (cat == null) return 0xFF888888;
         var c = cat.toLowerCase();
@@ -192,6 +204,9 @@ class KssetteUpdateState extends ScriptedMusicBeatState {
         return 0xFF888888;
     }
     
+    /**
+     * Executes the showButtons logic.
+     */
     function showButtons() {
         btnUpdate.visible = true;
         btnUpdateText.visible = true;
@@ -200,6 +215,10 @@ class KssetteUpdateState extends ScriptedMusicBeatState {
         canProceed = true;
     }
     
+    /**
+     * Executes the changeSelection logic.
+     * @param change Value for change.
+     */
     function changeSelection(change:Int) {
         curSelected += change;
         if (curSelected < 0) curSelected = 1;
@@ -212,6 +231,10 @@ class KssetteUpdateState extends ScriptedMusicBeatState {
         btnSkipText.color = (curSelected == 1) ? FlxColor.BLACK : FlxColor.WHITE;
     }
 
+    /**
+     * Executes the update logic.
+     * @param elapsed Value for elapsed.
+     */
     override public function update(elapsed:Float):Void {
         super.update(elapsed);
         
@@ -253,10 +276,13 @@ class KssetteUpdateState extends ScriptedMusicBeatState {
         }
     }
     
+    /**
+     * Executes the confirmSelection logic.
+     */
     function confirmSelection() {
         if (curSelected == 0) {
             FunkinSound.playOnce(Paths.sound('confirmMenu'));
-            try { WindowUtil.openURL("https://gamebanana.com/mods/657203"); } catch(err:Dynamic) {}
+            if (WindowUtil != null) WindowUtil.openURL("https://gamebanana.com/mods/657203");
             FlxG.switchState(new MainMenuState());
         } else {
             FunkinSound.playOnce(Paths.sound('cancelMenu'));

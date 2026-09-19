@@ -1,0 +1,485 @@
+import funkin.ui.ScriptedMusicBeatSubState;
+import funkin.PlayerSettings;
+import flixel.FlxG;
+import flixel.FlxCamera;
+import flixel.FlxSprite;
+import flixel.text.FlxText;
+import flixel.text.FlxTextBorderStyle;
+import flixel.group.FlxSpriteGroup;
+import funkin.save.Save;
+import funkin.Paths;
+import flixel.util.FlxColor;
+import flixel.math.FlxMath;
+import Math;
+import Std;
+import funkin.util.TouchUtil;
+import funkin.util.SwipeUtil;
+import funkin.util.HapticUtil;
+import funkin.modding.module.ModuleHandler;
+import kassettehud.util.KassetteSkinManager;
+import kassettehud.util.KassetteHUDSkin;
+import kassettehud.util.KssetteOptionsManager;
+import funkin.mobile.ui.FunkinBackButton;
+
+class KssetteSkinSelectorSubState extends ScriptedMusicBeatSubState {
+    var lowDetailMenu:Bool = false;
+    public var parent:Dynamic;
+    
+    var panelWidth:Float;
+    var screenW:Float;
+    var screenH:Float;
+    var halfScreenH:Float;
+    var optionCam:FlxCamera;
+    var menuFont:String;
+    var panelOnLeft:Bool = false;
+    
+    var skinItems:Array<Dynamic> = [];
+    var skinBgGroup:FlxSpriteGroup;
+    var skinListGroup:FlxSpriteGroup;
+    var skinDescGroup:FlxSpriteGroup;
+    var skinBtnGroup:FlxSpriteGroup;
+    var skinSelectedIndex:Int = 0;
+    var skinLastSelectedIndex:Int = -1;
+    var currentSkinSaveKey:String = "";
+    var currentSkinTextRef:FlxText = null;
+    var originalSkin:String = "";
+    var skinTargetScrollY:Float = 0;
+    var skinMaxScroll:Float = 0;
+    var skinInfoTitle:FlxText = null;
+    var skinInfoAuthor:FlxText = null;
+    var skinInfoDesc:FlxText = null;
+    var skinInfoThumb:FlxSprite = null;
+
+    var btnUpBg:FlxSprite = null;
+    var btnDownBg:FlxSprite = null;
+    var btnBackBg:FlxSprite = null;
+    
+    var btnUp:FlxText = null;
+    var btnDown:FlxText = null;
+    var btnBack:FlxText = null;
+
+    var holdTimer:Float = 0.0;
+    var sndScroll:Dynamic;
+    var sndOn:Dynamic;
+
+    var isClosing:Bool = false;
+
+    /**
+     * Constructor for the component.
+     */
+    public function new() {
+        var rawLowDetail = KssetteOptionsManager.instance.getKssValue("kssette_low_detail_menu");
+        lowDetailMenu = (rawLowDetail == true || Std.string(rawLowDetail) == "On" || Std.string(rawLowDetail) == "true");
+        super();
+        this.persistentUpdate = true;
+        this.persistentDraw = true;
+    }
+
+    /**
+     * Executes the initSubstate logic.
+     */
+    public function initSubstate():Void {
+        holdTimer = 0.2;
+        var pState:Dynamic = FlxG.state;
+        this.parent = pState;
+        
+        var skinMod:Dynamic = KassetteSkinManager.instance;
+        if (skinMod == null) skinMod = ModuleHandler.getModule("KassetteSkinManager");
+        
+        this.screenW = FlxG.width;
+        this.screenH = FlxG.height;
+        this.halfScreenH = screenH * 0.5;
+        this.optionCam = FlxG.cameras.list[FlxG.cameras.list.length - 1];
+        
+        var hudCam = FlxG.cameras.list[FlxG.cameras.list.length - 2];
+        this.cameras = [FlxG.camera, hudCam, this.optionCam];
+        
+        this.menuFont = Paths.font("5by7.ttf");
+        this.sndScroll = Paths.sound('ui/khud_scroll');
+        this.sndOn = Paths.sound('ui/khud_on');
+        this.panelOnLeft = false;
+
+        skinSelectedIndex = 0;
+        skinTargetScrollY = 0;
+        skinItems = [];
+        skinLastSelectedIndex = -1;
+
+        var fetchedVal = Save.instance.modOptions.get(currentSkinSaveKey);
+        if (fetchedVal == null) fetchedVal = "default";
+        originalSkin = Std.string(fetchedVal);
+
+        skinBgGroup = new FlxSpriteGroup(screenW, 0);
+        skinBgGroup.cameras = [optionCam];
+        add(skinBgGroup);
+
+        var bg = new FlxSprite(0, 0).makeGraphic(Std.int(screenW), Std.int(screenH), 0xFF000000);
+        bg.alpha = 0.85;
+        bg.scrollFactor.set(0, 0);
+        skinBgGroup.add(bg);
+
+        var instText = FlxG.onMobile ? "TAP BACK TO CANCEL" : "ESC TO CANCEL";
+        var sTitle = new FlxText(0, 20, screenW, "SELECT HUD SKIN (" + instText + ")", 42);
+        sTitle.setFormat(menuFont, 42, FlxColor.YELLOW, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        sTitle.antialiasing = false;
+        sTitle.scrollFactor.set(0, 0);
+        skinBgGroup.add(sTitle);
+
+        skinListGroup = new FlxSpriteGroup(screenW, 80);
+        skinListGroup.cameras = [optionCam];
+        add(skinListGroup);
+        
+        skinDescGroup = new FlxSpriteGroup(screenW, 80);
+        skinDescGroup.cameras = [optionCam];
+        add(skinDescGroup);
+
+        var sY:Float = 0;
+        var listW:Float = screenW * 0.45;
+        var skinsArray:Array<Dynamic> = skinMod != null ? skinMod.skinList : [];
+        if (skinsArray == null) skinsArray = [];
+
+        for (i in 0...skinsArray.length) {
+            var skin = skinsArray[i];
+            
+            var sTxt = new FlxText(40, 0, listW - 80, skin.skinName, 32);
+            sTxt.setFormat(menuFont, 32, FlxColor.WHITE, "left");
+            
+            var boxHeight:Float = sTxt.height + 30;
+            if (boxHeight < 60) boxHeight = 60;
+            sTxt.y = sY + (boxHeight - sTxt.height) / 2;
+
+            var itemBg = new FlxSprite(20, sY).makeGraphic(Std.int(listW - 40), Std.int(boxHeight), FlxColor.WHITE);
+            itemBg.alpha = 0.0;
+            skinListGroup.add(itemBg);
+            skinListGroup.add(sTxt);
+
+            skinItems.push({
+                bg: itemBg,
+                text: sTxt,
+                skinId: skin.skinId,
+                y: sY,
+                height: boxHeight
+            });
+            
+            if (skin.skinId == originalSkin) skinSelectedIndex = i;
+            sY += boxHeight + 8;
+        }
+        skinMaxScroll = Math.max(0, sY - (screenH - 160));
+
+        var infoX = listW + 20;
+        var infoW = screenW - listW - 60;
+        
+        var panelBg = new FlxSprite(infoX, 0).makeGraphic(Std.int(infoW), Std.int(screenH - 200), 0xFF222222);
+        panelBg.alpha = 0.8;
+        skinDescGroup.add(panelBg);
+
+        skinInfoTitle = new FlxText(infoX + 20, 20, infoW - 40, "Skin Name", 48);
+        skinInfoTitle.setFormat(menuFont, 48, FlxColor.YELLOW, "center", FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+        skinDescGroup.add(skinInfoTitle);
+        
+        skinInfoAuthor = new FlxText(infoX + 20, 80, infoW - 40, "By: Author", 28);
+        skinInfoAuthor.setFormat(menuFont, 28, FlxColor.CYAN, "center");
+        skinDescGroup.add(skinInfoAuthor);
+        
+        skinInfoDesc = new FlxText(infoX + 20, 140, infoW - 40, "Description...", 24);
+        skinInfoDesc.setFormat(menuFont, 24, FlxColor.WHITE, "left");
+        skinDescGroup.add(skinInfoDesc);
+
+        changeSkinSelection(0);
+
+        if (FlxG.onMobile) {
+            skinBtnGroup = new FlxSpriteGroup(0, 0);
+            skinBtnGroup.cameras = [optionCam];
+            add(skinBtnGroup);
+
+            btnBackBg = new FlxSprite(screenW - 200, screenH - 100).makeGraphic(180, 80, 0xFFFF0000);
+            btnBackBg.alpha = 0.5;
+            btnBackBg.scrollFactor.set(0, 0);
+            skinBtnGroup.add(btnBackBg);
+
+            btnBack = new FlxText(btnBackBg.x, btnBackBg.y + 20, 180, "BACK", 40);
+            btnBack.setFormat(menuFont, 40, 0xFFFFFFFF, "center");
+            btnBack.scrollFactor.set(0, 0);
+            skinBtnGroup.add(btnBack);
+            
+            var listW = screenW * 0.45;
+            
+            btnUpBg = new FlxSprite(listW + 20, screenH - 100).makeGraphic(120, 80, 0xFF808080);
+            btnUpBg.alpha = 0.5;
+            btnUpBg.scrollFactor.set(0, 0);
+            skinBtnGroup.add(btnUpBg);
+
+            btnUp = new FlxText(btnUpBg.x, btnUpBg.y + 10, 120, "/\\", 60);
+            btnUp.setFormat(menuFont, 60, 0xFFFFFF00, "center", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+            btnUp.scrollFactor.set(0, 0);
+            skinBtnGroup.add(btnUp);
+
+            btnDownBg = new FlxSprite(listW + 160, screenH - 100).makeGraphic(120, 80, 0xFF808080);
+            btnDownBg.alpha = 0.5;
+            btnDownBg.scrollFactor.set(0, 0);
+            skinBtnGroup.add(btnDownBg);
+
+            btnDown = new FlxText(btnDownBg.x, btnDownBg.y + 10, 120, "\\/", 60);
+            btnDown.setFormat(menuFont, 60, 0xFFFFFF00, "center", FlxTextBorderStyle.OUTLINE, 0xFF000000);
+            btnDown.scrollFactor.set(0, 0);
+            skinBtnGroup.add(btnDown);
+        }
+    }
+
+    /**
+     * Executes the moveGroup logic.
+     * @param group Value for group.
+     * @param targetX Value for targetX.
+     * @param elapsed Value for elapsed.
+     * @param speed Value for speed.
+     */
+    function moveGroup(group:FlxSpriteGroup, targetX:Float, elapsed:Float, speed:Float) {
+        if (group == null) return;
+        if (Math.abs(group.x - targetX) < 0.1) {
+            group.x = targetX;
+            return;
+        }
+        var newX = FlxMath.lerp(group.x, targetX, (lowDetailMenu ? 1.0 : elapsed * speed));
+        group.x = newX;
+    }
+
+    /**
+     * Executes the selectCurrentSkin logic.
+     */
+    function selectCurrentSkin() {
+        if (skinItems.length == 0) {
+            closeSkinSelector();
+            return;
+        }
+        var selItem = skinItems[skinSelectedIndex];
+        if (selItem != null) {
+            var selId = selItem.skinId;
+            Save.instance.modOptions.set(currentSkinSaveKey, selId);
+            Save.instance.flush();
+            
+            if (parent != null && parent.reloadSkinPreview != null) {
+                parent.reloadSkinPreview(selId);
+            } else {
+                var manager:Dynamic = KassetteSkinManager.instance;
+                if (manager == null) manager = ModuleHandler.getModule("KassetteSkinManager");
+                if (manager != null) manager.activateSkin(selId);
+                if (parent != null) {
+                    for (p in parent.previewModules) {
+                        if (p != null) p.destroy();
+                    }
+                    parent.cachePreviewModules();
+                    parent.initPreviews();
+                    parent.updatePreviews();
+                    
+                    if (parent.optionItems != null) {
+                        for (it in parent.optionItems) {
+                            if (it != null) it.lockedState = null;
+                        }
+                    }
+                }
+            }
+
+            if (currentSkinTextRef != null && parent != null) {
+                currentSkinTextRef.text = parent.formatShortValue(selId);
+                var tColor = parent.getValueColor(currentSkinTextRef.text);
+                if (currentSkinTextRef.color != tColor) currentSkinTextRef.color = tColor;
+            }
+            if (sndOn != null) FlxG.sound.play(sndOn, 0.6);
+            HapticUtil.vibrate(0, 0.01, 0.3, 0.1);
+        }
+        closeSkinSelector();
+    }
+
+    /**
+     * Executes the applySkinItemState logic.
+     * @param idx Value for idx.
+     */
+    function applySkinItemState(idx:Int):Void {
+        if (idx < 0 || idx >= skinItems.length) return;
+        var item = skinItems[idx];
+        var targetAlpha = (idx == skinSelectedIndex) ? 0.3 : 0.0;
+        if (item.bg != null && item.bg.alpha != targetAlpha) item.bg.alpha = targetAlpha;
+        if (item.text != null) {
+            var targetColor = (idx == skinSelectedIndex) ? FlxColor.YELLOW : FlxColor.WHITE;
+            if (item.text.color != targetColor) item.text.color = targetColor;
+        }
+    }
+
+    /**
+     * Executes the changeSkinSelection logic.
+     * @param change Value for change.
+     */
+    function changeSkinSelection(change:Int = 0) {
+        var prevIndex = skinSelectedIndex;
+        skinSelectedIndex += change;
+        if (skinSelectedIndex < 0) skinSelectedIndex = skinItems.length - 1;
+        if (skinSelectedIndex >= skinItems.length) skinSelectedIndex = 0;
+
+        if (change == 0 || skinLastSelectedIndex < 0) {
+            for (i in 0...skinItems.length) {
+                applySkinItemState(i);
+            }
+        } else {
+            applySkinItemState(prevIndex);
+            applySkinItemState(skinSelectedIndex);
+        }
+        skinLastSelectedIndex = skinSelectedIndex;
+
+        if (change != 0) {
+            if (sndScroll != null) FlxG.sound.play(sndScroll, 0.5);
+            HapticUtil.vibrate(0, 0.01, 0.15, 0.1);
+        }
+
+        if (skinItems.length > 0) {
+            var targetY = skinItems[skinSelectedIndex].y - halfScreenH + 80;
+            skinTargetScrollY = Math.max(0, Math.min(skinMaxScroll, targetY));
+            
+            var selId = skinItems[skinSelectedIndex].skinId;
+            var skinMod:Dynamic = KassetteSkinManager.instance;
+            if (skinMod == null) skinMod = ModuleHandler.getModule("KassetteSkinManager");
+            var skins = skinMod != null ? skinMod.skinList : [];
+            var skinData = null;
+            for (s in skins) {
+                if (s.skinId == selId) {
+                    skinData = s;
+                    break;
+                }
+            }
+            
+            if (skinData != null) {
+                if (skinInfoTitle != null) skinInfoTitle.text = skinData.skinName;
+                if (skinInfoAuthor != null) skinInfoAuthor.text = "By: " + skinData.author;
+                if (skinInfoDesc != null) skinInfoDesc.text = skinData.description;
+            }
+        }
+    }
+
+    /**
+     * Executes the handleSkinInput logic.
+     * @param elapsed Value for elapsed.
+     */
+    function handleSkinInput(elapsed:Float) {
+        var swipeU = SwipeUtil.swipeUp;
+        var swipeD = SwipeUtil.swipeDown;
+        var swipeL = SwipeUtil.swipeLeft;
+        var swipeR = SwipeUtil.swipeRight;
+        
+        var tJustPressed = false;
+        if (FlxG.onMobile) tJustPressed = TouchUtil.justPressed;
+        else if (FlxG.mouse != null) tJustPressed = FlxG.mouse.justPressed;
+
+        if (tJustPressed) {
+            var inputHandled = false;
+            
+            var overlapUp = FlxG.onMobile ? TouchUtil.overlaps(btnUpBg, optionCam) : (FlxG.mouse != null && FlxG.mouse.overlaps(btnUpBg, optionCam));
+            var overlapDown = FlxG.onMobile ? TouchUtil.overlaps(btnDownBg, optionCam) : (FlxG.mouse != null && FlxG.mouse.overlaps(btnDownBg, optionCam));
+            var overlapBack = FlxG.onMobile ? TouchUtil.overlaps(btnBackBg, optionCam) : (FlxG.mouse != null && FlxG.mouse.overlaps(btnBackBg, optionCam));
+            
+            if (btnUpBg != null && overlapUp) {
+                changeSkinSelection(-1); holdTimer = 0.5;
+                inputHandled = true;
+            } else if (btnDownBg != null && overlapDown) {
+                changeSkinSelection(1); holdTimer = 0.5;
+                inputHandled = true;
+            } else if (btnBackBg != null && overlapBack) {
+                closeSkinSelector();
+                inputHandled = true;
+            } else {
+                for (i in 0...skinItems.length) {
+                    var item = skinItems[i];
+                    if (item == null || item.bg == null) continue;
+                    
+                    var itemOverlap = FlxG.onMobile ? TouchUtil.overlaps(item.bg, optionCam) : (FlxG.mouse != null && FlxG.mouse.overlaps(item.bg, optionCam));
+                    if (itemOverlap) {
+                        if (skinSelectedIndex == i) {
+                            selectCurrentSkin();
+                        } else {
+                            changeSkinSelection(i - skinSelectedIndex);
+                        }
+                        inputHandled = true;
+                        break;
+                    }
+                }
+            }
+            if (inputHandled) return;
+        }
+
+        if (controls.UI_UP_P || swipeD) { changeSkinSelection(-1); holdTimer = 0.5; }
+        if (controls.UI_DOWN_P || swipeU) { changeSkinSelection(1); holdTimer = 0.5; }
+        if (FlxG.mouse != null && FlxG.mouse.wheel != 0) changeSkinSelection(-Std.int(FlxG.mouse.wheel));
+        
+        if (controls.UI_UP || controls.UI_DOWN) {
+            holdTimer -= elapsed;
+            if (holdTimer <= 0) {
+                changeSkinSelection(controls.UI_UP ? -1 : 1);
+                holdTimer = 0.05;
+            }
+        }
+
+        if (controls.ACCEPT_P) {
+            selectCurrentSkin();
+        }
+        
+        if (FlxG.keys.justPressed.ESCAPE || swipeR || swipeL || controls.BACK) {
+            closeSkinSelector();
+        }
+    }
+
+    /**
+     * Executes the closeSkinSelector logic.
+     */
+    function closeSkinSelector() {
+        isClosing = true;
+    }
+
+    /**
+     * Executes the update logic.
+     * @param elapsed Value for elapsed.
+     */
+    override public function update(elapsed:Float):Void {
+        super.update(elapsed);
+        
+        var sw = screenW;
+        var sh = screenH;
+        
+        this.panelOnLeft = false;
+        if (parent != null) {
+            this.panelWidth = parent.panelWidth;
+        }
+        
+        var targetX = 0.0;
+        if (isClosing) {
+            targetX = screenW;
+            moveGroup(skinBgGroup, targetX, elapsed, 12);
+            moveGroup(skinListGroup, targetX, elapsed, 12);
+            moveGroup(skinDescGroup, targetX, elapsed, 12);
+            if (skinBtnGroup != null) moveGroup(skinBtnGroup, targetX, elapsed, 12);
+            
+            if (Math.abs(skinBgGroup.x - targetX) < 1) {
+                close();
+            }
+            return;
+        }
+        
+        moveGroup(skinBgGroup, targetX, elapsed, 12);
+        moveGroup(skinDescGroup, targetX, elapsed, 12);
+        if (skinBtnGroup != null) moveGroup(skinBtnGroup, targetX, elapsed, 12);
+
+        if (skinListGroup != null) {
+            moveGroup(skinListGroup, targetX, elapsed, 12);
+            var newY = skinListGroup.y + (80 - skinTargetScrollY - skinListGroup.y) * elapsed * 8;
+            skinListGroup.y = newY;
+            
+            for (item in skinItems) {
+                if (item.y + skinListGroup.y > screenH || item.y + item.height + skinListGroup.y < 0) {
+                    item.bg.visible = false;
+                    item.text.visible = false;
+                } else {
+                    item.bg.visible = true;
+                    item.text.visible = true;
+                }
+            }
+        }
+        if (holdTimer > 0) holdTimer -= elapsed;
+        if (holdTimer <= 0) handleSkinInput(elapsed); 
+    }
+}

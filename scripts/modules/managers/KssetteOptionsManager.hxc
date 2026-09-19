@@ -1,0 +1,423 @@
+package kassettehud.util;
+
+import kassettehud.util.KassetteHUDElement;
+
+import funkin.modding.module.Module;
+import funkin.save.Save;
+import funkin.ui.options.OptionsState;
+import funkin.modding.events.StateChangeScriptEvent;
+import funkin.ui.ScriptedMusicBeatState;
+import flixel.FlxG;
+import flixel.util.FlxColor;
+import Std;
+import funkin.Assets;
+import funkin.Paths;
+import funkin.util.SerializerUtil;
+import funkin.Preferences;
+
+class KssetteOptionsManager extends Module {
+    public static var instance:Dynamic = null;
+    public var _kssCache:Map<String, Dynamic> = null;
+    public var _definitionsCache:Map<String, Dynamic> = null;
+
+    public var forcedValues:Map<String, Dynamic>;
+    public var songLockedOptions:Array<String> = [];
+    public var _kssCacheReady:Bool = false;
+    public var _mobileLikePc:Bool = true;
+    public var isMobileMode:Bool = false;
+
+
+    public var optionsData:Dynamic = null;
+    public var optionKeys:Array<String> = [];
+
+    /**
+     * Constructor for the component.
+     */
+    public function new() {
+        super("KssetteOptionsManager");
+        KssetteOptionsManager.instance = this;
+        this.active = true;
+        isMobileMode = FlxG.onMobile;
+        forcedValues = ["__dummy__" => null];
+        forcedValues.remove("__dummy__");
+        loadOptionsJSON();
+        initSettings();
+    }
+
+    /**
+     * Locates and parses the `kssette_options.json` schema from the mod's asset paths.
+     * Populates the internal category definitions and extracts all valid option keys.
+     */
+    function loadOptionsJSON() {
+        var rawJson:String = null;
+
+        var pathsToTry = [
+            Paths.json("kssette_options"),
+            Paths.file("data/kssette_options.json")
+        ];
+
+        for (path in pathsToTry) {
+            if (path == null) continue;
+            
+            if (Assets.exists(path)) {
+                rawJson = Assets.getText(path);
+                if (rawJson != null && rawJson.length > 0) break;
+            }
+        }
+
+        if (rawJson == null) {
+            trace("[KssetteOptionsManager] Could not find kssette_options.json anywhere in Assets cache.");
+            optionsData = null;
+            optionKeys = [];
+            return;
+        }
+
+        optionsData = SerializerUtil.fromJSON(rawJson);
+        
+        optionKeys = [];
+        _definitionsCache = ["__dummy__" => null];
+        _definitionsCache.remove("__dummy__");
+        
+        if (optionsData != null && optionsData.categories != null) {
+            for (cat in optionsData.categories) {
+                if (cat.options != null) {
+                    for (opt in cat.options) {
+                        if (opt.id != null) {
+                            optionKeys.push(opt.id);
+                            _definitionsCache.set(opt.id, opt);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /**
+     * Validates that every option key defined in the JSON schema exists in the user's save file.
+     * If a key is missing (e.g. first boot or after an update), it assigns the default value.
+     */
+    public function initSettings() {
+        var changed:Bool = false;
+
+        for (key in optionKeys) {
+            if (!Save.instance.modOptions.exists(key)) {
+                var defaultVal:Dynamic = "Off";
+                var opt = getOptionDefinition(key);
+
+                if (opt != null) {
+                    var parsedDef = opt?.defaultValue;
+                    if (parsedDef != null) {
+                        defaultVal = parsedDef;
+                    } else {
+                        var opts = opt?.options;
+                        if (opts != null && opts.length > 0) {
+                            defaultVal = opts[0];
+                        }
+                    }
+                }
+
+                if (key == "kssette_ghost_tapping" && FlxG.onMobile) {
+                    defaultVal = "Off";
+                }
+
+                Save.instance.modOptions.set(key, defaultVal);
+                changed = true;
+            }
+        }
+        if (changed) Save.instance.flush();
+    }
+
+    /**
+     * Flushes the live RAM cache and re-populates it with the latest values from the save file.
+     * Triggers mobile layout normalizations and locked-option enforcement rules.
+     */
+    public function refreshOptionCache():Void {
+        _kssCache = ["__dummy__" => null];
+        _kssCache.remove("__dummy__");
+
+        _mobileLikePc = true;
+        if (FlxG.onMobile) {
+            var mobileVal:Dynamic = Save.instance.modOptions.get("kssette_mobile_keyboard");
+            _mobileLikePc = (mobileVal == "On" || mobileVal == true);
+            
+            if (Save.instance.mobileOptions != null && Save.instance.mobileOptions.controlsScheme != "Arrows") {
+                _mobileLikePc = true;
+            }
+        }
+
+        for (key in optionKeys) {
+            var kssVal = normalizeKssValue(key, Save.instance.modOptions.get(key));
+            if (isOptionLocked(key)) {
+                var opt = getOptionDefinition(key);
+                if (opt != null && opt.defaultValue != null) {
+                    kssVal = opt.defaultValue;
+                } else {
+                    kssVal = false;
+                }
+            }
+            _kssCache.set(key, kssVal);
+        }
+
+        _kssCacheReady = true;
+    }
+
+    /**
+     * Normalizes raw save data strings into usable typed values (booleans/strings).
+     * Automatically intercepts and overrides layout configurations when playing on mobile 
+     * without external keyboard support to prevent broken screen states.
+     * 
+     * @param key The option ID string.
+     * @param val The raw dynamic value read from Save.
+     * @return The cleaned, strictly-typed value.
+     */
+    public function normalizeKssValue(key:String, val:Dynamic):Dynamic {
+        if (FlxG.onMobile && !_mobileLikePc) {
+            if (key == "kssette_middlescroll") return "Off";
+            if (key == "kssette_opponent_pos") return "Left";
+            if (key == "kssette_opponent_bg") return "Off";
+            if (key == "kssette_hide_opponent") return "Off";
+        }
+
+        if (key == "kssette_intro_text") {
+            if (val == true) return "Classic";
+            if (val == false) return "Off";
+            var valStr = Std.string(val);
+            if (valStr == "On" || valStr == "on" || valStr == "true") return "Classic";
+            if (valStr == "Off" || valStr == "off" || valStr == "false") return "Off";
+            return val;
+        }
+
+        if (key == "kssette_hitsound") {
+            if (val == true) return "On Note Hit";
+            if (val == false) return "Off";
+            var valStr = Std.string(val);
+            if (valStr == "On" || valStr == "on" || valStr == "true") return "On Note Hit";
+            if (valStr == "Off" || valStr == "off" || valStr == "false") return "Off";
+            return val;
+        }
+
+        if (val == true) return true;
+        if (val == false) return false;
+        var valStr = Std.string(val);
+        if (valStr == "On" || valStr == "on" || valStr == "true") return true;
+        if (valStr == "Off" || valStr == "off" || valStr == "false") return false;
+        return val;
+    }
+
+    /**
+     * Invalidates the high-speed RAM cache, forcing the manager to re-read and 
+     * normalize all save data the next time an option is queried.
+     */
+    public function invalidateCache():Void {
+        refreshOptionCache();
+    }
+
+    /**
+     * Looks up the full structural definition of a registered option by its unique identifier.
+     * Useful for extracting default values, display types, and value limits.
+     * 
+     * @param id The option's unique ID.
+     * @return The option definition object, or null if not found.
+     */
+    public function getOptionDefinition(key:String):Dynamic {
+        if (_definitionsCache != null && _definitionsCache.exists(key)) return _definitionsCache.get(key);
+        return null;
+    }
+
+    /**
+     * Evaluates a single string logic condition (e.g. `downscroll == true`).
+     * Supports checking live engine state (downscroll) or other saved HUD preferences.
+     * 
+     * @param cond The condition string to parse and execute.
+     * @return True if the condition is met, false otherwise.
+     */
+    public function evaluateCondition(cond:String):Bool {
+        if (cond == null) return false;
+        var parts = cond.split(" ");
+        if (parts.length >= 3) {
+            var condKey = parts[0];
+            var operator = parts[1];
+            var targetValue = parts.slice(2).join(" ");
+            
+            var actualValue = "";
+            if (condKey == "downscroll") {
+                var isDown = Preferences.downscroll;
+                if (isForcedDownscroll()) isDown = true;
+                actualValue = Std.string(isDown);
+            } else {
+                actualValue = Std.string(Save.instance.modOptions.get(condKey));
+            }
+            
+            if (operator == "==" && actualValue == targetValue) return true;
+            if (operator == "!=" && actualValue != targetValue) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Iterates over a list of string conditions and evaluates them against the active state.
+     * Used heavily by the option locking system in the JSON schema.
+     * 
+     * @param conditions Array of condition strings.
+     * @param requireAll If true, behaves as logical AND. If false, behaves as logical OR.
+     * @return The final boolean result of the evaluation.
+     */
+    public function evaluateConditionList(conditions:Array<String>, requireAll:Bool = true):Bool {
+        if (conditions == null || conditions.length == 0) return true;
+        for (cond in conditions) {
+            var res = evaluateCondition(cond);
+            if (requireAll && !res) return false;
+            if (!requireAll && res) return true;
+        }
+        return requireAll;
+    }
+
+    /**
+     * Checks if a specific option is currently locked (grayed out and forced to default).
+     * Options can be locked by a specific chart script, the active HUD Skin, or 
+     * JSON schema condition logic.
+     * 
+     * @param key The option ID to check.
+     * @return True if the option is locked, false if it can be modified.
+     */
+    public function isOptionLocked(key:String):Bool {
+        if (songLockedOptions.contains(key)) return true;
+
+        var skinManager = KassetteSkinManager.instance;
+        if (skinManager != null) {
+            var currentSkin = skinManager.getCurrentSkin();
+            if (currentSkin != null && currentSkin.disabledOptions != null) {
+                if (currentSkin.disabledOptions.contains(key)) return true;
+            }
+        }
+
+        var opt = getOptionDefinition(key);
+        if (opt == null || opt.locked == null) return false;
+        
+        // Locked evaluates to TRUE if ANY condition matches (OR logic)
+        return evaluateConditionList(opt.locked, false);
+    }
+
+    /**
+     * Retrieves the current user-selected value for an option.
+     * Attempts to read from local save data first, falling back to the option's definition default.
+     * 
+     * @param id The option's unique ID.
+     * @return The currently saved or default value.
+     */
+    public function getKssValue(key:String):Dynamic { 
+        if (forcedValues.exists(key)) return forcedValues.get(key);
+        if (!_kssCacheReady) refreshOptionCache();
+        if (_kssCache != null && _kssCache.exists(key)) return _kssCache.get(key);
+        return normalizeKssValue(key, Save.instance.modOptions.get(key));
+    }
+
+    /**
+     * Determines if the mobile client should be treated as a PC layout.
+     * Returns true if on PC, or if mobile has external keyboard layout toggled.
+     * 
+     * @return True if treating the environment as a PC.
+     */
+    public function isMobileLikePC():Bool {
+        if (!FlxG.onMobile) return true;
+        if (!_kssCacheReady) refreshOptionCache();
+        return _mobileLikePc;
+    }
+
+    /**
+     * Checks if downscroll must be forced on due to mobile screen real-estate constraints.
+     * 
+     * @return True if forced downscroll is active.
+     */
+    public function isForcedDownscroll():Bool {
+        return isMobileMode && !_mobileLikePc;
+    }
+
+    /**
+     * Helper to quickly check if the global V-Slice downscroll option is active.
+     * 
+     * @return True if downscroll is enabled in user settings.
+     */
+    public function getDownscroll():Bool {
+        var forced:Bool = isForcedDownscroll();
+        return Preferences.downscroll || forced;
+    }
+
+
+    /**
+     * Resolves the current HUD style ID configured by the user (e.g. Vanilla, Kss-Style).
+     * 
+     * @return The string identifier of the active HUD style.
+     */
+    public function getHudStyleId():String {
+        return getKssValue("kssette_acc_mode");
+    }
+
+    /**
+     * Clears any temporary option overrides applied by chart scripts (like Gammod).
+     * Ensures options return to user preferences after exiting a specific song.
+     */
+    public function clearSongOverrides():Void {
+        var keys = forcedValues.keys();
+        for (k in keys) forcedValues.remove(k);
+        songLockedOptions = [];
+    }
+
+    /**
+     * Hook triggered when state changes.
+     * If entering the OptionsState, it injects the Kassette HUD custom category 
+     * into the main menu so users can access the configuration substate.
+     * 
+     * @param event The script event data.
+     */
+    override public function onStateChangeEnd(event:StateChangeScriptEvent):Void {
+        super.onStateChangeEnd(event);
+        var target = event.targetState;
+        
+        refreshOptionCache();
+
+        if (target != null && Std.isOfType(target, OptionsState)) {
+            addSettingsCategory(target);
+        }
+    }
+
+    /**
+     * Modifies the Funkin OptionsState menu list to insert the Kassette HUD category.
+     * Positioned immediately after the "PREFERENCES" menu item.
+     * 
+     * @param state The active OptionsState instance.
+     */
+    public function addSettingsCategory(state:OptionsState) {
+        var codex = state.optionsCodex;
+        var mainPage = codex.pages.get('options');
+        if (mainPage == null) return;
+
+        var label = isMobileMode ? "KASSETTE HUD MOBILE" : "KASSETTE HUD";
+        
+        var i:Int = mainPage.items.members.length - 1;
+        while (i >= 0) {
+            var item = mainPage.items.members[i];
+            if (item != null && (item.label == "KASSETTE HUD" || item.label == "KASSETTE HUD MOBILE")) {
+                mainPage.items.remove(item, true); 
+                item.destroy();
+            }
+            i--;
+        }
+
+        var item = mainPage.createItem(label, function() { 
+            FlxG.camera.fade(FlxColor.BLACK, 0.4, false, function() {
+                FlxG.switchState(ScriptedMusicBeatState.init("KssetteOptionsState"));
+            });
+        });
+        
+        var pref = mainPage.items.getItem("PREFERENCES");
+        if (pref != null) {
+            mainPage.items.members.remove(item);
+            mainPage.items.members.insert(mainPage.items.members.indexOf(pref) + 1, item);
+        }
+        
+        for (i in 0...mainPage.items.length) { 
+            if (mainPage.items.members[i] != null) mainPage.items.members[i].y = 100 * (i + 1); 
+        }
+    }
+}
